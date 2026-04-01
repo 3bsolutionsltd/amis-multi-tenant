@@ -1,0 +1,7 @@
+You are implementing AMIS rebuild. Read:
+- .copilot-context/00-STATUS.md
+- .copilot-context/01-ARCHITECTURE.md
+- .copilot-context/03-COPILOT-INSTRUCTIONS.md
+Then execute prompts in .copilot-context/04-EXECUTION-PROMPTS.md in order.
+Do not introduce new frameworks. Enforce Postgres RLS and tenant context (SET LOCAL app.tenant_id).
+Pilot modules: Students, Admissions, Marks, Fees.
