@@ -1,0 +1,43 @@
+import { createBrowserRouter } from "react-router-dom";
+import { AppShell } from "./app/AppShell";
+import { StudentsListPage } from "./modules/students/StudentsListPage";
+import { StudentCreatePage } from "./modules/students/StudentCreatePage";
+import { StudentDetailPage } from "./modules/students/StudentDetailPage";
+import { AdminStudioLayout } from "./admin-studio/AdminStudioLayout";
+import { ConfigDashboard } from "./admin-studio/ConfigDashboard";
+import { ConfigEditor } from "./admin-studio/ConfigEditor";
+import { WorkflowViewer } from "./admin-studio/WorkflowViewer";
+import { NavigationEditor } from "./admin-studio/NavigationEditor";
+
+export const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <AppShell />,
+    children: [
+      {
+        index: true,
+        element: (
+          <div>
+            <h2 style={{ marginTop: 0 }}>Welcome to AMIS</h2>
+            <p style={{ color: "#6b7280" }}>
+              Select a module from the sidebar to get started.
+            </p>
+          </div>
+        ),
+      },
+      { path: "students", element: <StudentsListPage /> },
+      { path: "students/new", element: <StudentCreatePage /> },
+      { path: "students/:id", element: <StudentDetailPage /> },
+    ],
+  },
+  {
+    path: "/admin-studio",
+    element: <AdminStudioLayout />,
+    children: [
+      { index: true, element: <ConfigDashboard /> },
+      { path: "editor", element: <ConfigEditor /> },
+      { path: "workflows", element: <WorkflowViewer /> },
+      { path: "navigation", element: <NavigationEditor /> },
+    ],
+  },
+]);
