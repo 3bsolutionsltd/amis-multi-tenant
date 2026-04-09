@@ -14,7 +14,7 @@
 - [x] Prompt 17 — POST /auth/login (JWT) + GET /auth/me ✅ (180/180 tests)
 - [x] Prompt 18 — requireAuth JWT middleware + dual-mode identity ✅ (195/195 tests)
 - [x] Prompt 19 — User management API (tenant admin) ✅ (226/226 tests)
-- [ ] Prompt 20 — Login page + auth flow (web)
+- [x] Prompt 20 — Login page + auth flow (web) ✅ (226/226 tests — web only, no new API tests)
 
 ### Track B — Deployment
 
