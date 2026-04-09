@@ -14,7 +14,7 @@ import type { FastifyInstance } from "fastify";
 import { createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import { pool } from "../../db/pool.js";
-import { hashPassword, verifyPassword } from "../../lib/password.js";
+import { hashPasswordAsync, verifyPasswordAsync } from "../../lib/password.js";
 import { signToken, verifyToken } from "../../lib/jwt.js";
 import { isValidPassword } from "../../lib/passwordValidator.js";
 
@@ -131,7 +131,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     // Constant-time path: verify password even on not-found to prevent timing attacks
     const passwordOk = user
-      ? verifyPassword(password, user.password_hash)
+      ? await verifyPasswordAsync(password, user.password_hash)
       : false;
 
     if (!user || !passwordOk) {
@@ -379,7 +379,7 @@ export async function authRoutes(app: FastifyInstance) {
     }
 
     const { id: tokenId, user_id: userId } = tokenRows[0];
-    const newHash = hashPassword(newPassword);
+    const newHash = await hashPasswordAsync(newPassword);
 
     await pool.query(
       `UPDATE platform.users SET password_hash = $1 WHERE id = $2`,
@@ -421,7 +421,7 @@ export async function authRoutes(app: FastifyInstance) {
         .send({ message: "Current password is incorrect" });
     }
 
-    if (!verifyPassword(currentPassword, rows[0].password_hash)) {
+    if (!(await verifyPasswordAsync(currentPassword, rows[0].password_hash))) {
       return reply
         .status(401)
         .send({ message: "Current password is incorrect" });
@@ -433,7 +433,7 @@ export async function authRoutes(app: FastifyInstance) {
         .send({ message: "Password does not meet requirements" });
     }
 
-    const newHash = hashPassword(newPassword);
+    const newHash = await hashPasswordAsync(newPassword);
     await pool.query(
       `UPDATE platform.users SET password_hash = $1 WHERE id = $2`,
       [newHash, userId],

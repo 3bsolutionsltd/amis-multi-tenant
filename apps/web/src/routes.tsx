@@ -38,6 +38,33 @@ export const router = createBrowserRouter([
       { path: "students", element: <StudentsListPage /> },
       { path: "students/new", element: <StudentCreatePage /> },
       { path: "students/:id", element: <StudentDetailPage /> },
+      {
+        path: "admissions",
+        element: (
+          <div>
+            <h2 style={{ marginTop: 0 }}>Admissions</h2>
+            <p style={{ color: "#6b7280" }}>Coming soon — Track C.</p>
+          </div>
+        ),
+      },
+      {
+        path: "finance",
+        element: (
+          <div>
+            <h2 style={{ marginTop: 0 }}>Finance</h2>
+            <p style={{ color: "#6b7280" }}>Coming soon — Track C.</p>
+          </div>
+        ),
+      },
+      {
+        path: "marks",
+        element: (
+          <div>
+            <h2 style={{ marginTop: 0 }}>Marks</h2>
+            <p style={{ color: "#6b7280" }}>Coming soon — Track C.</p>
+          </div>
+        ),
+      },
     ],
   },
   {
