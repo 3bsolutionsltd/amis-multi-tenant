@@ -2,30 +2,27 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { listUsers, updateUser, VALID_ROLES, type User } from "./users.api";
-import { useConfig } from "../../app/ConfigProvider";
-
-function ActiveBadge({ active }: { active: boolean }) {
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "2px 10px",
-        borderRadius: 12,
-        fontSize: 12,
-        fontWeight: 600,
-        color: "#fff",
-        backgroundColor: active ? "#16a34a" : "#6b7280",
-      }}
-    >
-      {active ? "Active" : "Inactive"}
-    </span>
-  );
-}
+import {
+  ensureGlobalCss,
+  PageHeader,
+  FilterBar,
+  DataTable,
+  TR,
+  TD,
+  Badge,
+  PrimaryBtn,
+  SecondaryBtn,
+  DangerBtn,
+  SuccessBtn,
+  Modal,
+  Field,
+  selectCss,
+  ErrorBanner,
+} from "../../lib/ui";
 
 export function UsersListPage() {
+  ensureGlobalCss();
   const navigate = useNavigate();
-  const { config } = useConfig();
-  const primary = config?.branding?.primaryColor ?? "#2563EB";
   const qc = useQueryClient();
 
   const [roleFilter, setRoleFilter] = useState("");
@@ -74,44 +71,26 @@ export function UsersListPage() {
     updateMut.mutate({ id: user.id, body: { isActive: !user.is_active } });
   }
 
+  const isEmpty = !isLoading && !error && (data?.length ?? 0) === 0;
+
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 20,
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Users</h2>
-        <button
-          onClick={() => navigate("/users/new")}
-          style={{
-            backgroundColor: primary,
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            padding: "8px 16px",
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
-        >
-          + New User
-        </button>
-      </div>
+      <PageHeader
+        title="Users"
+        action={
+          <PrimaryBtn onClick={() => navigate("/users/new")}>
+            + New User
+          </PrimaryBtn>
+        }
+      />
 
-      {/* Role filter */}
-      <div style={{ marginBottom: 20 }}>
+      {error && <ErrorBanner message="Failed to load users." />}
+
+      <FilterBar>
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          style={{
-            padding: "7px 12px",
-            border: "1px solid #d1d5db",
-            borderRadius: 6,
-            fontSize: 14,
-          }}
+          style={selectCss}
         >
           <option value="">All Roles</option>
           {VALID_ROLES.map((r) => (
@@ -120,130 +99,75 @@ export function UsersListPage() {
             </option>
           ))}
         </select>
-      </div>
+      </FilterBar>
 
-      {isLoading && <p style={{ color: "#6b7280" }}>Loading…</p>}
-      {error && <p style={{ color: "#dc2626" }}>Failed to load users.</p>}
+      <DataTable
+        headers={["Email", "Role", "Status", "Created", "Actions"]}
+        isLoading={isLoading}
+        isEmpty={isEmpty}
+        emptyIcon="👥"
+        emptyTitle="No users found"
+        emptyDescription="Adjust the role filter or create a new user."
+        colCount={5}
+      >
+        {data?.map((user) => (
+          <TR key={user.id}>
+            <TD>
+              <span style={{ fontWeight: 600, color: "#111827" }}>
+                {user.email}
+              </span>
+            </TD>
+            <TD>
+              <Badge label={user.role} color="blue" />
+            </TD>
+            <TD>
+              <Badge
+                label={user.is_active ? "Active" : "Inactive"}
+                color={user.is_active ? "green" : "gray"}
+              />
+            </TD>
+            <TD muted>{new Date(user.created_at).toLocaleDateString()}</TD>
+            <TD>
+              <div style={{ display: "flex", gap: 8 }}>
+                <SecondaryBtn onClick={() => openEdit(user)}>
+                  Edit Role
+                </SecondaryBtn>
+                {user.is_active ? (
+                  <DangerBtn onClick={() => toggleActive(user)}>
+                    Deactivate
+                  </DangerBtn>
+                ) : (
+                  <SuccessBtn onClick={() => toggleActive(user)}>
+                    Activate
+                  </SuccessBtn>
+                )}
+              </div>
+            </TD>
+          </TR>
+        ))}
+      </DataTable>
 
-      {data && (
-        <div style={{ overflowX: "auto" }}>
-          <table
-            style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
-          >
-            <thead>
-              <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
-                {["Email", "Role", "Status", "Created", "Actions"].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      textAlign: "left",
-                      padding: "8px 12px",
-                      fontWeight: 600,
-                      color: "#374151",
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    style={{
-                      padding: "24px 12px",
-                      color: "#6b7280",
-                      textAlign: "center",
-                    }}
-                  >
-                    No users found.
-                  </td>
-                </tr>
-              )}
-              {data.map((user) => (
-                <tr key={user.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                  <td style={{ padding: "10px 12px" }}>{user.email}</td>
-                  <td style={{ padding: "10px 12px" }}>{user.role}</td>
-                  <td style={{ padding: "10px 12px" }}>
-                    <ActiveBadge active={user.is_active} />
-                  </td>
-                  <td style={{ padding: "10px 12px", color: "#6b7280" }}>
-                    {new Date(user.created_at).toLocaleDateString()}
-                  </td>
-                  <td style={{ padding: "10px 12px" }}>
-                    <button
-                      onClick={() => openEdit(user)}
-                      style={{
-                        marginRight: 8,
-                        padding: "4px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: 5,
-                        background: "none",
-                        cursor: "pointer",
-                        fontSize: 13,
-                      }}
-                    >
-                      Edit Role
-                    </button>
-                    <button
-                      onClick={() => toggleActive(user)}
-                      disabled={updateMut.isPending}
-                      style={{
-                        padding: "4px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: 5,
-                        background: "none",
-                        cursor: "pointer",
-                        fontSize: 13,
-                        color: user.is_active ? "#dc2626" : "#16a34a",
-                      }}
-                    >
-                      {user.is_active ? "Deactivate" : "Activate"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Edit role modal */}
       {editingUser && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0,0,0,0.4)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
+        <Modal
+          title={`Edit Role — ${editingUser.email}`}
+          onClose={() => setEditingUser(null)}
+          footer={
+            <>
+              <PrimaryBtn onClick={saveEdit} disabled={updateMut.isPending}>
+                {updateMut.isPending ? "Saving…" : "Save"}
+              </PrimaryBtn>
+              <SecondaryBtn onClick={() => setEditingUser(null)}>
+                Cancel
+              </SecondaryBtn>
+            </>
+          }
         >
-          <div
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: 10,
-              padding: 28,
-              minWidth: 340,
-              boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
-            }}
-          >
-            <h3 style={{ marginTop: 0 }}>Edit Role — {editingUser.email}</h3>
+          {editError && <ErrorBanner message={editError} />}
+          <Field label="Role">
             <select
               value={editRole}
               onChange={(e) => setEditRole(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                border: "1px solid #d1d5db",
-                borderRadius: 6,
-                fontSize: 14,
-                marginBottom: 16,
-              }}
+              style={selectCss}
             >
               {VALID_ROLES.map((r) => (
                 <option key={r} value={r}>
@@ -251,42 +175,8 @@ export function UsersListPage() {
                 </option>
               ))}
             </select>
-            {editError && (
-              <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 12 }}>
-                {editError}
-              </p>
-            )}
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={saveEdit}
-                disabled={updateMut.isPending}
-                style={{
-                  backgroundColor: primary,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "8px 16px",
-                  cursor: "pointer",
-                  fontWeight: 600,
-                }}
-              >
-                Save
-              </button>
-              <button
-                onClick={() => setEditingUser(null)}
-                style={{
-                  border: "1px solid #d1d5db",
-                  borderRadius: 6,
-                  padding: "8px 16px",
-                  cursor: "pointer",
-                  background: "none",
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+          </Field>
+        </Modal>
       )}
     </div>
   );

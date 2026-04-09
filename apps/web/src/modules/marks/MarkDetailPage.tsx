@@ -7,66 +7,38 @@ import {
   fireTransition,
   putEntries,
 } from "./marks.api";
-import { useConfig } from "../../app/ConfigProvider";
+import {
+  ensureGlobalCss,
+  Spinner,
+  PageHeader,
+  Card,
+  DataTable,
+  TR,
+  TD,
+  DetailRow,
+  Badge,
+  PrimaryBtn,
+  SecondaryBtn,
+  ErrorBanner,
+  EmptyState,
+  SectionLabel,
+} from "../../lib/ui";
 
-const STATE_COLORS: Record<string, string> = {
-  DRAFT: "#6b7280",
-  SUBMITTED: "#2563eb",
-  HOD_REVIEW: "#d97706",
-  APPROVED: "#16a34a",
-  PUBLISHED: "#0891b2",
+const STATE_BADGE_COLOR: Record<
+  string,
+  "gray" | "blue" | "yellow" | "green" | "cyan"
+> = {
+  DRAFT: "gray",
+  SUBMITTED: "blue",
+  HOD_REVIEW: "yellow",
+  APPROVED: "green",
+  PUBLISHED: "cyan",
 };
 
-function StateBadge({ state }: { state: string | null }) {
-  const color = state ? (STATE_COLORS[state] ?? "#6b7280") : "#6b7280";
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "4px 14px",
-        borderRadius: 12,
-        fontSize: 13,
-        fontWeight: 600,
-        color: "#fff",
-        backgroundColor: color,
-      }}
-    >
-      {state ?? "—"}
-    </span>
-  );
-}
-
-function Field({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null | undefined;
-}) {
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <div
-        style={{
-          fontSize: 12,
-          fontWeight: 600,
-          color: "#6b7280",
-          marginBottom: 2,
-        }}
-      >
-        {label}
-      </div>
-      <div style={{ fontSize: 15, color: value ? "#111827" : "#9ca3af" }}>
-        {value || "—"}
-      </div>
-    </div>
-  );
-}
-
 export function MarkDetailPage() {
+  ensureGlobalCss();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { config } = useConfig();
-  const primary = config?.branding?.primaryColor ?? "#2563EB";
   const qc = useQueryClient();
 
   const [transitionError, setTransitionError] = useState<string | null>(null);
@@ -116,18 +88,6 @@ export function MarkDetailPage() {
     },
   });
 
-  if (isLoading) return <p style={{ color: "#6b7280" }}>Loading…</p>;
-  if (!sub) return <p style={{ color: "#dc2626" }}>Submission not found.</p>;
-
-  const currentState = sub.current_state;
-  const isPublished = currentState === "PUBLISHED";
-
-  const availableActions = wfDef
-    ? wfDef.transitions
-        .filter((t) => t.from === currentState)
-        .map((t) => t.action)
-    : [];
-
   function handleSaveEntries() {
     setEntriesError(null);
     setEntriesSuccess(false);
@@ -140,142 +100,115 @@ export function MarkDetailPage() {
     }
   }
 
-  return (
-    <div style={{ maxWidth: 800 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 24,
-        }}
-      >
-        <button
-          onClick={() => navigate("/marks")}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "#6b7280",
-            fontSize: 14,
-          }}
-        >
-          ← Back
-        </button>
-        <h2 style={{ margin: 0 }}>
-          {sub.course_id} — {sub.term}
-        </h2>
-        <StateBadge state={currentState} />
+  if (isLoading) return <Spinner />;
+  if (!sub)
+    return (
+      <div>
+        <PageHeader title="Submission" back={{ label: "Marks", to: "/marks" }} />
+        <ErrorBanner message="Submission not found." />
       </div>
+    );
+
+  const currentState = sub.current_state;
+  const isPublished = currentState === "PUBLISHED";
+
+  const availableActions = wfDef
+    ? wfDef.transitions
+        .filter((t) => t.from === currentState)
+        .map((t) => t.action)
+    : [];
+
+  return (
+    <div>
+      <PageHeader
+        title={`${sub.course_id} — ${sub.term}`}
+        back={{ label: "Marks", to: "/marks" }}
+        action={
+          currentState ? (
+            <Badge
+              label={currentState}
+              color={STATE_BADGE_COLOR[currentState] ?? "gray"}
+            />
+          ) : undefined
+        }
+      />
 
       {/* Metadata */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: "0 24px",
-          backgroundColor: "#f9fafb",
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-          padding: 20,
-          marginBottom: 24,
-        }}
-      >
-        <Field label="Course" value={sub.course_id} />
-        <Field label="Programme" value={sub.programme} />
-        <Field label="Intake" value={sub.intake} />
-        <Field label="Term" value={sub.term} />
-        <Field
-          label="Created"
-          value={new Date(sub.created_at).toLocaleString()}
-        />
-        <Field
-          label="Correction Of"
-          value={sub.correction_of_submission_id ?? null}
-        />
-      </div>
-
-      {/* Entries table */}
-      <div style={{ marginBottom: 28 }}>
-        <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 15 }}>
-          Mark Entries ({sub.entries.length})
-        </h3>
-        {sub.entries.length > 0 ? (
-          <div style={{ overflowX: "auto" }}>
-            <table
+      <Card padding="0 24px" style={{ marginBottom: 20 }}>
+        <DetailRow label="Course">{sub.course_id}</DetailRow>
+        <DetailRow label="Programme">{sub.programme ?? "—"}</DetailRow>
+        <DetailRow label="Intake">{sub.intake ?? "—"}</DetailRow>
+        <DetailRow label="Term">{sub.term}</DetailRow>
+        <DetailRow label="Created">
+          {new Date(sub.created_at).toLocaleString()}
+        </DetailRow>
+        {sub.correction_of_submission_id && (
+          <DetailRow label="Correction of">
+            <span
               style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 14,
+                fontFamily: "monospace",
+                fontSize: 12,
+                color: "#6b7280",
               }}
             >
-              <thead>
-                <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
-                  {["Student ID", "Score", "Last Updated"].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        textAlign: "left",
-                        padding: "8px 12px",
-                        fontWeight: 600,
-                        color: "#374151",
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sub.entries.map((entry) => (
-                  <tr
-                    key={entry.student_id}
-                    style={{ borderBottom: "1px solid #f3f4f6" }}
-                  >
-                    <td
-                      style={{
-                        padding: "10px 12px",
-                        fontFamily: "monospace",
-                        fontSize: 12,
-                        color: "#6b7280",
-                      }}
-                    >
-                      {entry.student_id}
-                    </td>
-                    <td style={{ padding: "10px 12px", fontWeight: 600 }}>
-                      {entry.score}
-                    </td>
-                    <td style={{ padding: "10px 12px", color: "#6b7280" }}>
-                      {new Date(entry.updated_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p style={{ color: "#6b7280", fontSize: 14 }}>No entries yet.</p>
+              {sub.correction_of_submission_id}
+            </span>
+          </DetailRow>
         )}
-      </div>
+      </Card>
+
+      {/* Entries table */}
+      <Card style={{ marginBottom: 20 }}>
+        <div
+          style={{
+            padding: "16px 24px 12px",
+            borderBottom: "1px solid #f3f4f6",
+          }}
+        >
+          <SectionLabel>
+            Mark Entries ({sub.entries.length})
+          </SectionLabel>
+        </div>
+        <DataTable
+          headers={["Student ID", "Score", "Last Updated"]}
+          isLoading={false}
+          isEmpty={sub.entries.length === 0}
+          emptyIcon="📋"
+          emptyTitle="No entries yet"
+          emptyDescription="Paste a JSON array below to add entries."
+          colCount={3}
+        >
+          {sub.entries.map((entry) => (
+            <TR key={entry.student_id}>
+              <TD muted>
+                <span style={{ fontFamily: "monospace", fontSize: 12 }}>
+                  {entry.student_id}
+                </span>
+              </TD>
+              <TD>
+                <span style={{ fontWeight: 600 }}>{entry.score}</span>
+              </TD>
+              <TD muted>{new Date(entry.updated_at).toLocaleString()}</TD>
+            </TR>
+          ))}
+        </DataTable>
+      </Card>
 
       {/* Add / Update entries */}
       {!isPublished && (
-        <div
-          style={{
-            backgroundColor: "#f9fafb",
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            padding: 20,
-            marginBottom: 28,
-          }}
-        >
-          <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: 15 }}>
-            Add / Update Entries
-          </h3>
-          <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 10 }}>
+        <Card padding="20px 24px" style={{ marginBottom: 20 }}>
+          <SectionLabel>Add / Update Entries</SectionLabel>
+          <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 12px" }}>
             Paste a JSON array:{" "}
-            <code>
-              [{"{"}"student_id":"…","score":85{"}"}]
+            <code
+              style={{
+                background: "#f3f4f6",
+                padding: "1px 6px",
+                borderRadius: 4,
+                fontSize: 12,
+              }}
+            >
+              {`[{"student_id":"…","score":85}]`}
             </code>
           </p>
           <textarea
@@ -290,81 +223,56 @@ export function MarkDetailPage() {
               fontSize: 13,
               fontFamily: "monospace",
               boxSizing: "border-box",
-              marginBottom: 10,
+              marginBottom: 12,
+              resize: "vertical",
             }}
             placeholder='[{"student_id":"uuid-here","score":85}]'
           />
           {entriesError && (
-            <p style={{ color: "#dc2626", fontSize: 13, margin: "0 0 8px" }}>
-              {entriesError}
-            </p>
+            <ErrorBanner message={entriesError} />
           )}
           {entriesSuccess && (
-            <p style={{ color: "#16a34a", fontSize: 13, margin: "0 0 8px" }}>
-              Entries saved.
+            <p
+              style={{
+                color: "#16a34a",
+                fontSize: 13,
+                margin: "0 0 8px",
+                fontWeight: 500,
+              }}
+            >
+              Entries saved successfully.
             </p>
           )}
-          <button
+          <PrimaryBtn
             onClick={handleSaveEntries}
             disabled={entriesMut.isPending || !entriesJson.trim()}
-            style={{
-              backgroundColor: primary,
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              padding: "8px 16px",
-              cursor:
-                entriesMut.isPending || !entriesJson.trim()
-                  ? "not-allowed"
-                  : "pointer",
-              fontWeight: 600,
-              fontSize: 13,
-              opacity: entriesMut.isPending || !entriesJson.trim() ? 0.6 : 1,
-            }}
           >
             {entriesMut.isPending ? "Saving…" : "Save Entries"}
-          </button>
-        </div>
+          </PrimaryBtn>
+        </Card>
       )}
 
       {/* Workflow actions */}
       {availableActions.length > 0 && (
-        <div>
-          <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 15 }}>
-            Workflow Actions
-          </h3>
+        <Card padding="20px 24px">
+          <SectionLabel>Workflow Actions</SectionLabel>
+          {transitionError && <ErrorBanner message={transitionError} />}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {availableActions.map((action) => (
-              <button
+              <PrimaryBtn
                 key={action}
                 disabled={transitionMut.isPending}
                 onClick={() => transitionMut.mutate(action)}
-                style={{
-                  backgroundColor: primary,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "8px 16px",
-                  cursor: transitionMut.isPending ? "not-allowed" : "pointer",
-                  fontWeight: 600,
-                  fontSize: 13,
-                  opacity: transitionMut.isPending ? 0.7 : 1,
-                }}
               >
                 {action.replace(/_/g, " ")}
-              </button>
+              </PrimaryBtn>
             ))}
           </div>
-          {transitionError && (
-            <p style={{ color: "#dc2626", fontSize: 13, marginTop: 8 }}>
-              {transitionError}
-            </p>
-          )}
-        </div>
+        </Card>
       )}
 
       {currentState && availableActions.length === 0 && (
-        <p style={{ color: "#6b7280", fontSize: 14 }}>
+        <p style={{ color: "#6b7280", fontSize: 14, margin: "16px 0 0" }}>
           No further actions for state <strong>{currentState}</strong>.
         </p>
       )}

@@ -3,40 +3,132 @@ import { ConfigProvider, useConfig } from "./ConfigProvider";
 import { TenantSwitcher } from "./TenantSwitcher";
 import { DevRoleSwitcher } from "./DevRoleSwitcher";
 import { useAuth } from "../auth/AuthContext";
+import { C, StatCard, ensureGlobalCss } from "../lib/ui";
 
-const FALLBACK_NAV = [{ label: "Students", route: "/students" }];
+ensureGlobalCss();
+
+const FALLBACK_NAV = [
+  { label: "Students", route: "/students" },
+  { label: "Admissions", route: "/admissions" },
+  { label: "Term Registrations", route: "/term-registrations" },
+  { label: "Marks", route: "/marks" },
+  { label: "Finance", route: "/finance" },
+  { label: "Users", route: "/users" },
+];
+
+const NAV_ICONS: Record<string, string> = {
+  "/students": "👨‍🎓",
+  "/admissions": "📋",
+  "/term-registrations": "📅",
+  "/marks": "📊",
+  "/finance": "💰",
+  "/users": "👥",
+};
 
 function Header() {
   const { appName } = useConfig();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   return (
     <header
       style={{
         background: "var(--primary-color, #2563EB)",
         color: "#fff",
-        padding: "12px 24px",
+        padding: "0 24px",
+        height: 56,
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+        position: "sticky",
+        top: 0,
+        zIndex: 100,
       }}
     >
-      <strong style={{ fontSize: 18 }}>{appName}</strong>
-      <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 8,
+            background: "rgba(255,255,255,0.2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 16,
+          }}
+        >
+          🎓
+        </div>
+        <strong style={{ fontSize: 17, letterSpacing: "-0.01em" }}>
+          {appName}
+        </strong>
+      </div>
+
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         {import.meta.env.DEV && <TenantSwitcher />}
         {import.meta.env.DEV && <DevRoleSwitcher />}
+
+        {user && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "4px 12px",
+              background: "rgba(255,255,255,0.12)",
+              borderRadius: 20,
+              fontSize: 13,
+            }}
+          >
+            <div
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                background: "rgba(255,255,255,0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              {user.email[0].toUpperCase()}
+            </div>
+            <span style={{ opacity: 0.9 }}>{user.email.split("@")[0]}</span>
+            <span
+              style={{
+                fontSize: 11,
+                background: "rgba(255,255,255,0.2)",
+                padding: "1px 7px",
+                borderRadius: 10,
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              {user.role}
+            </span>
+          </div>
+        )}
+
         <button
           onClick={() => void logout()}
           style={{
-            background: "rgba(255,255,255,0.15)",
-            border: "1px solid rgba(255,255,255,0.4)",
+            background: "rgba(255,255,255,0.12)",
+            border: "1px solid rgba(255,255,255,0.25)",
             color: "#fff",
             borderRadius: 6,
-            padding: "4px 12px",
+            padding: "5px 14px",
             fontSize: 13,
+            fontWeight: 500,
             cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
           }}
         >
-          Logout
+          ↩ Sign out
         </button>
       </div>
     </header>
@@ -47,40 +139,99 @@ function Sidebar() {
   const { navigation } = useConfig();
   const navLinks = navigation.length > 0 ? navigation : FALLBACK_NAV;
   const { pathname } = useLocation();
+
   return (
-    <nav
+    <aside
       style={{
-        width: 200,
-        padding: "16px 0",
-        borderRight: "1px solid #e5e7eb",
-        minHeight: "calc(100vh - 52px)",
-        background: "#f9fafb",
+        width: 220,
+        minHeight: "calc(100vh - 56px)",
+        background: C.white,
+        borderRight: `1px solid ${C.gray200}`,
+        display: "flex",
+        flexDirection: "column",
+        padding: "12px 0",
+        flexShrink: 0,
       }}
     >
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        {navLinks.map(({ label, route }) => (
-          <li key={route}>
-            <Link
-              to={route}
-              style={{
-                display: "block",
-                padding: "10px 20px",
-                color: pathname.startsWith(route)
-                  ? "var(--primary-color, #2563EB)"
-                  : "#374151",
-                textDecoration: "none",
-                fontWeight: pathname.startsWith(route) ? 600 : 400,
-                background: pathname.startsWith(route)
-                  ? "#eff6ff"
-                  : "transparent",
-              }}
-            >
-              {label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
+      <nav>
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {navLinks.map(({ label, route }) => {
+            const active =
+              pathname === route ||
+              (route !== "/" && pathname.startsWith(route));
+            const icon = NAV_ICONS[route] ?? "•";
+            return (
+              <li key={route}>
+                <Link
+                  to={route}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "9px 16px 9px 20px",
+                    margin: "1px 8px",
+                    borderRadius: 7,
+                    color: active ? "var(--primary-color, #2563EB)" : C.gray700,
+                    textDecoration: "none",
+                    fontWeight: active ? 600 : 400,
+                    background: active
+                      ? "var(--primary-color-bg, #eff6ff)"
+                      : "transparent",
+                    fontSize: 14,
+                    transition: "background 0.12s",
+                    borderLeft: active
+                      ? "3px solid var(--primary-color, #2563EB)"
+                      : "3px solid transparent",
+                  }}
+                >
+                  <span
+                    style={{ fontSize: 16, minWidth: 20, textAlign: "center" }}
+                  >
+                    {icon}
+                  </span>
+                  {label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <div
+        style={{
+          marginTop: "auto",
+          padding: "12px 20px",
+          borderTop: `1px solid ${C.gray100}`,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            color: C.gray400,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: 4,
+          }}
+        >
+          System
+        </div>
+        <Link
+          to="/admin-studio"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 13,
+            color: C.gray500,
+            textDecoration: "none",
+            padding: "6px 0",
+          }}
+        >
+          <span>⚙️</span> Admin Studio
+        </Link>
+      </div>
+    </aside>
   );
 }
 
@@ -89,32 +240,11 @@ function DashboardCards() {
   if (dashboards.length === 0) return null;
   return (
     <div
-      style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 24 }}
+      style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}
     >
       {dashboards.map((card, i) =>
         card.type === "KPI" ? (
-          <div
-            key={i}
-            style={{
-              background: "#f3f4f6",
-              border: "1px solid #e5e7eb",
-              borderRadius: 8,
-              padding: "16px 24px",
-              minWidth: 160,
-            }}
-          >
-            <div style={{ fontSize: 13, color: "#6b7280" }}>{card.label}</div>
-            <div
-              style={{
-                fontSize: 28,
-                fontWeight: 700,
-                color: "#111827",
-                marginTop: 4,
-              }}
-            >
-              —
-            </div>
-          </div>
+          <StatCard key={i} label={card.label} value="—" />
         ) : (
           <Link
             key={i}
@@ -125,15 +255,16 @@ function DashboardCards() {
               justifyContent: "center",
               background: "var(--primary-color, #2563EB)",
               color: "#fff",
-              borderRadius: 8,
-              padding: "16px 24px",
+              borderRadius: 10,
+              padding: "18px 28px",
               minWidth: 160,
               textDecoration: "none",
               fontWeight: 600,
               fontSize: 14,
+              boxShadow: "0 2px 8px rgba(37,99,235,0.25)",
             }}
           >
-            {card.label}
+            {card.label} →
           </Link>
         ),
       )}
@@ -144,7 +275,15 @@ function DashboardCards() {
 function MainContent() {
   const { pathname } = useLocation();
   return (
-    <main style={{ flex: 1, padding: "24px" }}>
+    <main
+      style={{
+        flex: 1,
+        padding: "28px 32px",
+        background: "#f3f4f6",
+        minHeight: "calc(100vh - 56px)",
+        animation: "amis-fadein 0.18s ease-out",
+      }}
+    >
       {pathname === "/" && <DashboardCards />}
       <Outlet />
     </main>

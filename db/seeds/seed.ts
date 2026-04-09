@@ -93,6 +93,14 @@ async function seed() {
     // Seed published UI config for Tenant A
     await withTenant(client, idA, async () => {
       await client.query(
+        `DELETE FROM platform.config_audit
+           WHERE config_id IN (
+             SELECT id FROM platform.config_versions
+             WHERE tenant_id = $1 AND status = 'published'
+           )`,
+        [idA],
+      );
+      await client.query(
         `DELETE FROM platform.config_versions WHERE tenant_id = $1 AND status = 'published'`,
         [idA],
       );
@@ -109,18 +117,31 @@ async function seed() {
               admin: [
                 { label: "Students", route: "/students" },
                 { label: "Admissions", route: "/admissions" },
+                { label: "Term Registrations", route: "/term-registrations" },
+                { label: "Marks", route: "/marks" },
                 { label: "Finance", route: "/finance" },
+                { label: "Users", route: "/users" },
               ],
               registrar: [
                 { label: "Students", route: "/students" },
                 { label: "Admissions", route: "/admissions" },
+                { label: "Term Registrations", route: "/term-registrations" },
+                { label: "Marks", route: "/marks" },
               ],
-              instructor: [{ label: "Students", route: "/students" }],
+              instructor: [
+                { label: "Students", route: "/students" },
+                { label: "Marks", route: "/marks" },
+              ],
               finance: [{ label: "Finance", route: "/finance" }],
-              hod: [{ label: "Students", route: "/students" }],
+              hod: [
+                { label: "Students", route: "/students" },
+                { label: "Marks", route: "/marks" },
+              ],
               principal: [
                 { label: "Students", route: "/students" },
                 { label: "Admissions", route: "/admissions" },
+                { label: "Term Registrations", route: "/term-registrations" },
+                { label: "Marks", route: "/marks" },
                 { label: "Finance", route: "/finance" },
               ],
             },
@@ -256,6 +277,14 @@ async function seed() {
     // Seed published UI config for Tenant B
     await withTenant(client, idB, async () => {
       await client.query(
+        `DELETE FROM platform.config_audit
+           WHERE config_id IN (
+             SELECT id FROM platform.config_versions
+             WHERE tenant_id = $1 AND status = 'published'
+           )`,
+        [idB],
+      );
+      await client.query(
         `DELETE FROM platform.config_versions WHERE tenant_id = $1 AND status = 'published'`,
         [idB],
       );
@@ -271,14 +300,30 @@ async function seed() {
             navigation: {
               admin: [
                 { label: "Students", route: "/students" },
+                { label: "Admissions", route: "/admissions" },
+                { label: "Term Registrations", route: "/term-registrations" },
+                { label: "Marks", route: "/marks" },
                 { label: "Finance", route: "/finance" },
+                { label: "Users", route: "/users" },
               ],
-              registrar: [{ label: "Students", route: "/students" }],
-              instructor: [{ label: "Students", route: "/students" }],
+              registrar: [
+                { label: "Students", route: "/students" },
+                { label: "Term Registrations", route: "/term-registrations" },
+                { label: "Marks", route: "/marks" },
+              ],
+              instructor: [
+                { label: "Students", route: "/students" },
+                { label: "Marks", route: "/marks" },
+              ],
               finance: [{ label: "Finance", route: "/finance" }],
-              hod: [{ label: "Students", route: "/students" }],
+              hod: [
+                { label: "Students", route: "/students" },
+                { label: "Marks", route: "/marks" },
+              ],
               principal: [
                 { label: "Students", route: "/students" },
+                { label: "Term Registrations", route: "/term-registrations" },
+                { label: "Marks", route: "/marks" },
                 { label: "Finance", route: "/finance" },
               ],
             },

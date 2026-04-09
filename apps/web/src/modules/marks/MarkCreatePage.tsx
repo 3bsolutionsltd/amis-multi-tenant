@@ -1,14 +1,22 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createSubmission } from "./marks.api";
-import { useConfig } from "../../app/ConfigProvider";
+import {
+  ensureGlobalCss,
+  PageHeader,
+  Card,
+  Field,
+  inputCss,
+  selectCss,
+  PrimaryBtn,
+  ErrorBanner,
+} from "../../lib/ui";
 
 const PROGRAMMES = ["NCBC", "NCES", "NCAM", "NCP", "NCWF"];
 
 export function MarkCreatePage() {
+  ensureGlobalCss();
   const navigate = useNavigate();
-  const { config } = useConfig();
-  const primary = config?.branding?.primaryColor ?? "#2563EB";
 
   const [form, setForm] = useState({
     course_id: "",
@@ -28,12 +36,7 @@ export function MarkCreatePage() {
     setSaving(true);
     setError(null);
     try {
-      const result = await createSubmission({
-        course_id: form.course_id,
-        programme: form.programme,
-        intake: form.intake,
-        term: form.term,
-      });
+      const result = await createSubmission(form);
       navigate(`/marks/${result.submission.id}`);
     } catch (err) {
       setError(
@@ -44,131 +47,71 @@ export function MarkCreatePage() {
     }
   }
 
-  const fieldStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "8px 12px",
-    border: "1px solid #d1d5db",
-    borderRadius: 6,
-    fontSize: 14,
-    boxSizing: "border-box",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: "block",
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#374151",
-    marginBottom: 4,
-  };
-
   return (
-    <div style={{ maxWidth: 480 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 24,
-        }}
-      >
-        <button
-          onClick={() => navigate("/marks")}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "#6b7280",
-            fontSize: 14,
-          }}
+    <div>
+      <PageHeader
+        title="New Mark Submission"
+        back={{ label: "Marks", to: "/marks" }}
+      />
+      <Card padding="24px" style={{ maxWidth: 480 }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: 16 }}
         >
-          ← Back
-        </button>
-        <h2 style={{ margin: 0 }}>New Mark Submission</h2>
-      </div>
+          <Field label="Course ID" required>
+            <input
+              required
+              style={inputCss}
+              value={form.course_id}
+              placeholder="e.g. NCBC101"
+              onChange={(e) => set("course_id", e.target.value)}
+            />
+          </Field>
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Course ID *</label>
-          <input
-            required
-            value={form.course_id}
-            onChange={(e) => set("course_id", e.target.value)}
-            placeholder="e.g. NCBC101"
-            style={fieldStyle}
-          />
-        </div>
+          <Field label="Programme" required>
+            <select
+              required
+              style={selectCss}
+              value={form.programme}
+              onChange={(e) => set("programme", e.target.value)}
+            >
+              <option value="">— Select Programme —</option>
+              {PROGRAMMES.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Programme *</label>
-          <select
-            required
-            value={form.programme}
-            onChange={(e) => set("programme", e.target.value)}
-            style={fieldStyle}
-          >
-            <option value="">— Select Programme —</option>
-            {PROGRAMMES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </div>
+          <Field label="Intake" required>
+            <input
+              required
+              style={inputCss}
+              value={form.intake}
+              onChange={(e) => set("intake", e.target.value)}
+            />
+          </Field>
 
-        <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Intake *</label>
-          <input
-            required
-            value={form.intake}
-            onChange={(e) => set("intake", e.target.value)}
-            style={fieldStyle}
-          />
-        </div>
+          <Field label="Term" required>
+            <input
+              required
+              style={inputCss}
+              value={form.term}
+              placeholder="e.g. Term 1"
+              onChange={(e) => set("term", e.target.value)}
+            />
+          </Field>
 
-        <div style={{ marginBottom: 24 }}>
-          <label style={labelStyle}>Term *</label>
-          <input
-            required
-            value={form.term}
-            onChange={(e) => set("term", e.target.value)}
-            placeholder="e.g. Term 1"
-            style={fieldStyle}
-          />
-        </div>
+          {error && <ErrorBanner message={error} />}
 
-        {error && (
-          <p
-            style={{
-              color: "#dc2626",
-              backgroundColor: "#fef2f2",
-              padding: "10px 14px",
-              borderRadius: 6,
-              fontSize: 14,
-              marginBottom: 16,
-            }}
-          >
-            {error}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={saving}
-          style={{
-            backgroundColor: primary,
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            padding: "10px 20px",
-            cursor: saving ? "not-allowed" : "pointer",
-            fontWeight: 600,
-            fontSize: 15,
-            opacity: saving ? 0.7 : 1,
-          }}
-        >
-          {saving ? "Creating…" : "Create Submission"}
-        </button>
-      </form>
+          <div style={{ marginTop: 4 }}>
+            <PrimaryBtn type="submit" disabled={saving}>
+              {saving ? "Creating…" : "Create Submission"}
+            </PrimaryBtn>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 }

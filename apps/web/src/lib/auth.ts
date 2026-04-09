@@ -34,6 +34,7 @@ export function setTokens(
   localStorage.setItem("amis_access_token", accessToken);
   localStorage.setItem("amis_refresh_token", refreshToken);
   localStorage.setItem("amis_user", JSON.stringify(user));
+  localStorage.setItem("amis_tenant_id", user.tenantId);
 }
 
 export function clearTokens(): void {

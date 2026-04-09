@@ -6,75 +6,40 @@ import {
   getWorkflowDef,
   fireTransition,
 } from "./term-registrations.api";
-import { useConfig } from "../../app/ConfigProvider";
+import {
+  ensureGlobalCss,
+  Spinner,
+  PageHeader,
+  Card,
+  DetailRow,
+  Badge,
+  PrimaryBtn,
+  ErrorBanner,
+  SectionLabel,
+} from "../../lib/ui";
 
-const STATE_COLORS: Record<string, string> = {
-  REGISTRATION_STARTED: "#6b7280",
-  DOCUMENTS_VERIFIED: "#2563eb",
-  FEES_VERIFIED: "#0891b2",
-  GUILD_FEES_VERIFIED: "#7c3aed",
-  DEAN_ENDORSED: "#db2777",
-  HALL_ALLOCATED: "#d97706",
-  CATERING_VERIFIED: "#16a34a",
-  MEDICAL_CHECKED: "#059669",
-  LIBRARY_CARD_ISSUED: "#0284c7",
-  ONLINE_REGISTERED: "#4f46e5",
-  EXAM_ENROLLED: "#dc2626",
-  CLEARANCE_ISSUED: "#15803d",
+const STATE_BADGE_COLOR: Record<
+  string,
+  "gray" | "blue" | "cyan" | "purple" | "pink" | "yellow" | "green" | "indigo"
+> = {
+  REGISTRATION_STARTED: "gray",
+  DOCUMENTS_VERIFIED: "blue",
+  FEES_VERIFIED: "cyan",
+  GUILD_FEES_VERIFIED: "purple",
+  DEAN_ENDORSED: "green",
+  HALL_ALLOCATED: "yellow",
+  CATERING_VERIFIED: "green",
+  MEDICAL_CHECKED: "green",
+  LIBRARY_CARD_ISSUED: "cyan",
+  ONLINE_REGISTERED: "indigo",
+  EXAM_ENROLLED: "indigo",
+  CLEARANCE_ISSUED: "green",
 };
 
-function StateBadge({ state }: { state: string | null }) {
-  const color = state ? (STATE_COLORS[state] ?? "#6b7280") : "#6b7280";
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "4px 14px",
-        borderRadius: 12,
-        fontSize: 13,
-        fontWeight: 600,
-        color: "#fff",
-        backgroundColor: color,
-      }}
-    >
-      {state ?? "—"}
-    </span>
-  );
-}
-
-function Field({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null | undefined;
-}) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          fontSize: 12,
-          fontWeight: 600,
-          color: "#6b7280",
-          marginBottom: 2,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-        }}
-      >
-        {label}
-      </div>
-      <div style={{ fontSize: 15, color: value ? "#111827" : "#9ca3af" }}>
-        {value || "—"}
-      </div>
-    </div>
-  );
-}
-
 export function TermRegistrationDetailPage() {
+  ensureGlobalCss();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { config } = useConfig();
-  const primary = config?.branding?.primaryColor ?? "#2563EB";
   const qc = useQueryClient();
 
   const [transitionError, setTransitionError] = useState<string | null>(null);
@@ -104,9 +69,17 @@ export function TermRegistrationDetailPage() {
     },
   });
 
-  if (isLoading) return <p style={{ color: "#6b7280" }}>Loading…</p>;
+  if (isLoading) return <Spinner />;
   if (!reg)
-    return <p style={{ color: "#dc2626" }}>Term registration not found.</p>;
+    return (
+      <div>
+        <PageHeader
+          title="Term Registration"
+          back={{ label: "Term Registrations", to: "/term-registrations" }}
+        />
+        <ErrorBanner message="Term registration not found." />
+      </div>
+    );
 
   const currentState = reg.current_state;
   const availableActions = wfDef
@@ -115,124 +88,80 @@ export function TermRegistrationDetailPage() {
         .map((t) => t.action)
     : [];
 
+  const studentName =
+    reg.first_name && reg.last_name
+      ? `${reg.first_name} ${reg.last_name}`
+      : "—";
+
   return (
-    <div style={{ maxWidth: 700 }}>
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 24,
-        }}
-      >
-        <button
-          onClick={() => navigate("/term-registrations")}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "#6b7280",
-            fontSize: 14,
-          }}
-        >
-          ← Back
-        </button>
-        <h2 style={{ margin: 0 }}>Term Registration</h2>
-        <StateBadge state={currentState} />
-      </div>
+    <div>
+      <PageHeader
+        title="Term Registration"
+        back={{ label: "Term Registrations", to: "/term-registrations" }}
+        action={
+          currentState ? (
+            <Badge
+              label={currentState}
+              color={STATE_BADGE_COLOR[currentState] ?? "gray"}
+            />
+          ) : undefined
+        }
+      />
+
+      {/* Details */}
+      <Card padding="0 24px" style={{ marginBottom: 20 }}>
+        <DetailRow label="Student">{studentName}</DetailRow>
+        <DetailRow label="Admission no.">{reg.admission_number ?? "—"}</DetailRow>
+        <DetailRow label="Programme">{reg.student_programme ?? "—"}</DetailRow>
+        <DetailRow label="Academic year">{reg.academic_year ?? "—"}</DetailRow>
+        <DetailRow label="Term">{reg.term ?? "—"}</DetailRow>
+        <DetailRow label="State">
+          {currentState ? (
+            <Badge
+              label={currentState}
+              color={STATE_BADGE_COLOR[currentState] ?? "gray"}
+            />
+          ) : (
+            "—"
+          )}
+        </DetailRow>
+        <DetailRow label="Registered">
+          {reg.created_at
+            ? new Date(reg.created_at).toLocaleDateString()
+            : "—"}
+        </DetailRow>
+        <DetailRow label="ID">
+          <span style={{ fontFamily: "monospace", fontSize: 12, color: "#6b7280" }}>
+            {reg.id}
+          </span>
+        </DetailRow>
+      </Card>
 
       {/* Workflow actions */}
       {availableActions.length > 0 && (
-        <div
-          style={{
-            backgroundColor: "#f9fafb",
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            padding: "16px 20px",
-            marginBottom: 24,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: "#374151",
-              marginBottom: 12,
-            }}
-          >
-            Actions
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Card padding="20px 24px">
+          <SectionLabel>Workflow Actions</SectionLabel>
+          {transitionError && <ErrorBanner message={transitionError} />}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {availableActions.map((action) => (
-              <button
+              <PrimaryBtn
                 key={action}
-                onClick={() => transitionMut.mutate(action)}
                 disabled={transitionMut.isPending}
-                style={{
-                  backgroundColor: primary,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "7px 16px",
-                  cursor: transitionMut.isPending ? "not-allowed" : "pointer",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  opacity: transitionMut.isPending ? 0.7 : 1,
-                }}
+                onClick={() => transitionMut.mutate(action)}
               >
                 {action.replace(/_/g, " ")}
-              </button>
+              </PrimaryBtn>
             ))}
           </div>
-          {transitionError && (
-            <div style={{ color: "#dc2626", fontSize: 13, marginTop: 8 }}>
-              {transitionError}
-            </div>
-          )}
-        </div>
+        </Card>
       )}
 
-      {/* Details */}
-      <div
-        style={{
-          backgroundColor: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-          padding: "20px 24px",
-        }}
-      >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "0 32px",
-          }}
-        >
-          <Field
-            label="Student"
-            value={
-              reg.first_name && reg.last_name
-                ? `${reg.first_name} ${reg.last_name}`
-                : null
-            }
-          />
-          <Field label="Admission No." value={reg.admission_number} />
-          <Field label="Programme" value={reg.student_programme} />
-          <Field label="Academic Year" value={reg.academic_year} />
-          <Field label="Term" value={reg.term} />
-          <Field label="State" value={currentState} />
-          <Field
-            label="Registered"
-            value={
-              reg.created_at
-                ? new Date(reg.created_at).toLocaleDateString()
-                : null
-            }
-          />
-          <Field label="ID" value={reg.id} />
-        </div>
-      </div>
+      {currentState && availableActions.length === 0 && (
+        <p style={{ color: "#6b7280", fontSize: 14, margin: "16px 0 0" }}>
+          No further actions available for state{" "}
+          <strong>{currentState}</strong>.
+        </p>
+      )}
     </div>
   );
 }

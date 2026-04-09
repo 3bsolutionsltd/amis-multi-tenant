@@ -1,49 +1,56 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createTermRegistration } from "./term-registrations.api";
 import { listStudents, type Student } from "../students/students.api";
-import { useConfig } from "../../app/ConfigProvider";
+import {
+  ensureGlobalCss,
+  PageHeader,
+  Card,
+  Field,
+  inputCss,
+  selectCss,
+  PrimaryBtn,
+  ErrorBanner,
+} from "../../lib/ui";
 
 const TERMS = ["Term 1", "Term 2", "Term 3"];
 
 export function TermRegistrationCreatePage() {
+  ensureGlobalCss();
   const navigate = useNavigate();
-  const { config } = useConfig();
-  const primary = config?.branding?.primaryColor ?? "#2563EB";
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [form, setForm] = useState({
-    academic_year: "2026/2027",
-    term: "Term 1",
-  });
+  const [form, setForm] = useState({ academic_year: "2026/2027", term: "Term 1" });
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: students } = useQuery({
+  const { data: searchResults } = useQuery({
     queryKey: ["students-search", search],
-    queryFn: () => listStudents({ search: search || undefined }),
+    queryFn: () => listStudents({ search, page: 1, per_page: 10 }),
     enabled: search.length >= 2,
   });
 
   const mutation = useMutation({
     mutationFn: createTermRegistration,
     onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["term-registrations"] });
       navigate(`/term-registrations/${data.registration.id}`);
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : "Failed to create registration");
     },
   });
 
-  function selectStudent(student: Student) {
-    setSelectedStudent(student);
-    setSearch(`${student.first_name} ${student.last_name}`);
-  }
-
-  function set(field: string, value: string) {
-    setForm((f) => ({ ...f, [field]: value }));
-  }
-
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedStudent) return;
+    if (!selectedStudent) {
+      setError("Please select a student");
+      return;
+    }
+    setError(null);
     mutation.mutate({
       student_id: selectedStudent.id,
       academic_year: form.academic_year,
@@ -51,201 +58,118 @@ export function TermRegistrationCreatePage() {
     });
   }
 
-  const fieldStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "8px 12px",
-    border: "1px solid #d1d5db",
-    borderRadius: 6,
-    fontSize: 14,
-    boxSizing: "border-box",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: "block",
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#374151",
-    marginBottom: 4,
-  };
+  function selectStudent(s: Student) {
+    setSelectedStudent(s);
+    setSearch(`${s.first_name} ${s.last_name}`);
+    setShowDropdown(false);
+  }
 
   return (
-    <div style={{ maxWidth: 480 }}>
-      <div
-        style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}
-      >
-        <button
-          onClick={() => navigate("/term-registrations")}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "#6b7280",
-            fontSize: 14,
-          }}
+    <div>
+      <PageHeader
+        title="New Term Registration"
+        back={{ label: "Term Registrations", to: "/term-registrations" }}
+      />
+      <Card padding="24px" style={{ maxWidth: 480 }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: 16 }}
         >
-          ← Back
-        </button>
-        <h2 style={{ margin: 0 }}>New Term Registration</h2>
-      </div>
-
-      {mutation.isError && (
-        <div
-          style={{
-            backgroundColor: "#fef2f2",
-            border: "1px solid #fecaca",
-            borderRadius: 6,
-            padding: "12px 16px",
-            color: "#dc2626",
-            fontSize: 14,
-            marginBottom: 20,
-          }}
-        >
-          {mutation.error instanceof Error
-            ? mutation.error.message
-            : "Failed to create registration."}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        {/* Student search */}
-        <div style={{ marginBottom: 16, position: "relative" }}>
-          <label style={labelStyle}>Student *</label>
-          <input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              if (selectedStudent) setSelectedStudent(null);
-            }}
-            placeholder="Search by name (min 2 chars)…"
-            required
-            style={fieldStyle}
-          />
-          {students && students.length > 0 && !selectedStudent && (
-            <ul
-              style={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                right: 0,
-                background: "#fff",
-                border: "1px solid #d1d5db",
-                borderRadius: 6,
-                margin: 0,
-                padding: 0,
-                listStyle: "none",
-                zIndex: 10,
-                maxHeight: 200,
-                overflowY: "auto",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              }}
-            >
-              {students.map((s) => (
-                <li
-                  key={s.id}
-                  onClick={() => selectStudent(s)}
+          <Field label="Student" required>
+            <div style={{ position: "relative" }}>
+              <input
+                required={!selectedStudent}
+                style={inputCss}
+                value={search}
+                placeholder="Type to search students…"
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setSelectedStudent(null);
+                  setShowDropdown(true);
+                }}
+                onFocus={() => search.length >= 2 && setShowDropdown(true)}
+                onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+                autoComplete="off"
+              />
+              {showDropdown && searchResults && searchResults.students.length > 0 && (
+                <div
                   style={{
-                    padding: "8px 12px",
-                    cursor: "pointer",
-                    fontSize: 14,
-                    borderBottom: "1px solid #f3f4f6",
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    right: 0,
+                    background: "#fff",
+                    border: "1px solid #d1d5db",
+                    borderRadius: 6,
+                    zIndex: 10,
+                    maxHeight: 200,
+                    overflowY: "auto",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                   }}
-                  onMouseEnter={(e) =>
-                    ((e.currentTarget as HTMLLIElement).style.background =
-                      "#f9fafb")
-                  }
-                  onMouseLeave={(e) =>
-                    ((e.currentTarget as HTMLLIElement).style.background = "")
-                  }
                 >
-                  <span style={{ fontWeight: 600 }}>
-                    {s.first_name} {s.last_name}
-                  </span>
-                  {s.admission_number && (
-                    <span style={{ color: "#6b7280", marginLeft: 8, fontSize: 12 }}>
-                      {s.admission_number}
-                    </span>
-                  )}
-                  {s.programme && (
-                    <span style={{ color: "#9ca3af", marginLeft: 8, fontSize: 12 }}>
-                      {s.programme}
-                    </span>
-                  )}
-                </li>
+                  {searchResults.students.map((s) => (
+                    <div
+                      key={s.id}
+                      onMouseDown={() => selectStudent(s)}
+                      style={{
+                        padding: "8px 12px",
+                        cursor: "pointer",
+                        borderBottom: "1px solid #f3f4f6",
+                        fontSize: 14,
+                      }}
+                      onMouseEnter={(e) =>
+                        ((e.target as HTMLElement).style.background = "#f9fafb")
+                      }
+                      onMouseLeave={(e) =>
+                        ((e.target as HTMLElement).style.background = "")
+                      }
+                    >
+                      {s.first_name} {s.last_name}
+                      {s.student_id && (
+                        <span style={{ color: "#6b7280", marginLeft: 8, fontSize: 12 }}>
+                          {s.student_id}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Field>
+
+          <Field label="Academic Year" required>
+            <input
+              required
+              style={inputCss}
+              value={form.academic_year}
+              onChange={(e) => setForm((f) => ({ ...f, academic_year: e.target.value }))}
+            />
+          </Field>
+
+          <Field label="Term" required>
+            <select
+              required
+              style={selectCss}
+              value={form.term}
+              onChange={(e) => setForm((f) => ({ ...f, term: e.target.value }))}
+            >
+              {TERMS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
-            </ul>
-          )}
-          {selectedStudent && (
-            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#16a34a" }}>
-              ✓ {selectedStudent.first_name} {selectedStudent.last_name}
-              {selectedStudent.programme ? ` — ${selectedStudent.programme}` : ""}
-            </p>
-          )}
-        </div>
+            </select>
+          </Field>
 
-        {/* Academic year */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Academic Year *</label>
-          <input
-            value={form.academic_year}
-            onChange={(e) => set("academic_year", e.target.value)}
-            placeholder="e.g. 2026/2027"
-            required
-            style={fieldStyle}
-          />
-        </div>
+          {error && <ErrorBanner message={error} />}
 
-        {/* Term */}
-        <div style={{ marginBottom: 24 }}>
-          <label style={labelStyle}>Term *</label>
-          <select
-            value={form.term}
-            onChange={(e) => set("term", e.target.value)}
-            required
-            style={fieldStyle}
-          >
-            {TERMS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ display: "flex", gap: 12 }}>
-          <button
-            type="submit"
-            disabled={mutation.isPending || !selectedStudent}
-            style={{
-              backgroundColor: mutation.isPending ? "#93c5fd" : primary,
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              padding: "10px 24px",
-              fontWeight: 600,
-              cursor: mutation.isPending ? "not-allowed" : "pointer",
-              fontSize: 14,
-            }}
-          >
-            {mutation.isPending ? "Creating…" : "Start Registration"}
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate("/term-registrations")}
-            style={{
-              backgroundColor: "#fff",
-              color: "#374151",
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
-              padding: "10px 20px",
-              fontWeight: 600,
-              cursor: "pointer",
-              fontSize: 14,
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
+          <div style={{ marginTop: 4 }}>
+            <PrimaryBtn type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? "Creating…" : "Create Registration"}
+            </PrimaryBtn>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 }
