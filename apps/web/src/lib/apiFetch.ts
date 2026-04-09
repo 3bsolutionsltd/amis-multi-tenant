@@ -1,4 +1,10 @@
-import { getAccessToken, getRefreshToken, setTokens, clearTokens, type AuthUser } from "./auth";
+import {
+  getAccessToken,
+  getRefreshToken,
+  setTokens,
+  clearTokens,
+  type AuthUser,
+} from "./auth";
 
 const BASE_URL = "http://localhost:3000";
 
@@ -11,13 +17,17 @@ export class ApiError extends Error {
   }
 }
 
-async function doFetch(path: string, init?: RequestInit, accessToken?: string | null): Promise<Response> {
+async function doFetch(
+  path: string,
+  init?: RequestInit,
+  accessToken?: string | null,
+): Promise<Response> {
   const token = accessToken ?? getAccessToken();
   const tenantId = localStorage.getItem("amis_tenant_id") ?? "";
   const devRole = localStorage.getItem("amis_dev_role") ?? "admin";
 
   const authHeaders: Record<string, string> = token
-    ? { Authorization: `Bearer ${token}` }
+    ? { Authorization: `Bearer ${token}`, "x-tenant-id": tenantId }
     : { "x-tenant-id": tenantId, "x-dev-role": devRole };
 
   return fetch(`${BASE_URL}${path}`, {
@@ -44,18 +54,26 @@ export async function apiFetch<T>(
         // Use doFetch with null token to force dev-header mode for the refresh call,
         // then override the body manually — or call fetch directly since /auth/refresh
         // is a public endpoint that doesn't need auth headers.
-        const refreshRes = await doFetch("/auth/refresh", {
-          method: "POST",
-          body: JSON.stringify({ refreshToken }),
-        }, null);
+        const refreshRes = await doFetch(
+          "/auth/refresh",
+          {
+            method: "POST",
+            body: JSON.stringify({ refreshToken }),
+          },
+          null,
+        );
 
         if (refreshRes.ok) {
-          const refreshData = await refreshRes.json() as {
+          const refreshData = (await refreshRes.json()) as {
             accessToken: string;
             refreshToken: string;
             user: AuthUser;
           };
-          setTokens(refreshData.accessToken, refreshData.refreshToken, refreshData.user);
+          setTokens(
+            refreshData.accessToken,
+            refreshData.refreshToken,
+            refreshData.user,
+          );
           res = await doFetch(path, init, refreshData.accessToken);
         } else {
           clearTokens();

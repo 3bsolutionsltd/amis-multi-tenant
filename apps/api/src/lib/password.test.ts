@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hashPassword, verifyPassword } from "./password.js";
+import { hashPassword, verifyPasswordAsync } from "./password.js";
 
 describe("hashPassword", () => {
   it("returns a non-empty string in salt:dk format", () => {
@@ -27,29 +27,29 @@ describe("hashPassword", () => {
 });
 
 describe("verifyPassword", () => {
-  it("returns true for the correct password", () => {
+  it("returns true for the correct password", async () => {
     const hash = hashPassword("my-secret");
-    expect(verifyPassword("my-secret", hash)).toBe(true);
+    expect(await verifyPasswordAsync("my-secret", hash)).toBe(true);
   });
 
-  it("returns false for a wrong password", () => {
+  it("returns false for a wrong password", async () => {
     const hash = hashPassword("my-secret");
-    expect(verifyPassword("wrong-password", hash)).toBe(false);
+    expect(await verifyPasswordAsync("wrong-password", hash)).toBe(false);
   });
 
-  it("returns false for an empty string when password is non-empty", () => {
+  it("returns false for an empty string when password is non-empty", async () => {
     const hash = hashPassword("my-secret");
-    expect(verifyPassword("", hash)).toBe(false);
+    expect(await verifyPasswordAsync("", hash)).toBe(false);
   });
 
-  it("returns false for a malformed stored hash", () => {
-    expect(verifyPassword("anything", "not-a-valid-hash")).toBe(false);
-    expect(verifyPassword("anything", "")).toBe(false);
-    expect(verifyPassword("anything", "onlyonepart")).toBe(false);
+  it("returns false for a malformed stored hash", async () => {
+    expect(await verifyPasswordAsync("anything", "not-a-valid-hash")).toBe(false);
+    expect(await verifyPasswordAsync("anything", "")).toBe(false);
+    expect(await verifyPasswordAsync("anything", "onlyonepart")).toBe(false);
   });
 
-  it("returns false when stored hash has wrong segment lengths", () => {
+  it("returns false when stored hash has wrong segment lengths", async () => {
     // Short salt + short dk — should fail the length guard
-    expect(verifyPassword("test", "aabb:ccdd")).toBe(false);
+    expect(await verifyPasswordAsync("test", "aabb:ccdd")).toBe(false);
   });
 });

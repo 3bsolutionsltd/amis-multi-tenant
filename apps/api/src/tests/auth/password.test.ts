@@ -14,7 +14,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import pg from "pg";
-import { hashPassword, verifyPassword } from "../../lib/password.js";
+import { hashPassword, verifyPasswordAsync } from "../../lib/password.js";
 
 // ------------------------------------------------------------------ unit tests
 
@@ -25,23 +25,23 @@ describe("password utilities (unit)", () => {
     expect(h1).not.toBe(h2);
   });
 
-  it("verifyPassword returns true for the correct password", () => {
+  it("verifyPassword returns true for the correct password", async () => {
     const hash = hashPassword("Password123!");
-    expect(verifyPassword("Password123!", hash)).toBe(true);
+    expect(await verifyPasswordAsync("Password123!", hash)).toBe(true);
   });
 
-  it("verifyPassword returns false for a wrong password", () => {
+  it("verifyPassword returns false for a wrong password", async () => {
     const hash = hashPassword("Password123!");
-    expect(verifyPassword("WrongPassword!", hash)).toBe(false);
+    expect(await verifyPasswordAsync("WrongPassword!", hash)).toBe(false);
   });
 
-  it("verifyPassword returns false for an empty string", () => {
+  it("verifyPassword returns false for an empty string", async () => {
     const hash = hashPassword("Password123!");
-    expect(verifyPassword("", hash)).toBe(false);
+    expect(await verifyPasswordAsync("", hash)).toBe(false);
   });
 
-  it("verifyPassword returns false for a corrupted hash", () => {
-    expect(verifyPassword("Password123!", "not-a-valid-hash")).toBe(false);
+  it("verifyPassword returns false for a corrupted hash", async () => {
+    expect(await verifyPasswordAsync("Password123!", "not-a-valid-hash")).toBe(false);
   });
 });
 
