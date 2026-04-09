@@ -3,83 +3,76 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { getFeeSummary, getFeeTransactions, type FeeSummary } from "./fees.api";
 import { listStudents, type Student } from "../students/students.api";
-import { useConfig } from "../../app/ConfigProvider";
+import {
+  ensureGlobalCss,
+  PageHeader,
+  StatCard,
+  Card,
+  DataTable,
+  TR,
+  TD,
+  PrimaryBtn,
+  EmptyState,
+  Badge,
+} from "../../lib/ui";
 
-const BADGE_COLORS: Record<string, string> = {
-  PAID: "#16a34a",
-  PARTIAL: "#d97706",
-  OWING: "#dc2626",
+type BadgeColor = "green" | "yellow" | "red";
+const STATUS_COLOR: Record<string, BadgeColor> = {
+  PAID: "green",
+  PARTIAL: "yellow",
+  OWING: "red",
 };
 
-function SummaryCard({ summary }: { summary: FeeSummary }) {
+function FeeSummaryCards({ summary }: { summary: FeeSummary }) {
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
+        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
         gap: 16,
-        marginBottom: 24,
+        marginBottom: 28,
       }}
     >
-      {[
-        {
-          label: "Total Due",
-          value: `UGX ${summary.totalDue.toLocaleString()}`,
-        },
-        {
-          label: "Total Paid",
-          value: `UGX ${summary.totalPaid.toLocaleString()}`,
-        },
-        {
-          label: "Balance",
-          value: `UGX ${summary.balance.toLocaleString()}`,
-          negative: summary.balance > 0,
-        },
-        { label: "Status", value: summary.badge, badge: true },
-      ].map(({ label, value, negative, badge }) => (
+      <StatCard
+        label="Total Due"
+        value={`UGX ${summary.totalDue.toLocaleString()}`}
+        accent="#2563eb"
+      />
+      <StatCard
+        label="Total Paid"
+        value={`UGX ${summary.totalPaid.toLocaleString()}`}
+        accent="#16a34a"
+      />
+      <StatCard
+        label="Balance"
+        value={`UGX ${summary.balance.toLocaleString()}`}
+        accent={summary.balance > 0 ? "#dc2626" : "#16a34a"}
+      />
+      <Card padding="16px 20px">
         <div
-          key={label}
           style={{
-            backgroundColor: "#f9fafb",
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            padding: "14px 18px",
+            fontSize: 11,
+            color: "#6b7280",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            marginBottom: 6,
           }}
         >
-          <div
-            style={{
-              fontSize: 12,
-              color: "#6b7280",
-              fontWeight: 600,
-              marginBottom: 4,
-            }}
-          >
-            {label}
-          </div>
-          <div
-            style={{
-              fontSize: 16,
-              fontWeight: 700,
-              color: badge
-                ? (BADGE_COLORS[value] ?? "#374151")
-                : negative
-                  ? "#dc2626"
-                  : "#111827",
-            }}
-          >
-            {value}
-          </div>
+          Status
         </div>
-      ))}
+        <Badge
+          label={summary.badge}
+          color={STATUS_COLOR[summary.badge] ?? "gray"}
+        />
+      </Card>
     </div>
   );
 }
 
 export function FeesPage() {
+  ensureGlobalCss();
   const navigate = useNavigate();
-  const { config } = useConfig();
-  const primary = config?.branding?.primaryColor ?? "#2563EB";
-
   const [search, setSearch] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     null,
@@ -112,9 +105,157 @@ export function FeesPage() {
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
+      <PageHeader
+        title="Fees"
+        action={
+          selectedStudentId ? (
+            <PrimaryBtn onClick={() => navigate("/finance/entry")}>
+              + Record Payment
+            </PrimaryBtn>
+          ) : undefined
+        }
+      />
+
+      {/* Student search */}
+      <Card padding="20px 24px" style={{ marginBottom: 24 }}>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#374151",
+            marginBottom: 10,
+          }}
+        >
+          Search student
+        </div>
+        <div style={{ position: "relative", maxWidth: 440 }}>
+          <input
+            placeholder="Type student name (min 2 chars)…"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              if (selectedStudentId && e.target.value === "")
+                setSelectedStudentId(null);
+            }}
+            style={{
+              width: "100%",
+              padding: "9px 14px",
+              border: "1px solid #d1d5db",
+              borderRadius: 7,
+              fontSize: 14,
+              boxSizing: "border-box",
+              outline: "none",
+            }}
+          />
+          {students && !selectedStudent && students.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 4px)",
+                left: 0,
+                right: 0,
+                backgroundColor: "#fff",
+                border: "1px solid #e5e7eb",
+                borderRadius: 8,
+                boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                zIndex: 100,
+                maxHeight: 200,
+                overflowY: "auto",
+              }}
+            >
+              {students.map((student) => (
+                <div
+                  key={student.id}
+                  onClick={() => selectStudent(student)}
+                  style={{
+                    padding: "10px 16px",
+                    cursor: "pointer",
+                    borderBottom: "1px solid #f3f4f6",
+                    fontSize: 14,
+                    color: "#111827",
+                  }}
+                  onMouseEnter={(e) =>
+                    ((e.currentTarget as HTMLDivElement).style.backgroundColor =
+                      "#f0f9ff")
+                  }
+                  onMouseLeave={(e) =>
+                    ((e.currentTarget as HTMLDivElement).style.backgroundColor =
+                      "")
+                  }
+                >
+                  {student.first_name} {student.last_name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {!selectedStudentId && (
+        <EmptyState
+          icon="💰"
+          title="No student selected"
+          description="Search for a student above to view their fee records."
+        />
+      )}
+
+      {selectedStudentId && selectedStudent && (
+        <div>
+          <div
+            style={{
+              fontSize: 17,
+              fontWeight: 700,
+              color: "#111827",
+              marginBottom: 16,
+            }}
+          >
+            {selectedStudent.first_name} {selectedStudent.last_name}
+          </div>
+
+          {summary && <FeeSummaryCards summary={summary} />}
+
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: "#374151",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              marginBottom: 12,
+            }}
+          >
+            Payment History
+          </div>
+
+          <DataTable
+            headers={["Date", "Amount", "Currency", "Reference", "Source"]}
+            isLoading={txnLoading}
+            isEmpty={!txnLoading && (transactions?.length ?? 0) === 0}
+            emptyIcon="💳"
+            emptyTitle="No payments recorded"
+            emptyDescription='Click "+ Record Payment" to add the first.'
+            colCount={5}
+          >
+            {transactions?.map((txn) => (
+              <TR key={txn.id}>
+                <TD muted>{new Date(txn.paid_at).toLocaleDateString()}</TD>
+                <TD>
+                  <span style={{ fontWeight: 600 }}>
+                    {txn.amount.toLocaleString()}
+                  </span>
+                </TD>
+                <TD muted>{txn.currency}</TD>
+                <TD muted>{txn.reference ?? "—"}</TD>
+                <TD muted>{txn.source}</TD>
+              </TR>
+            ))}
+          </DataTable>
+        </div>
+      )}
+    </div>
+  );
+}
+
           justifyContent: "space-between",
           alignItems: "center",
           marginBottom: 20,
@@ -139,153 +280,4 @@ export function FeesPage() {
         )}
       </div>
 
-      {/* Student search */}
-      <div style={{ marginBottom: 20, position: "relative", maxWidth: 400 }}>
-        <input
-          placeholder="Search student by name (min 2 chars)…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            if (selectedStudentId && e.target.value === "") {
-              setSelectedStudentId(null);
-            }
-          }}
-          style={{
-            width: "100%",
-            padding: "9px 14px",
-            border: "1px solid #d1d5db",
-            borderRadius: 6,
-            fontSize: 14,
-            boxSizing: "border-box",
-          }}
-        />
-        {students && !selectedStudent && students.length > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              top: "100%",
-              left: 0,
-              right: 0,
-              backgroundColor: "#fff",
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              zIndex: 100,
-              maxHeight: 200,
-              overflowY: "auto",
-            }}
-          >
-            {students.map((student) => (
-              <div
-                key={student.id}
-                onClick={() => selectStudent(student)}
-                style={{
-                  padding: "10px 14px",
-                  cursor: "pointer",
-                  borderBottom: "1px solid #f3f4f6",
-                  fontSize: 14,
-                }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLDivElement).style.backgroundColor =
-                    "#f9fafb")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLDivElement).style.backgroundColor =
-                    "")
-                }
-              >
-                {student.first_name} {student.last_name}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {selectedStudentId && selectedStudent && (
-        <div>
-          <h3 style={{ marginBottom: 16 }}>
-            {selectedStudent.first_name} {selectedStudent.last_name}
-          </h3>
-
-          {summary && <SummaryCard summary={summary} />}
-
-          <h4 style={{ marginBottom: 10 }}>Payment History</h4>
-          {txnLoading && <p style={{ color: "#6b7280" }}>Loading…</p>}
-          {transactions && (
-            <div style={{ overflowX: "auto" }}>
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: 14,
-                }}
-              >
-                <thead>
-                  <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
-                    {["Date", "Amount", "Currency", "Reference", "Source"].map(
-                      (h) => (
-                        <th
-                          key={h}
-                          style={{
-                            textAlign: "left",
-                            padding: "8px 12px",
-                            fontWeight: 600,
-                            color: "#374151",
-                          }}
-                        >
-                          {h}
-                        </th>
-                      ),
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        style={{
-                          padding: "24px 12px",
-                          color: "#6b7280",
-                          textAlign: "center",
-                        }}
-                      >
-                        No payments recorded.
-                      </td>
-                    </tr>
-                  )}
-                  {transactions.map((txn) => (
-                    <tr
-                      key={txn.id}
-                      style={{ borderBottom: "1px solid #f3f4f6" }}
-                    >
-                      <td style={{ padding: "10px 12px", color: "#6b7280" }}>
-                        {new Date(txn.paid_at).toLocaleDateString()}
-                      </td>
-                      <td style={{ padding: "10px 12px", fontWeight: 600 }}>
-                        {txn.amount.toLocaleString()}
-                      </td>
-                      <td style={{ padding: "10px 12px" }}>{txn.currency}</td>
-                      <td style={{ padding: "10px 12px" }}>
-                        {txn.reference ?? "—"}
-                      </td>
-                      <td style={{ padding: "10px 12px", color: "#6b7280" }}>
-                        {txn.source}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {!selectedStudentId && (
-        <p style={{ color: "#6b7280", marginTop: 20 }}>
-          Search for a student above to view their fee records.
-        </p>
-      )}
-    </div>
-  );
-}

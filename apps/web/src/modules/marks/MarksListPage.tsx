@@ -2,42 +2,39 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { listSubmissions } from "./marks.api";
-import { useConfig } from "../../app/ConfigProvider";
+import {
+  ensureGlobalCss,
+  PageHeader,
+  FilterBar,
+  DataTable,
+  TR,
+  TD,
+  Badge,
+  PrimaryBtn,
+  ErrorBanner,
+} from "../../lib/ui";
 
 const PROGRAMMES = ["NCBC", "NCES", "NCAM", "NCP", "NCWF"];
+const MARK_STATES = [
+  "DRAFT",
+  "SUBMITTED",
+  "HOD_REVIEW",
+  "APPROVED",
+  "PUBLISHED",
+];
 
-const STATE_COLORS: Record<string, string> = {
-  DRAFT: "#6b7280",
-  SUBMITTED: "#2563eb",
-  HOD_REVIEW: "#d97706",
-  APPROVED: "#16a34a",
-  PUBLISHED: "#0891b2",
+type BadgeColor = "gray" | "blue" | "yellow" | "green" | "cyan";
+const STATE_BADGE: Record<string, BadgeColor> = {
+  DRAFT: "gray",
+  SUBMITTED: "blue",
+  HOD_REVIEW: "yellow",
+  APPROVED: "green",
+  PUBLISHED: "cyan",
 };
 
-function StateBadge({ state }: { state: string | null }) {
-  const color = state ? (STATE_COLORS[state] ?? "#6b7280") : "#6b7280";
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "2px 10px",
-        borderRadius: 12,
-        fontSize: 12,
-        fontWeight: 600,
-        color: "#fff",
-        backgroundColor: color,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {state ?? "—"}
-    </span>
-  );
-}
-
 export function MarksListPage() {
+  ensureGlobalCss();
   const navigate = useNavigate();
-  const { config } = useConfig();
-  const primary = config?.branding?.primaryColor ?? "#2563EB";
 
   const [programme, setProgramme] = useState("");
   const [intake, setIntake] = useState("");
@@ -53,37 +50,22 @@ export function MarksListPage() {
       }),
   });
 
+  const isEmpty = !isLoading && !error && (data?.length ?? 0) === 0;
+
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 20,
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Marks</h2>
-        <button
-          onClick={() => navigate("/marks/new")}
-          style={{
-            backgroundColor: primary,
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            padding: "8px 16px",
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
-        >
-          + New Submission
-        </button>
-      </div>
+      <PageHeader
+        title="Marks"
+        action={
+          <PrimaryBtn onClick={() => navigate("/marks/new")}>
+            + New Submission
+          </PrimaryBtn>
+        }
+      />
 
-      {/* Filters */}
-      <div
-        style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}
-      >
+      {error && <ErrorBanner message="Failed to load submissions." />}
+
+      <FilterBar>
         <select
           value={programme}
           onChange={(e) => setProgramme(e.target.value)}
@@ -113,8 +95,7 @@ export function MarksListPage() {
             minWidth: 180,
           }}
         />
-        <input
-          placeholder="Term (e.g. Term 1)"
+        <select
           value={term}
           onChange={(e) => setTerm(e.target.value)}
           style={{
@@ -122,94 +103,45 @@ export function MarksListPage() {
             border: "1px solid #d1d5db",
             borderRadius: 6,
             fontSize: 14,
-            minWidth: 140,
           }}
-        />
-      </div>
+        >
+          <option value="">All terms</option>
+          <option value="Term 1">Term 1</option>
+          <option value="Term 2">Term 2</option>
+          <option value="Term 3">Term 3</option>
+        </select>
+      </FilterBar>
 
-      {isLoading && <p style={{ color: "#6b7280" }}>Loading…</p>}
-      {error && <p style={{ color: "#dc2626" }}>Failed to load submissions.</p>}
-
-      {data && (
-        <div style={{ overflowX: "auto" }}>
-          <table
-            style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
-          >
-            <thead>
-              <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
-                {[
-                  "Course",
-                  "Programme",
-                  "Intake",
-                  "Term",
-                  "State",
-                  "Created",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      textAlign: "left",
-                      padding: "8px 12px",
-                      fontWeight: 600,
-                      color: "#374151",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    style={{
-                      padding: "24px 12px",
-                      color: "#6b7280",
-                      textAlign: "center",
-                    }}
-                  >
-                    No submissions found.
-                  </td>
-                </tr>
-              )}
-              {data.map((sub) => (
-                <tr
-                  key={sub.id}
-                  onClick={() => navigate(`/marks/${sub.id}`)}
-                  style={{
-                    cursor: "pointer",
-                    borderBottom: "1px solid #f3f4f6",
-                  }}
-                  onMouseEnter={(e) =>
-                    ((
-                      e.currentTarget as HTMLTableRowElement
-                    ).style.backgroundColor = "#f9fafb")
-                  }
-                  onMouseLeave={(e) =>
-                    ((
-                      e.currentTarget as HTMLTableRowElement
-                    ).style.backgroundColor = "")
-                  }
-                >
-                  <td style={{ padding: "10px 12px" }}>{sub.course_id}</td>
-                  <td style={{ padding: "10px 12px" }}>{sub.programme}</td>
-                  <td style={{ padding: "10px 12px" }}>{sub.intake}</td>
-                  <td style={{ padding: "10px 12px" }}>{sub.term}</td>
-                  <td style={{ padding: "10px 12px" }}>
-                    <StateBadge state={sub.current_state} />
-                  </td>
-                  <td style={{ padding: "10px 12px", color: "#6b7280" }}>
-                    {new Date(sub.created_at).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        headers={["Course", "Programme", "Intake / Term", "State", "Created"]}
+        isLoading={isLoading}
+        isEmpty={isEmpty}
+        emptyIcon="📊"
+        emptyTitle="No submissions found"
+        emptyDescription='Adjust filters or click "+ New Submission" to add one.'
+        colCount={5}
+      >
+        {data?.map((sub) => (
+          <TR key={sub.id} onClick={() => navigate(`/marks/${sub.id}`)}>
+            <TD>
+              <span style={{ fontWeight: 600, color: "#111827" }}>
+                {sub.course_id}
+              </span>
+            </TD>
+            <TD muted>{sub.programme}</TD>
+            <TD muted>
+              {sub.intake} / {sub.term}
+            </TD>
+            <TD>
+              <Badge
+                label={sub.current_state ?? "—"}
+                color={STATE_BADGE[sub.current_state ?? ""] ?? "gray"}
+              />
+            </TD>
+            <TD muted>{new Date(sub.created_at).toLocaleDateString()}</TD>
+          </TR>
+        ))}
+      </DataTable>
     </div>
   );
 }

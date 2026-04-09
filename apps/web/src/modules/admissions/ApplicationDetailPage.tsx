@@ -6,69 +6,37 @@ import {
   getWorkflowDef,
   fireTransition,
 } from "./admissions.api";
-import { useConfig } from "../../app/ConfigProvider";
+import {
+  ensureGlobalCss,
+  Spinner,
+  PageHeader,
+  Card,
+  DetailRow,
+  Badge,
+  PrimaryBtn,
+  SecondaryBtn,
+  ErrorBanner,
+  SectionLabel,
+} from "../../lib/ui";
 
-const STATE_COLORS: Record<string, string> = {
-  DRAFT: "#6b7280",
-  SUBMITTED: "#2563eb",
-  UNDER_REVIEW: "#d97706",
-  COMMITTEE_REVIEW: "#7c3aed",
-  APPROVED_GOVT: "#16a34a",
-  APPROVED_PRIVATE: "#16a34a",
-  REJECTED: "#dc2626",
-  ENROLLED: "#0891b2",
+const STATE_BADGE_COLOR: Record<
+  string,
+  "gray" | "blue" | "yellow" | "purple" | "green" | "red" | "cyan"
+> = {
+  DRAFT: "gray",
+  SUBMITTED: "blue",
+  UNDER_REVIEW: "yellow",
+  COMMITTEE_REVIEW: "purple",
+  APPROVED_GOVT: "green",
+  APPROVED_PRIVATE: "green",
+  REJECTED: "red",
+  ENROLLED: "cyan",
 };
 
-function StateBadge({ state }: { state: string | null }) {
-  const color = state ? (STATE_COLORS[state] ?? "#6b7280") : "#6b7280";
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "4px 14px",
-        borderRadius: 12,
-        fontSize: 13,
-        fontWeight: 600,
-        color: "#fff",
-        backgroundColor: color,
-      }}
-    >
-      {state ?? "—"}
-    </span>
-  );
-}
-
-function Field({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null | undefined;
-}) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          fontSize: 12,
-          fontWeight: 600,
-          color: "#6b7280",
-          marginBottom: 2,
-        }}
-      >
-        {label}
-      </div>
-      <div style={{ fontSize: 15, color: value ? "#111827" : "#9ca3af" }}>
-        {value || "—"}
-      </div>
-    </div>
-  );
-}
-
 export function ApplicationDetailPage() {
+  ensureGlobalCss();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { config } = useConfig();
-  const primary = config?.branding?.primaryColor ?? "#2563EB";
   const qc = useQueryClient();
 
   const [transitionError, setTransitionError] = useState<string | null>(null);
@@ -98,8 +66,17 @@ export function ApplicationDetailPage() {
     },
   });
 
-  if (appLoading) return <p style={{ color: "#6b7280" }}>Loading…</p>;
-  if (!app) return <p style={{ color: "#dc2626" }}>Application not found.</p>;
+  if (appLoading) return <Spinner />;
+  if (!app)
+    return (
+      <div>
+        <PageHeader
+          title="Application"
+          back={{ label: "Admissions", to: "/admissions" }}
+        />
+        <ErrorBanner message="Application not found." />
+      </div>
+    );
 
   const currentState = app.current_state;
   const availableActions = wfDef
@@ -109,105 +86,67 @@ export function ApplicationDetailPage() {
     : [];
 
   return (
-    <div style={{ maxWidth: 700 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 24,
-        }}
-      >
-        <button
-          onClick={() => navigate("/admissions")}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "#6b7280",
-            fontSize: 14,
-          }}
-        >
-          ← Back
-        </button>
-        <h2 style={{ margin: 0 }}>
-          {app.first_name} {app.last_name}
-        </h2>
-        <StateBadge state={currentState} />
-      </div>
+    <div>
+      <PageHeader
+        title={`${app.first_name} ${app.last_name}`}
+        back={{ label: "Admissions", to: "/admissions" }}
+        action={
+          currentState ? (
+            <Badge
+              label={currentState}
+              color={STATE_BADGE_COLOR[currentState] ?? "gray"}
+            />
+          ) : undefined
+        }
+      />
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "0 32px",
-          backgroundColor: "#f9fafb",
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-          padding: 24,
-          marginBottom: 24,
-        }}
-      >
-        <Field label="First Name" value={app.first_name} />
-        <Field label="Last Name" value={app.last_name} />
-        <Field label="Email" value={app.email} />
-        <Field label="Phone" value={app.phone} />
-        <Field
-          label="Date of Birth"
-          value={app.dob ? new Date(app.dob).toLocaleDateString() : null}
-        />
-        <Field label="Gender" value={app.gender} />
-        <Field label="Programme" value={app.programme} />
-        <Field label="Intake" value={app.intake} />
-        <Field label="Sponsorship Type" value={app.sponsorship_type} />
-        <Field
-          label="Applied"
-          value={new Date(app.created_at).toLocaleString()}
-        />
-      </div>
+      <Card padding="0 24px" style={{ marginBottom: 20 }}>
+        <DetailRow label="First name">{app.first_name}</DetailRow>
+        <DetailRow label="Last name">{app.last_name}</DetailRow>
+        <DetailRow label="Email">{app.email ?? "—"}</DetailRow>
+        <DetailRow label="Phone">{app.phone ?? "—"}</DetailRow>
+        <DetailRow label="Date of birth">
+          {app.dob ? new Date(app.dob).toLocaleDateString() : "—"}
+        </DetailRow>
+        <DetailRow label="Gender">{app.gender ?? "—"}</DetailRow>
+        <DetailRow label="Programme">{app.programme ?? "—"}</DetailRow>
+        <DetailRow label="Intake">{app.intake ?? "—"}</DetailRow>
+        <DetailRow label="Sponsorship type">
+          {app.sponsorship_type ?? "—"}
+        </DetailRow>
+        <DetailRow label="Applied">
+          {new Date(app.created_at).toLocaleString()}
+        </DetailRow>
+      </Card>
 
-      {/* Workflow actions */}
       {availableActions.length > 0 && (
-        <div>
-          <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 15 }}>
-            Workflow Actions
-          </h3>
+        <Card padding="20px 24px">
+          <SectionLabel>Workflow Actions</SectionLabel>
+          {transitionError && (
+            <ErrorBanner message={transitionError} />
+          )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {availableActions.map((action) => (
-              <button
+              <PrimaryBtn
                 key={action}
                 disabled={transitionMut.isPending}
                 onClick={() => transitionMut.mutate(action)}
-                style={{
-                  backgroundColor: primary,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "8px 16px",
-                  cursor: transitionMut.isPending ? "not-allowed" : "pointer",
-                  fontWeight: 600,
-                  fontSize: 13,
-                  opacity: transitionMut.isPending ? 0.7 : 1,
-                }}
               >
                 {action.replace(/_/g, " ")}
-              </button>
+              </PrimaryBtn>
             ))}
           </div>
-          {transitionError && (
-            <p style={{ color: "#dc2626", fontSize: 13, marginTop: 8 }}>
-              {transitionError}
-            </p>
-          )}
-        </div>
+        </Card>
       )}
 
       {currentState && availableActions.length === 0 && (
-        <p style={{ color: "#6b7280", fontSize: 14 }}>
-          No further actions available for state <strong>{currentState}</strong>
-          .
+        <p style={{ color: "#6b7280", fontSize: 14, margin: "16px 0 0" }}>
+          No further actions available for state{" "}
+          <strong>{currentState}</strong>.
         </p>
       )}
     </div>
   );
 }
+
+

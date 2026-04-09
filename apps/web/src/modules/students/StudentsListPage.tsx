@@ -1,9 +1,22 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { listStudents } from "./students.api";
+import {
+  ensureGlobalCss,
+  PageHeader,
+  FilterBar,
+  SearchInput,
+  DataTable,
+  TR,
+  TD,
+  Pagination,
+  PrimaryBtn,
+  ErrorBanner,
+} from "../../lib/ui";
 
 export function StudentsListPage() {
+  ensureGlobalCss();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -17,157 +30,68 @@ export function StudentsListPage() {
     queryFn: () => listStudents({ search: search || undefined, page }),
   });
 
-  if (isLoading) return <p>Loading…</p>;
-  if (error)
-    return (
-      <p style={{ color: "red" }}>
-        Failed to load students. Is there a published config for this tenant?
-      </p>
-    );
+  const isEmpty = !isLoading && !error && (students?.length ?? 0) === 0;
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 16,
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Students</h2>
-        <Link to="/students/new">
-          <button
-            style={{
-              background: "var(--primary-color, #2563EB)",
-              color: "#fff",
-              border: "none",
-              padding: "8px 16px",
-              borderRadius: 4,
-              cursor: "pointer",
-              fontSize: 14,
-            }}
-          >
+      <PageHeader
+        title="Students"
+        action={
+          <PrimaryBtn onClick={() => navigate("/students/new")}>
             + New Student
-          </button>
-        </Link>
-      </div>
-
-      <input
-        type="search"
-        placeholder="Search by name…"
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setPage(1);
-        }}
-        style={{
-          padding: "8px 12px",
-          border: "1px solid #d1d5db",
-          borderRadius: 4,
-          fontSize: 14,
-          width: "100%",
-          maxWidth: 360,
-          boxSizing: "border-box",
-          marginBottom: 16,
-        }}
+          </PrimaryBtn>
+        }
       />
 
-      {students?.length === 0 ? (
-        <p style={{ color: "#6b7280" }}>
-          {search
-            ? "No students match your search."
-            : 'No students yet. Click "+ New Student" to add one.'}
-        </p>
-      ) : (
-        <table
-          style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
-        >
-          <thead>
-            <tr>
-              {["First Name", "Last Name", "Date of Birth", "Created"].map(
-                (h) => (
-                  <th
-                    key={h}
-                    style={{
-                      textAlign: "left",
-                      borderBottom: "2px solid #e5e7eb",
-                      padding: "8px 12px",
-                      color: "#374151",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {h}
-                  </th>
-                ),
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {students?.map((s) => (
-              <tr
-                key={s.id}
-                onClick={() => navigate(`/students/${s.id}`)}
-                style={{
-                  borderBottom: "1px solid #f3f4f6",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLTableRowElement).style.background =
-                    "#f9fafb")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLTableRowElement).style.background =
-                    "")
-                }
-              >
-                <td style={{ padding: "10px 12px" }}>{s.first_name}</td>
-                <td style={{ padding: "10px 12px" }}>{s.last_name}</td>
-                <td style={{ padding: "10px 12px" }}>
-                  {s.date_of_birth ?? "—"}
-                </td>
-                <td style={{ padding: "10px 12px", color: "#6b7280" }}>
-                  {new Date(s.created_at).toLocaleDateString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {error && (
+        <ErrorBanner message="Failed to load students. Is there a published config for this tenant?" />
       )}
 
-      <div
-        style={{ display: "flex", gap: 8, marginTop: 16, alignItems: "center" }}
+      <FilterBar>
+        <SearchInput
+          value={search}
+          onChange={(v) => {
+            setSearch(v);
+            setPage(1);
+          }}
+          placeholder="Search by name…"
+        />
+      </FilterBar>
+
+      <DataTable
+        headers={["Student", "Date of Birth", "Enrolled"]}
+        isLoading={isLoading}
+        isEmpty={isEmpty}
+        emptyIcon="👨‍🎓"
+        emptyTitle={
+          search ? "No students match your search" : "No students yet"
+        }
+        emptyDescription={
+          search
+            ? "Try a different search term."
+            : 'Click "+ New Student" to add the first one.'
+        }
+        colCount={3}
       >
-        <button
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1}
-          style={{
-            padding: "6px 14px",
-            border: "1px solid #d1d5db",
-            borderRadius: 4,
-            cursor: page === 1 ? "not-allowed" : "pointer",
-            fontSize: 13,
-            opacity: page === 1 ? 0.5 : 1,
-          }}
-        >
-          ← Prev
-        </button>
-        <span style={{ fontSize: 13, color: "#6b7280" }}>Page {page}</span>
-        <button
-          onClick={() => setPage((p) => p + 1)}
-          disabled={(students?.length ?? 0) < 20}
-          style={{
-            padding: "6px 14px",
-            border: "1px solid #d1d5db",
-            borderRadius: 4,
-            cursor: (students?.length ?? 0) < 20 ? "not-allowed" : "pointer",
-            fontSize: 13,
-            opacity: (students?.length ?? 0) < 20 ? 0.5 : 1,
-          }}
-        >
-          Next →
-        </button>
-      </div>
+        {students?.map((s) => (
+          <TR key={s.id} onClick={() => navigate(`/students/${s.id}`)}>
+            <TD>
+              <span style={{ fontWeight: 600, color: "#111827" }}>
+                {s.first_name} {s.last_name}
+              </span>
+            </TD>
+            <TD muted>{s.date_of_birth ?? "—"}</TD>
+            <TD muted>{new Date(s.created_at).toLocaleDateString()}</TD>
+          </TR>
+        ))}
+      </DataTable>
+
+      <Pagination
+        page={page}
+        hasMore={(students?.length ?? 0) >= 20}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => p + 1)}
+      />
     </div>
   );
 }
