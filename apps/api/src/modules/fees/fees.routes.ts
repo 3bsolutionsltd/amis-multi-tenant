@@ -15,6 +15,7 @@ const SUMMARY_ROLES = [
   "admin",
   "finance",
   "principal",
+  "dean",
 ] as const;
 const TXN_ROLES = ["registrar", "finance", "admin"] as const;
 const FINANCE_ROLES = ["finance", "admin"] as const;

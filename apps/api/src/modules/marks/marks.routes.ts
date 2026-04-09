@@ -221,65 +221,69 @@ export async function marksRoutes(app: FastifyInstance) {
   );
 
   // ---------- GET /marks/submissions
-  app.get("/marks/submissions", async (req, reply) => {
-    const tid = getTenantId(req);
-    if (!tid)
-      return reply.status(400).send({ error: "x-tenant-id header required" });
+  app.get(
+    "/marks/submissions",
+    { preHandler: requireRole("admin", "registrar", "hod", "instructor") },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
 
-    const parsed = SubmissionsQuerySchema.safeParse(req.query);
-    if (!parsed.success)
-      return reply.status(422).send({ error: parsed.error.flatten() });
+      const parsed = SubmissionsQuerySchema.safeParse(req.query);
+      if (!parsed.success)
+        return reply.status(422).send({ error: parsed.error.flatten() });
 
-    const { course_id, programme, intake, term, current_state, page, limit } =
-      parsed.data;
-    const offset = (page - 1) * limit;
+      const { course_id, programme, intake, term, current_state, page, limit } =
+        parsed.data;
+      const offset = (page - 1) * limit;
 
-    const rows = await withTenant(tid, async (client) => {
-      const conditions: string[] = [];
-      const params: unknown[] = [tid];
+      const rows = await withTenant(tid, async (client) => {
+        const conditions: string[] = [];
+        const params: unknown[] = [tid];
 
-      if (course_id) {
-        params.push(course_id);
-        conditions.push(`s.course_id = $${params.length}`);
-      }
-      if (programme) {
-        params.push(programme);
-        conditions.push(`s.programme = $${params.length}`);
-      }
-      if (intake) {
-        params.push(intake);
-        conditions.push(`s.intake = $${params.length}`);
-      }
-      if (term) {
-        params.push(term);
-        conditions.push(`s.term = $${params.length}`);
-      }
-      if (current_state) {
-        params.push(current_state);
-        conditions.push(`wi.current_state = $${params.length}`);
-      }
+        if (course_id) {
+          params.push(course_id);
+          conditions.push(`s.course_id = $${params.length}`);
+        }
+        if (programme) {
+          params.push(programme);
+          conditions.push(`s.programme = $${params.length}`);
+        }
+        if (intake) {
+          params.push(intake);
+          conditions.push(`s.intake = $${params.length}`);
+        }
+        if (term) {
+          params.push(term);
+          conditions.push(`s.term = $${params.length}`);
+        }
+        if (current_state) {
+          params.push(current_state);
+          conditions.push(`wi.current_state = $${params.length}`);
+        }
 
-      const where =
-        conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "";
+        const where =
+          conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "";
 
-      params.push(limit, offset);
-      const limitIdx = params.length - 1;
-      const offsetIdx = params.length;
+        params.push(limit, offset);
+        const limitIdx = params.length - 1;
+        const offsetIdx = params.length;
 
-      return client.query(
-        `SELECT ${SUBMISSION_SELECT}
+        return client.query(
+          `SELECT ${SUBMISSION_SELECT}
          FROM app.mark_submissions s
          LEFT JOIN app.workflow_instances wi
            ON wi.entity_type = '${ENTITY_TYPE}' AND wi.entity_id = s.id
          WHERE s.tenant_id = $1 ${where}
          ORDER BY s.created_at DESC
          LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
-        params,
-      );
-    });
+          params,
+        );
+      });
 
-    return rows.rows;
-  });
+      return rows.rows;
+    },
+  );
 
   // ---------- GET /marks/submissions/:id
   app.get<{ Params: { id: string } }>(
