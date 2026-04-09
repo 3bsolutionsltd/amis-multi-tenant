@@ -41,11 +41,13 @@ export async function apiFetch<T>(
     const refreshToken = getRefreshToken();
     if (refreshToken) {
       try {
-        const refreshRes = await fetch(`${BASE_URL}/auth/refresh`, {
+        // Use doFetch with null token to force dev-header mode for the refresh call,
+        // then override the body manually — or call fetch directly since /auth/refresh
+        // is a public endpoint that doesn't need auth headers.
+        const refreshRes = await doFetch("/auth/refresh", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refreshToken }),
-        });
+        }, null);
 
         if (refreshRes.ok) {
           const refreshData = await refreshRes.json() as {
