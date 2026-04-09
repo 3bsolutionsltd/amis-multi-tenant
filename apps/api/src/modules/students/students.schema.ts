@@ -4,6 +4,11 @@ export const CreateStudentSchema = z.object({
   first_name: z.string().min(1),
   last_name: z.string().min(1),
   date_of_birth: z.string().date().optional(),
+  admission_number: z.string().optional(),
+  sponsorship_type: z.string().optional(),
+  programme: z.string().optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
   extension: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -13,6 +18,11 @@ export const UpdateStudentSchema = z.object({
   first_name: z.string().min(1).optional(),
   last_name: z.string().min(1).optional(),
   date_of_birth: z.string().date().optional(),
+  admission_number: z.string().optional(),
+  sponsorship_type: z.string().optional(),
+  programme: z.string().optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
   extension: z.record(z.string(), z.unknown()).optional(),
 });
 

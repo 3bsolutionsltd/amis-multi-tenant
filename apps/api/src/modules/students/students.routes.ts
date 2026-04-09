@@ -10,7 +10,7 @@ import {
 } from "./students.schema.js";
 
 const SELECT_COLS =
-  "id, first_name, last_name, date_of_birth, extension, created_at, updated_at";
+  "id, first_name, last_name, date_of_birth, admission_number, sponsorship_type, programme, email, phone, extension, created_at, updated_at";
 
 export async function studentsRoutes(app: FastifyInstance) {
   const WIDE_ROLES = [
@@ -100,19 +100,34 @@ export async function studentsRoutes(app: FastifyInstance) {
         return reply.status(422).send({ error: parsed.error.flatten() });
       }
 
-      const { first_name, last_name, date_of_birth, extension } = parsed.data;
+      const {
+        first_name,
+        last_name,
+        date_of_birth,
+        admission_number,
+        sponsorship_type,
+        programme,
+        email,
+        phone,
+        extension,
+      } = parsed.data;
 
       const row = await withTenant(tenantId, (client) =>
         client.query(
           `INSERT INTO app.students
-             (tenant_id, first_name, last_name, date_of_birth, extension)
-           VALUES ($1, $2, $3, $4, $5)
+             (tenant_id, first_name, last_name, date_of_birth, admission_number, sponsorship_type, programme, email, phone, extension)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING ${SELECT_COLS}`,
           [
             tenantId,
             first_name,
             last_name,
             date_of_birth ?? null,
+            admission_number ?? null,
+            sponsorship_type ?? null,
+            programme ?? null,
+            email ?? null,
+            phone ?? null,
             JSON.stringify(extension ?? {}),
           ],
         ),
@@ -137,17 +152,32 @@ export async function studentsRoutes(app: FastifyInstance) {
         return reply.status(422).send({ error: parsed.error.flatten() });
       }
 
-      const { first_name, last_name, date_of_birth, extension } = parsed.data;
+      const {
+        first_name,
+        last_name,
+        date_of_birth,
+        admission_number,
+        sponsorship_type,
+        programme,
+        email,
+        phone,
+        extension,
+      } = parsed.data;
 
       const row = await withTenant(tenantId, (client) =>
         client.query(
           `UPDATE app.students
            SET
-             first_name    = COALESCE($2, first_name),
-             last_name     = COALESCE($3, last_name),
-             date_of_birth = COALESCE($4::date, date_of_birth),
-             extension     = COALESCE($5::jsonb, extension),
-             updated_at    = now()
+             first_name       = COALESCE($2, first_name),
+             last_name        = COALESCE($3, last_name),
+             date_of_birth    = COALESCE($4::date, date_of_birth),
+             admission_number = COALESCE($5, admission_number),
+             sponsorship_type = COALESCE($6, sponsorship_type),
+             programme        = COALESCE($7, programme),
+             email            = COALESCE($8, email),
+             phone            = COALESCE($9, phone),
+             extension        = COALESCE($10::jsonb, extension),
+             updated_at       = now()
            WHERE id = $1
            RETURNING ${SELECT_COLS}`,
           [
@@ -155,6 +185,11 @@ export async function studentsRoutes(app: FastifyInstance) {
             first_name ?? null,
             last_name ?? null,
             date_of_birth ?? null,
+            admission_number ?? null,
+            sponsorship_type ?? null,
+            programme ?? null,
+            email ?? null,
+            phone ?? null,
             extension !== undefined ? JSON.stringify(extension) : null,
           ],
         ),
