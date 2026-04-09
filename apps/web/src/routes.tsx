@@ -3,6 +3,16 @@ import { AppShell } from "./app/AppShell";
 import { StudentsListPage } from "./modules/students/StudentsListPage";
 import { StudentCreatePage } from "./modules/students/StudentCreatePage";
 import { StudentDetailPage } from "./modules/students/StudentDetailPage";
+import { AdmissionsListPage } from "./modules/admissions/AdmissionsListPage";
+import { ApplicationCreatePage } from "./modules/admissions/ApplicationCreatePage";
+import { ApplicationDetailPage } from "./modules/admissions/ApplicationDetailPage";
+import { UsersListPage } from "./modules/users/UsersListPage";
+import { UserCreatePage } from "./modules/users/UserCreatePage";
+import { FeesPage } from "./modules/fees/FeesPage";
+import { FeeEntryPage } from "./modules/fees/FeeEntryPage";
+import { MarksListPage } from "./modules/marks/MarksListPage";
+import { MarkCreatePage } from "./modules/marks/MarkCreatePage";
+import { MarkDetailPage } from "./modules/marks/MarkDetailPage";
 import { AdminStudioLayout } from "./admin-studio/AdminStudioLayout";
 import { ConfigDashboard } from "./admin-studio/ConfigDashboard";
 import { ConfigEditor } from "./admin-studio/ConfigEditor";
@@ -38,33 +48,16 @@ export const router = createBrowserRouter([
       { path: "students", element: <StudentsListPage /> },
       { path: "students/new", element: <StudentCreatePage /> },
       { path: "students/:id", element: <StudentDetailPage /> },
-      {
-        path: "admissions",
-        element: (
-          <div>
-            <h2 style={{ marginTop: 0 }}>Admissions</h2>
-            <p style={{ color: "#6b7280" }}>Coming soon — Track C.</p>
-          </div>
-        ),
-      },
-      {
-        path: "finance",
-        element: (
-          <div>
-            <h2 style={{ marginTop: 0 }}>Finance</h2>
-            <p style={{ color: "#6b7280" }}>Coming soon — Track C.</p>
-          </div>
-        ),
-      },
-      {
-        path: "marks",
-        element: (
-          <div>
-            <h2 style={{ marginTop: 0 }}>Marks</h2>
-            <p style={{ color: "#6b7280" }}>Coming soon — Track C.</p>
-          </div>
-        ),
-      },
+      { path: "admissions", element: <AdmissionsListPage /> },
+      { path: "admissions/new", element: <ApplicationCreatePage /> },
+      { path: "admissions/:id", element: <ApplicationDetailPage /> },
+      { path: "users", element: <UsersListPage /> },
+      { path: "users/new", element: <UserCreatePage /> },
+      { path: "finance", element: <FeesPage /> },
+      { path: "finance/entry", element: <FeeEntryPage /> },
+      { path: "marks", element: <MarksListPage /> },
+      { path: "marks/new", element: <MarkCreatePage /> },
+      { path: "marks/:id", element: <MarkDetailPage /> },
     ],
   },
   {

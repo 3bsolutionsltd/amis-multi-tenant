@@ -37,11 +37,11 @@ export function hashPassword(plaintext: string): string {
  */
 export async function hashPasswordAsync(plaintext: string): Promise<string> {
   const salt = randomBytes(SALT_LEN);
-  const dk = await scryptAsync(plaintext, salt, KEY_LEN, {
+  const dk = (await scryptAsync(plaintext, salt, KEY_LEN, {
     N: SCRYPT_N,
     r: SCRYPT_R,
     p: SCRYPT_P,
-  }) as Buffer;
+  })) as Buffer;
   return `${salt.toString("hex")}:${dk.toString("hex")}`;
 }
 
@@ -96,11 +96,11 @@ export async function verifyPasswordAsync(
 
   if (salt.length !== SALT_LEN || expectedDk.length !== KEY_LEN) return false;
 
-  const actualDk = await scryptAsync(plaintext, salt, KEY_LEN, {
+  const actualDk = (await scryptAsync(plaintext, salt, KEY_LEN, {
     N: SCRYPT_N,
     r: SCRYPT_R,
     p: SCRYPT_P,
-  }) as Buffer;
+  })) as Buffer;
 
   return timingSafeEqual(actualDk, expectedDk);
 }

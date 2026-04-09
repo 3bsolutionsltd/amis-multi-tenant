@@ -7,6 +7,9 @@ export const CreateApplicationSchema = z.object({
   intake: z.string().min(1),
   dob: z.string().optional(),
   gender: z.string().optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  sponsorship_type: z.string().optional(),
   extension: z.record(z.unknown()).optional(),
 });
 

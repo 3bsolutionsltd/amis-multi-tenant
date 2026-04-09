@@ -36,7 +36,7 @@ async function loadWorkflowDef(
 
 const APP_SELECT = `
   a.id, a.tenant_id, a.first_name, a.last_name, a.programme, a.intake,
-  a.dob, a.gender, a.extension, a.created_at,
+  a.dob, a.gender, a.email, a.phone, a.sponsorship_type, a.extension, a.created_at,
   wi.current_state
 `;
 
@@ -63,6 +63,9 @@ export async function admissionsRoutes(app: FastifyInstance) {
         intake,
         dob,
         gender,
+        email,
+        phone,
+        sponsorship_type,
         extension,
       } = parsed.data;
       const actorUserId = req.user?.userId ?? null;
@@ -80,8 +83,8 @@ export async function admissionsRoutes(app: FastifyInstance) {
         // Insert application
         const { rows: appRows } = await client.query(
           `INSERT INTO app.admission_applications
-             (tenant_id, first_name, last_name, programme, intake, dob, gender, extension)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             (tenant_id, first_name, last_name, programme, intake, dob, gender, email, phone, sponsorship_type, extension)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
            RETURNING *`,
           [
             tid,
@@ -91,6 +94,9 @@ export async function admissionsRoutes(app: FastifyInstance) {
             intake,
             dob ?? null,
             gender ?? null,
+            email ?? null,
+            phone ?? null,
+            sponsorship_type ?? null,
             JSON.stringify(extension ?? {}),
           ],
         );

@@ -41,7 +41,9 @@ describe("password utilities (unit)", () => {
   });
 
   it("verifyPassword returns false for a corrupted hash", async () => {
-    expect(await verifyPasswordAsync("Password123!", "not-a-valid-hash")).toBe(false);
+    expect(await verifyPasswordAsync("Password123!", "not-a-valid-hash")).toBe(
+      false,
+    );
   });
 });
 

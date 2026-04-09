@@ -43,7 +43,9 @@ describe("verifyPassword", () => {
   });
 
   it("returns false for a malformed stored hash", async () => {
-    expect(await verifyPasswordAsync("anything", "not-a-valid-hash")).toBe(false);
+    expect(await verifyPasswordAsync("anything", "not-a-valid-hash")).toBe(
+      false,
+    );
     expect(await verifyPasswordAsync("anything", "")).toBe(false);
     expect(await verifyPasswordAsync("anything", "onlyonepart")).toBe(false);
   });
