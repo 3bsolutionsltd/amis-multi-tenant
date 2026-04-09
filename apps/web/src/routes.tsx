@@ -8,11 +8,21 @@ import { ConfigDashboard } from "./admin-studio/ConfigDashboard";
 import { ConfigEditor } from "./admin-studio/ConfigEditor";
 import { WorkflowViewer } from "./admin-studio/WorkflowViewer";
 import { NavigationEditor } from "./admin-studio/NavigationEditor";
+import { LoginPage } from "./auth/LoginPage";
+import { ProtectedRoute } from "./auth/ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
+    path: "/login",
+    element: <LoginPage />,
+  },
+  {
     path: "/",
-    element: <AppShell />,
+    element: (
+      <ProtectedRoute>
+        <AppShell />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,
@@ -32,7 +42,11 @@ export const router = createBrowserRouter([
   },
   {
     path: "/admin-studio",
-    element: <AdminStudioLayout />,
+    element: (
+      <ProtectedRoute>
+        <AdminStudioLayout />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <ConfigDashboard /> },
       { path: "editor", element: <ConfigEditor /> },

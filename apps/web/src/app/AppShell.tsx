@@ -2,11 +2,13 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 import { ConfigProvider, useConfig } from "./ConfigProvider";
 import { TenantSwitcher } from "./TenantSwitcher";
 import { DevRoleSwitcher } from "./DevRoleSwitcher";
+import { useAuth } from "../auth/AuthContext";
 
 const FALLBACK_NAV = [{ label: "Students", route: "/students" }];
 
 function Header() {
   const { appName } = useConfig();
+  const { logout } = useAuth();
   return (
     <header
       style={{
@@ -20,8 +22,22 @@ function Header() {
     >
       <strong style={{ fontSize: 18 }}>{appName}</strong>
       <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-        <TenantSwitcher />
-        <DevRoleSwitcher />
+        {import.meta.env.DEV && <TenantSwitcher />}
+        {import.meta.env.DEV && <DevRoleSwitcher />}
+        <button
+          onClick={() => void logout()}
+          style={{
+            background: "rgba(255,255,255,0.15)",
+            border: "1px solid rgba(255,255,255,0.4)",
+            color: "#fff",
+            borderRadius: 6,
+            padding: "4px 12px",
+            fontSize: 13,
+            cursor: "pointer",
+          }}
+        >
+          Logout
+        </button>
       </div>
     </header>
   );

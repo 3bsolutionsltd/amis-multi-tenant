@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
+import { useAuth } from "../auth/AuthContext";
 
 export interface NavItem {
   label: string;
@@ -71,7 +72,8 @@ export function useConfig() {
 }
 
 export function ConfigProvider({ children }: { children: ReactNode }) {
-  const role = localStorage.getItem("amis_dev_role") ?? "admin";
+  const { user } = useAuth();
+  const role = user?.role ?? localStorage.getItem("amis_dev_role") ?? "admin";
 
   const { data: config, isLoading } = useQuery<ConfigData>({
     queryKey: ["config"],
