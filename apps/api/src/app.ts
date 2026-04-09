@@ -8,6 +8,7 @@ import { marksRoutes } from "./modules/marks/marks.routes.js";
 import { feesRoutes } from "./modules/fees/fees.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import { usersRoutes } from "./modules/users/users.routes.js";
+import { termRegistrationsRoutes } from "./modules/term-registrations/term-registrations.routes.js";
 import { registerDevIdentity } from "./middleware/devIdentity.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 
@@ -36,6 +37,7 @@ export function buildApp() {
   app.register(admissionsRoutes);
   app.register(marksRoutes);
   app.register(feesRoutes);
+  app.register(termRegistrationsRoutes);
 
   return app;
 }

@@ -13,6 +13,9 @@ import { FeeEntryPage } from "./modules/fees/FeeEntryPage";
 import { MarksListPage } from "./modules/marks/MarksListPage";
 import { MarkCreatePage } from "./modules/marks/MarkCreatePage";
 import { MarkDetailPage } from "./modules/marks/MarkDetailPage";
+import { TermRegistrationsListPage } from "./modules/term-registrations/TermRegistrationsListPage";
+import { TermRegistrationCreatePage } from "./modules/term-registrations/TermRegistrationCreatePage";
+import { TermRegistrationDetailPage } from "./modules/term-registrations/TermRegistrationDetailPage";
 import { AdminStudioLayout } from "./admin-studio/AdminStudioLayout";
 import { ConfigDashboard } from "./admin-studio/ConfigDashboard";
 import { ConfigEditor } from "./admin-studio/ConfigEditor";
@@ -58,6 +61,15 @@ export const router = createBrowserRouter([
       { path: "marks", element: <MarksListPage /> },
       { path: "marks/new", element: <MarkCreatePage /> },
       { path: "marks/:id", element: <MarkDetailPage /> },
+      { path: "term-registrations", element: <TermRegistrationsListPage /> },
+      {
+        path: "term-registrations/new",
+        element: <TermRegistrationCreatePage />,
+      },
+      {
+        path: "term-registrations/:id",
+        element: <TermRegistrationDetailPage />,
+      },
     ],
   },
   {
