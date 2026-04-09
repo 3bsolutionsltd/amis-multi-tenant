@@ -19,8 +19,22 @@ const ROLE_IDS: Record<string, string> = {
  *   x-tenant-id    → tenantId  (empty string if missing)
  *   x-dev-role     → role      (default: 'admin')
  *   x-dev-user-id  → userId    (default: deterministic UUID for role)
+ *
+ * Production guard: if NODE_ENV=production, this hook is a no-op — real JWT
+ * auth is handled entirely by requireAuth (registered after this hook).
+ *
+ * Bearer guard: if an Authorization: Bearer header is present, skip so that
+ * requireAuth handles the JWT flow (works in dev/test too).
  */
 export async function devIdentityHook(req: FastifyRequest): Promise<void> {
+  // Never set dev identity in production — requireAuth takes over
+  if (process.env.NODE_ENV === "production") return;
+
+  // If the caller sent a real Bearer token, let requireAuth handle it
+  const authHeader = req.headers.authorization;
+  if (typeof authHeader === "string" && authHeader.startsWith("Bearer "))
+    return;
+
   const tenantId =
     typeof req.headers["x-tenant-id"] === "string"
       ? req.headers["x-tenant-id"]
@@ -58,6 +72,10 @@ export function registerDevIdentity(app: FastifyInstance): void {
  */
 export function requireRole(...roles: string[]) {
   return async function (req: FastifyRequest, reply: FastifyReply) {
+    // Guard: identity must have been set by devIdentity or requireAuth
+    if ((req as unknown as { user?: object }).user === undefined) {
+      return reply.status(401).send({ message: "Authentication required" });
+    }
     if (!roles.includes(req.user.role)) {
       return reply.status(403).send({
         error: `Forbidden: role '${req.user.role}' is not allowed; requires one of: ${roles.join(", ")}`,

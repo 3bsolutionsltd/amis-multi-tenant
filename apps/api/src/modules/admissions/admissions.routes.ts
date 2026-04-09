@@ -123,60 +123,69 @@ export async function admissionsRoutes(app: FastifyInstance) {
   );
 
   // ---------- GET /admissions/applications
-  app.get("/admissions/applications", async (req, reply) => {
-    const tid = req.user?.tenantId ?? tenantHeader(req);
-    if (!tid)
-      return reply.status(400).send({ error: "x-tenant-id header required" });
+  app.get(
+    "/admissions/applications",
+    {
+      preHandler: requireRole("admin", "registrar", "hod", "principal", "dean"),
+    },
+    async (req, reply) => {
+      const tid = req.user?.tenantId ?? tenantHeader(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
 
-    const parsed = ApplicationsQuerySchema.safeParse(req.query);
-    if (!parsed.success)
-      return reply.status(422).send({ error: parsed.error.flatten() });
+      const parsed = ApplicationsQuerySchema.safeParse(req.query);
+      if (!parsed.success)
+        return reply.status(422).send({ error: parsed.error.flatten() });
 
-    const { intake, programme, current_state, page, limit } = parsed.data;
-    const offset = (page - 1) * limit;
+      const { intake, programme, current_state, page, limit } = parsed.data;
+      const offset = (page - 1) * limit;
 
-    const rows = await withTenant(tid, async (client) => {
-      const conditions: string[] = [];
-      const params: unknown[] = [tid];
+      const rows = await withTenant(tid, async (client) => {
+        const conditions: string[] = [];
+        const params: unknown[] = [tid];
 
-      if (intake) {
-        params.push(intake);
-        conditions.push(`a.intake = $${params.length}`);
-      }
-      if (programme) {
-        params.push(programme);
-        conditions.push(`a.programme = $${params.length}`);
-      }
-      if (current_state) {
-        params.push(current_state);
-        conditions.push(`wi.current_state = $${params.length}`);
-      }
+        if (intake) {
+          params.push(intake);
+          conditions.push(`a.intake = $${params.length}`);
+        }
+        if (programme) {
+          params.push(programme);
+          conditions.push(`a.programme = $${params.length}`);
+        }
+        if (current_state) {
+          params.push(current_state);
+          conditions.push(`wi.current_state = $${params.length}`);
+        }
 
-      const where =
-        conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "";
+        const where =
+          conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "";
 
-      params.push(limit, offset);
-      const limitParam = params.length - 1;
-      const offsetParam = params.length;
+        params.push(limit, offset);
+        const limitParam = params.length - 1;
+        const offsetParam = params.length;
 
-      return client.query(
-        `SELECT ${APP_SELECT}
+        return client.query(
+          `SELECT ${APP_SELECT}
          FROM app.admission_applications a
          LEFT JOIN app.workflow_instances wi
            ON wi.entity_type = 'admissions' AND wi.entity_id = a.id
          WHERE a.tenant_id = $1 ${where}
          ORDER BY a.created_at DESC
          LIMIT $${limitParam} OFFSET $${offsetParam}`,
-        params,
-      );
-    });
+          params,
+        );
+      });
 
-    return rows.rows;
-  });
+      return rows.rows;
+    },
+  );
 
   // ---------- GET /admissions/applications/:id
   app.get<{ Params: { id: string } }>(
     "/admissions/applications/:id",
+    {
+      preHandler: requireRole("admin", "registrar", "hod", "principal", "dean"),
+    },
     async (req, reply) => {
       const tid = req.user?.tenantId ?? tenantHeader(req);
       if (!tid)

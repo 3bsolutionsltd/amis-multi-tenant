@@ -13,59 +13,77 @@ const SELECT_COLS =
   "id, first_name, last_name, date_of_birth, extension, created_at, updated_at";
 
 export async function studentsRoutes(app: FastifyInstance) {
+  const WIDE_ROLES = [
+    "admin",
+    "registrar",
+    "hod",
+    "instructor",
+    "finance",
+    "principal",
+    "dean",
+  ] as const;
+
   // GET /students — search + paginated list
-  app.get("/students", async (req, reply) => {
-    const { tenantId } = req.user;
-    if (!tenantId) {
-      return reply.status(400).send({ error: "x-tenant-id header required" });
-    }
+  app.get(
+    "/students",
+    { preHandler: requireRole(...WIDE_ROLES) },
+    async (req, reply) => {
+      const { tenantId } = req.user;
+      if (!tenantId) {
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+      }
 
-    const parsed = StudentsQuerySchema.safeParse(req.query);
-    if (!parsed.success) {
-      return reply.status(422).send({ error: parsed.error.flatten() });
-    }
+      const parsed = StudentsQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        return reply.status(422).send({ error: parsed.error.flatten() });
+      }
 
-    const { search, page, limit } = parsed.data;
-    const offset = (page - 1) * limit;
+      const { search, page, limit } = parsed.data;
+      const offset = (page - 1) * limit;
 
-    const rows = await withTenant(tenantId, (client) => {
-      if (search) {
-        return client.query(
-          `SELECT ${SELECT_COLS} FROM app.students
+      const rows = await withTenant(tenantId, (client) => {
+        if (search) {
+          return client.query(
+            `SELECT ${SELECT_COLS} FROM app.students
            WHERE (first_name ILIKE $1 OR last_name ILIKE $1)
            ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
-          [`%${search}%`, limit, offset],
-        );
-      }
-      return client.query(
-        `SELECT ${SELECT_COLS} FROM app.students
+            [`%${search}%`, limit, offset],
+          );
+        }
+        return client.query(
+          `SELECT ${SELECT_COLS} FROM app.students
          ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
-        [limit, offset],
-      );
-    });
+          [limit, offset],
+        );
+      });
 
-    return rows.rows;
-  });
+      return rows.rows;
+    },
+  );
 
   // GET /students/:id — fetch one student
-  app.get<{ Params: { id: string } }>("/students/:id", async (req, reply) => {
-    const { tenantId } = req.user;
-    if (!tenantId) {
-      return reply.status(400).send({ error: "x-tenant-id header required" });
-    }
+  app.get<{ Params: { id: string } }>(
+    "/students/:id",
+    { preHandler: requireRole(...WIDE_ROLES) },
+    async (req, reply) => {
+      const { tenantId } = req.user;
+      if (!tenantId) {
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+      }
 
-    const row = await withTenant(tenantId, (client) =>
-      client.query(`SELECT ${SELECT_COLS} FROM app.students WHERE id = $1`, [
-        req.params.id,
-      ]),
-    );
+      const row = await withTenant(tenantId, (client) =>
+        client.query(`SELECT ${SELECT_COLS} FROM app.students WHERE id = $1`, [
+          req.params.id,
+        ]),
+      );
 
-    if (row.rows.length === 0) {
-      return reply.status(404).send({ error: "student not found" });
-    }
+      if (row.rows.length === 0) {
+        return reply.status(404).send({ error: "student not found" });
+      }
 
-    return row.rows[0];
-  });
+      return row.rows[0];
+    },
+  );
 
   // POST /students — create (registrar, admin only)
   app.post<{ Body: CreateStudent }>(

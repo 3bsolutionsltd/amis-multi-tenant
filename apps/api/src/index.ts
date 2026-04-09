@@ -18,6 +18,10 @@ try {
   // .env not present — rely on real environment variables
 }
 
+// Validate required env vars before starting the server
+import { assertJwtConfig } from "./lib/jwt.js";
+assertJwtConfig();
+
 import { buildApp } from "./app.js";
 
 const app = buildApp();

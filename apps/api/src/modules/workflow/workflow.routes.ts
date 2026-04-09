@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
+import { requireRole } from "../../middleware/devIdentity.js";
 import type { WorkflowDefinition } from "../config/config.schema.js";
 
 // ------------------------------------------------------------------ types
@@ -148,156 +149,177 @@ export async function workflowRoutes(app: FastifyInstance) {
       action: string;
       meta?: Record<string, unknown>;
     };
-  }>("/workflow/:entityType/:entityId/transition", async (req, reply) => {
-    const tid = tenantHeader(req);
-    if (!tid)
-      return reply.status(400).send({ error: "x-tenant-id header required" });
+  }>(
+    "/workflow/:entityType/:entityId/transition",
+    {
+      preHandler: requireRole(
+        "admin",
+        "registrar",
+        "hod",
+        "instructor",
+        "finance",
+        "dean",
+      ),
+    },
+    async (req, reply) => {
+      const tid = tenantHeader(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
 
-    const { entityType, entityId } = req.params;
-    const { workflowKey, action, meta } = req.body ?? {};
-    const actorUserId = req.user?.userId ?? null;
+      const { entityType, entityId } = req.params;
+      const { workflowKey, action, meta } = req.body ?? {};
+      const actorUserId = req.user?.userId ?? null;
 
-    if (!workflowKey || !action) {
-      return reply
-        .status(400)
-        .send({ error: "body.workflowKey and body.action are required" });
-    }
-
-    const result = await withTenant(tid, async (client) => {
-      // Load the workflow definition from the published config
-      const wf = await loadWorkflowDef(tid, workflowKey, client);
-      if (!wf) {
-        return {
-          configError: true,
-          message: `workflow "${workflowKey}" not found in published config`,
-        } as const;
+      if (!workflowKey || !action) {
+        return reply
+          .status(400)
+          .send({ error: "body.workflowKey and body.action are required" });
       }
 
-      // Load the current instance
-      const { rows: instRows } = await client.query<WorkflowInstance>(
-        `SELECT * FROM app.workflow_instances
+      const result = await withTenant(tid, async (client) => {
+        // Load the workflow definition from the published config
+        const wf = await loadWorkflowDef(tid, workflowKey, client);
+        if (!wf) {
+          return {
+            configError: true,
+            message: `workflow "${workflowKey}" not found in published config`,
+          } as const;
+        }
+
+        // Load the current instance
+        const { rows: instRows } = await client.query<WorkflowInstance>(
+          `SELECT * FROM app.workflow_instances
          WHERE tenant_id = $1 AND entity_type = $2 AND entity_id = $3`,
-        [tid, entityType, entityId],
-      );
-      const instance = instRows[0] ?? null;
-      if (!instance) return { notFound: true } as const;
+          [tid, entityType, entityId],
+        );
+        const instance = instRows[0] ?? null;
+        if (!instance) return { notFound: true } as const;
 
-      // Verify the workflowKey matches the instance
-      if (instance.workflow_key !== workflowKey) {
-        return {
-          wrongKey: true,
-          message: `instance workflow_key is "${instance.workflow_key}", not "${workflowKey}"`,
-        } as const;
-      }
+        // Verify the workflowKey matches the instance
+        if (instance.workflow_key !== workflowKey) {
+          return {
+            wrongKey: true,
+            message: `instance workflow_key is "${instance.workflow_key}", not "${workflowKey}"`,
+          } as const;
+        }
 
-      // Find a valid transition from the current state
-      const transition = wf.transitions.find(
-        (t) => t.action === action && t.from === instance.current_state,
-      );
-      if (!transition) {
-        return {
-          invalidTransition: true,
-          message: `action "${action}" is not valid from state "${instance.current_state}"`,
-        } as const;
-      }
+        // Find a valid transition from the current state
+        const transition = wf.transitions.find(
+          (t) => t.action === action && t.from === instance.current_state,
+        );
+        if (!transition) {
+          return {
+            invalidTransition: true,
+            message: `action "${action}" is not valid from state "${instance.current_state}"`,
+          } as const;
+        }
 
-      // Update instance state
-      const { rows: updated } = await client.query<WorkflowInstance>(
-        `UPDATE app.workflow_instances
+        // Update instance state
+        const { rows: updated } = await client.query<WorkflowInstance>(
+          `UPDATE app.workflow_instances
          SET current_state = $1, updated_at = now()
          WHERE id = $2
          RETURNING *`,
-        [transition.to, instance.id],
-      );
+          [transition.to, instance.id],
+        );
 
-      // Append the event
-      const { rows: evtRows } = await client.query<WorkflowEvent>(
-        `INSERT INTO app.workflow_events
+        // Append the event
+        const { rows: evtRows } = await client.query<WorkflowEvent>(
+          `INSERT INTO app.workflow_events
            (tenant_id, entity_type, entity_id, workflow_key, from_state, to_state, action_key, actor_user_id, meta)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [
-          tid,
-          entityType,
-          entityId,
-          workflowKey,
-          instance.current_state,
-          transition.to,
-          action,
-          actorUserId,
-          JSON.stringify(meta ?? {}),
-        ],
-      );
+          [
+            tid,
+            entityType,
+            entityId,
+            workflowKey,
+            instance.current_state,
+            transition.to,
+            action,
+            actorUserId,
+            JSON.stringify(meta ?? {}),
+          ],
+        );
 
-      return { instance: updated[0], event: evtRows[0] };
-    });
+        return { instance: updated[0], event: evtRows[0] };
+      });
 
-    if ("configError" in result)
-      return reply.status(422).send({ error: result.message });
-    if ("notFound" in result)
-      return reply
-        .status(404)
-        .send({ error: "workflow instance not found — call /init first" });
-    if ("wrongKey" in result)
-      return reply.status(400).send({ error: result.message });
-    if ("invalidTransition" in result)
-      return reply.status(400).send({ error: result.message });
-    return reply.status(200).send(result);
-  });
+      if ("configError" in result)
+        return reply.status(422).send({ error: result.message });
+      if ("notFound" in result)
+        return reply
+          .status(404)
+          .send({ error: "workflow instance not found — call /init first" });
+      if ("wrongKey" in result)
+        return reply.status(400).send({ error: result.message });
+      if ("invalidTransition" in result)
+        return reply.status(400).send({ error: result.message });
+      return reply.status(200).send(result);
+    },
+  );
 
   // ---------- GET /workflow/:entityType/:entityId
   // Returns the current workflow state for an entity (404 if no instance).
   app.get<{
     Params: { entityType: string; entityId: string };
-  }>("/workflow/:entityType/:entityId", async (req, reply) => {
-    const tid = tenantHeader(req);
-    if (!tid)
-      return reply.status(400).send({ error: "x-tenant-id header required" });
+  }>(
+    "/workflow/:entityType/:entityId",
+    {
+      preHandler: requireRole("admin", "registrar", "hod", "principal", "dean"),
+    },
+    async (req, reply) => {
+      const tid = tenantHeader(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
 
-    const { entityType, entityId } = req.params;
+      const { entityType, entityId } = req.params;
 
-    const instance = await withTenant(tid, async (client) => {
-      const { rows } = await client.query<WorkflowInstance>(
-        `SELECT * FROM app.workflow_instances
+      const instance = await withTenant(tid, async (client) => {
+        const { rows } = await client.query<WorkflowInstance>(
+          `SELECT * FROM app.workflow_instances
          WHERE tenant_id = $1 AND entity_type = $2 AND entity_id = $3`,
-        [tid, entityType, entityId],
-      );
-      return rows[0] ?? null;
-    });
+          [tid, entityType, entityId],
+        );
+        return rows[0] ?? null;
+      });
 
-    if (!instance)
-      return reply.status(404).send({ error: "workflow instance not found" });
+      if (!instance)
+        return reply.status(404).send({ error: "workflow instance not found" });
 
-    return reply.status(200).send({
-      workflowKey: instance.workflow_key,
-      currentState: instance.current_state,
-    });
-  });
+      return reply.status(200).send({
+        workflowKey: instance.workflow_key,
+        currentState: instance.current_state,
+      });
+    },
+  );
 
   // ---------- GET /workflows/:workflowKey
   // Returns the workflow definition from the tenant's published config.
   app.get<{
     Params: { workflowKey: string };
-  }>("/workflows/:workflowKey", async (req, reply) => {
-    const tid = tenantHeader(req);
-    if (!tid)
-      return reply.status(400).send({ error: "x-tenant-id header required" });
+  }>(
+    "/workflows/:workflowKey",
+    { preHandler: requireRole("admin", "registrar", "hod") },
+    async (req, reply) => {
+      const tid = tenantHeader(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
 
-    const { workflowKey } = req.params;
+      const { workflowKey } = req.params;
 
-    const definition = await withTenant(tid, async (client) => {
-      return loadWorkflowDef(tid, workflowKey, client);
-    });
+      const definition = await withTenant(tid, async (client) => {
+        return loadWorkflowDef(tid, workflowKey, client);
+      });
 
-    if (!definition)
-      return reply
-        .status(404)
-        .send({
+      if (!definition)
+        return reply.status(404).send({
           error: `workflow "${workflowKey}" not found in published config`,
         });
 
-    return reply.status(200).send(definition);
-  });
+      return reply.status(200).send(definition);
+    },
+  );
 
   // ---------- GET /workflow/:entityType/:entityId/history
   // Returns all events for this entity, ordered oldest-first.

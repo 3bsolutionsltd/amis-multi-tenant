@@ -1,5 +1,5 @@
 /**
- * Seed two dev tenants with students.
+ * Seed two dev tenants with students + users.
  * Run from repo root:
  *   $env:DATABASE_URL="postgres://postgres:password123@localhost:5432/amis_multi_tenant?sslmode=disable"
  *   apps\api\node_modules\.bin\tsx.cmd db/seeds/seed.ts
@@ -7,6 +7,7 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import pg from "pg";
+import { hashPassword } from "../../apps/api/src/lib/password.js";
 
 // Load .env from repo root when DATABASE_URL is not already set
 try {
@@ -382,6 +383,68 @@ async function seed() {
       );
       console.log("Seeded published config for Tenant B");
     });
+
+    // Seed dev users — one per role per tenant, deterministic IDs matching
+    // the ROLE_IDS in devIdentity.ts so tests can reference known UUIDs.
+    //
+    // Tenant A IDs: 00000000-0000-0000-0000-00000000000{1..7}
+    // Tenant B IDs: 00000000-0000-0000-0000-00000000001{1..7}
+    // Password for all: 'Password123!'
+    const ROLES: Array<{ role: string; idSuffix: string }> = [
+      { role: "admin", idSuffix: "1" },
+      { role: "registrar", idSuffix: "2" },
+      { role: "hod", idSuffix: "3" },
+      { role: "instructor", idSuffix: "4" },
+      { role: "finance", idSuffix: "5" },
+      { role: "principal", idSuffix: "6" },
+      { role: "dean", idSuffix: "7" },
+    ];
+
+    const DEV_PASSWORD = "Password123!";
+    const pwHash = hashPassword(DEV_PASSWORD);
+
+    // Clean up any users seeded with the old email format so deterministic
+    // IDs can be inserted cleanly.
+    await client.query(
+      `DELETE FROM platform.users
+       WHERE email LIKE '%@greenfield.test' OR email LIKE '%@riverside.test'`,
+    );
+
+    const devUsers: Array<{
+      id: string;
+      tenantId: string;
+      email: string;
+      role: string;
+    }> = [
+      ...ROLES.map(({ role, idSuffix }) => ({
+        id: `00000000-0000-0000-0000-00000000000${idSuffix}`,
+        tenantId: idA,
+        email: `${role}@tenant-a.test`,
+        role,
+      })),
+      ...ROLES.map(({ role, idSuffix }) => ({
+        id: `00000000-0000-0000-0000-00000000001${idSuffix}`,
+        tenantId: idB,
+        email: `${role}@tenant-b.test`,
+        role,
+      })),
+    ];
+
+    for (const u of devUsers) {
+      await client.query(
+        `INSERT INTO platform.users (id, tenant_id, email, password_hash, role)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE
+           SET tenant_id     = EXCLUDED.tenant_id,
+               email         = EXCLUDED.email,
+               password_hash = EXCLUDED.password_hash,
+               role          = EXCLUDED.role`,
+        [u.id, u.tenantId, u.email, pwHash, u.role],
+      );
+    }
+    console.log(
+      `Seeded ${devUsers.length} dev users (7 roles × 2 tenants, password: ${DEV_PASSWORD})`,
+    );
 
     console.log("\nSeed complete.");
   } finally {
