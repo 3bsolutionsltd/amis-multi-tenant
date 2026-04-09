@@ -5,6 +5,11 @@ export interface Student {
   first_name: string;
   last_name: string;
   date_of_birth: string | null;
+  admission_number: string | null;
+  sponsorship_type: string | null;
+  programme: string | null;
+  email: string | null;
+  phone: string | null;
   extension: Record<string, unknown>;
   created_at: string;
   updated_at: string;
