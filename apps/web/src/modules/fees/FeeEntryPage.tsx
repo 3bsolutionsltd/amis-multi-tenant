@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { recordFeeEntry } from "./fees.api";
 import { listStudents, type Student } from "../students/students.api";
@@ -18,10 +19,19 @@ function todayIso() {
 
 export function FeeEntryPage() {
   ensureGlobalCss();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [search, setSearch] = useState("");
+  const prefillStudentId = searchParams.get("student_id") ?? undefined;
+  const prefillStudentName = searchParams.get("student_name") ?? undefined;
+
+  const [search, setSearch] = useState(prefillStudentName ?? "");
   const [showDropdown, setShowDropdown] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(
+    prefillStudentId && prefillStudentName
+      ? ({ id: prefillStudentId, first_name: prefillStudentName, last_name: "" } as Student)
+      : null,
+  );
   const [form, setForm] = useState({
     amount: "",
     reference: "",
@@ -29,7 +39,6 @@ export function FeeEntryPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   const { data: searchResults } = useQuery({
     queryKey: ["students-search-fee", search],
@@ -59,10 +68,7 @@ export function FeeEntryPage() {
         reference: form.reference,
         paid_at: form.paid_at,
       });
-      setSuccess(true);
-      setSearch("");
-      setSelectedStudent(null);
-      setForm({ amount: "", reference: "", paid_at: todayIso() });
+      navigate(`/students/${selectedStudent.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to record payment");
     } finally {
@@ -77,22 +83,7 @@ export function FeeEntryPage() {
         back={{ label: "Finance", to: "/finance" }}
       />
       <Card padding="24px" style={{ maxWidth: 480 }}>
-        {success && (
-          <div
-            style={{
-              background: "#f0fdf4",
-              border: "1px solid #bbf7d0",
-              borderRadius: 8,
-              padding: "12px 16px",
-              marginBottom: 16,
-              color: "#166534",
-              fontSize: 14,
-              fontWeight: 500,
-            }}
-          >
-            Payment recorded successfully.
-          </div>
-        )}
+
         <form
           onSubmit={handleSubmit}
           style={{ display: "flex", flexDirection: "column", gap: 16 }}

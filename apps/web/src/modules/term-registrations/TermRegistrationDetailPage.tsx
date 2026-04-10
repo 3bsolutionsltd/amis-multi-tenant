@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getTermRegistration,
@@ -110,7 +110,18 @@ export function TermRegistrationDetailPage() {
 
       {/* Details */}
       <Card padding="0 24px" style={{ marginBottom: 20 }}>
-        <DetailRow label="Student">{studentName}</DetailRow>
+        <DetailRow label="Student">
+          {reg.student_id ? (
+            <Link
+              to={`/students/${reg.student_id}`}
+              style={{ color: "#2563eb", textDecoration: "none", fontWeight: 500 }}
+            >
+              {studentName}
+            </Link>
+          ) : (
+            studentName
+          )}
+        </DetailRow>
         <DetailRow label="Admission no.">
           {reg.admission_number ?? "—"}
         </DetailRow>
