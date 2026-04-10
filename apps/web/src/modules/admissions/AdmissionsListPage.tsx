@@ -10,6 +10,7 @@ import {
   TR,
   TD,
   Badge,
+  Pagination,
   PrimaryBtn,
   ErrorBanner,
 } from "../../lib/ui";
@@ -52,14 +53,16 @@ export function AdmissionsListPage() {
   const [intake, setIntake] = useState("");
   const [programme, setProgramme] = useState("");
   const [currentState, setCurrentState] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["applications", { intake, programme, currentState }],
+    queryKey: ["applications", { intake, programme, currentState, page }],
     queryFn: () =>
       listApplications({
         intake: intake || undefined,
         programme: programme || undefined,
         current_state: currentState || undefined,
+        page,
       }),
   });
 
@@ -165,6 +168,13 @@ export function AdmissionsListPage() {
           </TR>
         ))}
       </DataTable>
+
+      <Pagination
+        page={page}
+        hasMore={(data?.length ?? 0) >= 20}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => p + 1)}
+      />
     </div>
   );
 }
