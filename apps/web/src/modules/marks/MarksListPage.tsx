@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { listSubmissions } from "./marks.api";
 import {
   ensureGlobalCss,
@@ -36,11 +35,18 @@ const STATE_BADGE: Record<string, BadgeColor> = {
 export function MarksListPage() {
   ensureGlobalCss();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const programme = params.get("programme") ?? "";
+  const intake = params.get("intake") ?? "";
+  const term = params.get("term") ?? "";
+  const page = Number(params.get("page") ?? "1");
 
-  const [programme, setProgramme] = useState("");
-  const [intake, setIntake] = useState("");
-  const [term, setTerm] = useState("");
-  const [page, setPage] = useState(1);
+  function set(key: string, value: string) {
+    setParams((p) => { const n = new URLSearchParams(p); n.set(key, value); n.set("page", "1"); return n; });
+  }
+  function setPage(v: number) {
+    setParams((p) => { const n = new URLSearchParams(p); n.set("page", String(v)); return n; });
+  }
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["submissions", { programme, intake, term, page }],
@@ -71,7 +77,7 @@ export function MarksListPage() {
       <FilterBar>
         <select
           value={programme}
-          onChange={(e) => setProgramme(e.target.value)}
+          onChange={(e) => set("programme", e.target.value)}
           style={{
             padding: "7px 12px",
             border: "1px solid #d1d5db",
@@ -89,7 +95,7 @@ export function MarksListPage() {
         <input
           placeholder="Intake (e.g. 2026/2027)"
           value={intake}
-          onChange={(e) => setIntake(e.target.value)}
+          onChange={(e) => set("intake", e.target.value)}
           style={{
             padding: "7px 12px",
             border: "1px solid #d1d5db",
@@ -100,7 +106,7 @@ export function MarksListPage() {
         />
         <select
           value={term}
-          onChange={(e) => setTerm(e.target.value)}
+          onChange={(e) => set("term", e.target.value)}
           style={{
             padding: "7px 12px",
             border: "1px solid #d1d5db",

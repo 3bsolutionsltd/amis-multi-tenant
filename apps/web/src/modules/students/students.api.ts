@@ -19,6 +19,11 @@ export interface CreateStudentBody {
   first_name: string;
   last_name: string;
   date_of_birth?: string;
+  admission_number?: string;
+  sponsorship_type?: string;
+  programme?: string;
+  email?: string;
+  phone?: string;
   extension?: Record<string, unknown>;
 }
 
@@ -26,6 +31,7 @@ export interface UpdateStudentBody {
   first_name?: string;
   last_name?: string;
   date_of_birth?: string | null;
+  admission_number?: string;
   extension?: Record<string, unknown>;
 }
 

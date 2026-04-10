@@ -6,6 +6,7 @@ import { StudentDetailPage } from "./modules/students/StudentDetailPage";
 import { AdmissionsListPage } from "./modules/admissions/AdmissionsListPage";
 import { ApplicationCreatePage } from "./modules/admissions/ApplicationCreatePage";
 import { ApplicationDetailPage } from "./modules/admissions/ApplicationDetailPage";
+import { AdmissionsImportPage } from "./modules/admissions/AdmissionsImportPage";
 import { UsersListPage } from "./modules/users/UsersListPage";
 import { UserCreatePage } from "./modules/users/UserCreatePage";
 import { FeesPage } from "./modules/fees/FeesPage";
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
       { path: "students/:id", element: <StudentDetailPage /> },
       { path: "admissions", element: <AdmissionsListPage /> },
       { path: "admissions/new", element: <ApplicationCreatePage /> },
+      { path: "admissions/import", element: <AdmissionsImportPage /> },
       { path: "admissions/:id", element: <ApplicationDetailPage /> },
       { path: "users", element: <UsersListPage /> },
       { path: "users/new", element: <UserCreatePage /> },

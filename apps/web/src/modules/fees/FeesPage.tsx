@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import { getFeeSummary, getFeeTransactions, type FeeSummary, type Transaction } from "./fees.api";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  getFeeSummary,
+  getFeeTransactions,
+  type FeeSummary,
+  type Transaction,
+} from "./fees.api";
 import { listStudents, type Student } from "../students/students.api";
 import {
   ensureGlobalCss,
@@ -73,9 +78,13 @@ function FeeSummaryCards({ summary }: { summary: FeeSummary }) {
 export function FeesPage() {
   ensureGlobalCss();
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
+  const [params] = useSearchParams();
+  const prefillId = params.get("student_id");
+  const prefillName = params.get("student_name");
+
+  const [search, setSearch] = useState(prefillName ?? "");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
-    null,
+    prefillId,
   );
 
   const { data: students } = useQuery({
@@ -110,7 +119,17 @@ export function FeesPage() {
         title="Fees"
         action={
           selectedStudentId ? (
-            <PrimaryBtn onClick={() => navigate("/finance/entry")}>
+            <PrimaryBtn
+              onClick={() => {
+                const name =
+                  selectedStudent
+                    ? `${selectedStudent.first_name} ${selectedStudent.last_name}`
+                    : (prefillName ?? "");
+                navigate(
+                  `/finance/entry?student_id=${selectedStudentId}&student_name=${encodeURIComponent(name)}`,
+                );
+              }}
+            >
               + Record Payment
             </PrimaryBtn>
           ) : undefined

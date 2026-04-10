@@ -104,3 +104,32 @@ export function fireTransition(
     },
   );
 }
+
+export interface ImportPreviewResult {
+  batchId: string;
+  valid: Record<string, unknown>[];
+  invalid: { row: unknown; errors: unknown }[];
+  total: number;
+}
+
+export interface ImportConfirmResult {
+  imported: number;
+  skipped: number;
+}
+
+export function previewImport(
+  filename: string,
+  rows: Record<string, unknown>[],
+): Promise<ImportPreviewResult> {
+  return apiFetch<ImportPreviewResult>("/admissions/import", {
+    method: "POST",
+    body: JSON.stringify({ filename, rows }),
+  });
+}
+
+export function confirmImport(batchId: string): Promise<ImportConfirmResult> {
+  return apiFetch<ImportConfirmResult>(
+    `/admissions/import/${batchId}/confirm`,
+    { method: "POST" },
+  );
+}

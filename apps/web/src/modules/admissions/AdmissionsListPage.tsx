@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { listApplications } from "./admissions.api";
 import {
   ensureGlobalCss,
@@ -12,6 +11,7 @@ import {
   Badge,
   Pagination,
   PrimaryBtn,
+  SecondaryBtn,
   ErrorBanner,
 } from "../../lib/ui";
 
@@ -49,11 +49,18 @@ const STATE_BADGE: Record<string, BadgeColor> = {
 export function AdmissionsListPage() {
   ensureGlobalCss();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const intake = params.get("intake") ?? "";
+  const programme = params.get("programme") ?? "";
+  const currentState = params.get("state") ?? "";
+  const page = Number(params.get("page") ?? "1");
 
-  const [intake, setIntake] = useState("");
-  const [programme, setProgramme] = useState("");
-  const [currentState, setCurrentState] = useState("");
-  const [page, setPage] = useState(1);
+  function set(key: string, value: string) {
+    setParams((p) => { const n = new URLSearchParams(p); n.set(key, value); n.set("page", "1"); return n; });
+  }
+  function setPage(v: number) {
+    setParams((p) => { const n = new URLSearchParams(p); n.set("page", String(v)); return n; });
+  }
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["applications", { intake, programme, currentState, page }],
@@ -73,9 +80,14 @@ export function AdmissionsListPage() {
       <PageHeader
         title="Admissions"
         action={
-          <PrimaryBtn onClick={() => navigate("/admissions/new")}>
-            + New Application
-          </PrimaryBtn>
+          <div style={{ display: "flex", gap: 8 }}>
+            <SecondaryBtn onClick={() => navigate("/admissions/import")}>
+              ⬆ Import CSV
+            </SecondaryBtn>
+            <PrimaryBtn onClick={() => navigate("/admissions/new")}>
+              + New Application
+            </PrimaryBtn>
+          </div>
         }
       />
 
@@ -87,7 +99,7 @@ export function AdmissionsListPage() {
         <input
           placeholder="Intake (e.g. 2026/2027)"
           value={intake}
-          onChange={(e) => setIntake(e.target.value)}
+          onChange={(e) => set("intake", e.target.value)}
           style={{
             padding: "7px 12px",
             border: "1px solid #d1d5db",
@@ -98,7 +110,7 @@ export function AdmissionsListPage() {
         />
         <select
           value={programme}
-          onChange={(e) => setProgramme(e.target.value)}
+          onChange={(e) => set("programme", e.target.value)}
           style={{
             padding: "7px 12px",
             border: "1px solid #d1d5db",
@@ -115,7 +127,7 @@ export function AdmissionsListPage() {
         </select>
         <select
           value={currentState}
-          onChange={(e) => setCurrentState(e.target.value)}
+          onChange={(e) => set("state", e.target.value)}
           style={{
             padding: "7px 12px",
             border: "1px solid #d1d5db",

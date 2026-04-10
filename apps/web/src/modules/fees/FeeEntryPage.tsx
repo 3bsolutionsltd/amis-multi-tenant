@@ -29,7 +29,11 @@ export function FeeEntryPage() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(
     prefillStudentId && prefillStudentName
-      ? ({ id: prefillStudentId, first_name: prefillStudentName, last_name: "" } as Student)
+      ? ({
+          id: prefillStudentId,
+          first_name: prefillStudentName,
+          last_name: "",
+        } as Student)
       : null,
   );
   const [form, setForm] = useState({
@@ -83,7 +87,6 @@ export function FeeEntryPage() {
         back={{ label: "Finance", to: "/finance" }}
       />
       <Card padding="24px" style={{ maxWidth: 480 }}>
-
         <form
           onSubmit={handleSubmit}
           style={{ display: "flex", flexDirection: "column", gap: 16 }}

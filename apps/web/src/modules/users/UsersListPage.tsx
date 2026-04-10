@@ -18,6 +18,7 @@ import {
   Field,
   selectCss,
   ErrorBanner,
+  Pagination,
 } from "../../lib/ui";
 
 export function UsersListPage() {
@@ -26,13 +27,14 @@ export function UsersListPage() {
   const qc = useQueryClient();
 
   const [roleFilter, setRoleFilter] = useState("");
+  const [page, setPage] = useState(1);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editRole, setEditRole] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["users", { roleFilter }],
-    queryFn: () => listUsers({ role: roleFilter || undefined }),
+    queryKey: ["users", { roleFilter, page }],
+    queryFn: () => listUsers({ role: roleFilter || undefined, page, limit: 20 }),
   });
 
   const updateMut = useMutation({
@@ -71,7 +73,7 @@ export function UsersListPage() {
     updateMut.mutate({ id: user.id, body: { isActive: !user.is_active } });
   }
 
-  const isEmpty = !isLoading && !error && (data?.length ?? 0) === 0;
+  const isEmpty = !isLoading && !error && (data?.data.length ?? 0) === 0;
 
   return (
     <div>
@@ -146,6 +148,13 @@ export function UsersListPage() {
           </TR>
         ))}
       </DataTable>
+
+      <Pagination
+        page={page}
+        hasMore={(data?.data.length ?? 0) >= 20}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => p + 1)}
+      />
 
       {editingUser && (
         <Modal

@@ -6,6 +6,7 @@ import {
   getWorkflowDef,
   fireTransition,
 } from "./admissions.api";
+import { createStudent } from "../students/students.api";
 import {
   ensureGlobalCss,
   Spinner,
@@ -33,6 +34,49 @@ const STATE_BADGE_COLOR: Record<
   ENROLLED: "cyan",
 };
 
+function formatExtKey(key: string): string {
+  return key
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function ExtensionFields({ ext }: { ext: Record<string, unknown> }) {
+  const [open, setOpen] = useState(false);
+  const entries = Object.entries(ext).filter(
+    ([, v]) => v !== null && v !== undefined && v !== "",
+  );
+  if (entries.length === 0) return null;
+  return (
+    <Card padding="0 24px" style={{ marginBottom: 20 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "16px 0",
+          cursor: "pointer",
+          userSelect: "none",
+        }}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <SectionLabel>
+          Additional Details ({entries.length} fields)
+        </SectionLabel>
+        <span style={{ fontSize: 18, color: "#6b7280" }}>
+          {open ? "▲" : "▼"}
+        </span>
+      </div>
+      {open &&
+        entries.map(([k, v]) => (
+          <DetailRow key={k} label={formatExtKey(k)}>
+            {typeof v === "object" ? JSON.stringify(v) : String(v)}
+          </DetailRow>
+        ))}
+    </Card>
+  );
+}
+
 export function ApplicationDetailPage() {
   ensureGlobalCss();
   const { id } = useParams<{ id: string }>();
@@ -40,6 +84,7 @@ export function ApplicationDetailPage() {
   const qc = useQueryClient();
 
   const [transitionError, setTransitionError] = useState<string | null>(null);
+  const [enrolError, setEnrolError] = useState<string | null>(null);
 
   const { data: app, isLoading: appLoading } = useQuery({
     queryKey: ["application", id],
@@ -63,6 +108,26 @@ export function ApplicationDetailPage() {
       setTransitionError(
         err instanceof Error ? err.message : "Transition failed",
       );
+    },
+  });
+
+  const enrolMut = useMutation({
+    mutationFn: () =>
+      createStudent({
+        first_name: app!.first_name,
+        last_name: app!.last_name,
+        date_of_birth: app!.dob ?? undefined,
+        programme: app!.programme ?? undefined,
+        sponsorship_type: app!.sponsorship_type ?? undefined,
+        email: app!.email ?? undefined,
+        phone: app!.phone ?? undefined,
+        extension: app!.extension,
+      }),
+    onSuccess: (student) => {
+      navigate(`/students/${student.id}`);
+    },
+    onError: (err) => {
+      setEnrolError(err instanceof Error ? err.message : "Enrolment failed");
     },
   });
 
@@ -119,6 +184,10 @@ export function ApplicationDetailPage() {
         </DetailRow>
       </Card>
 
+      {app.extension && Object.keys(app.extension).length > 0 && (
+        <ExtensionFields ext={app.extension} />
+      )}
+
       {availableActions.length > 0 && (
         <Card padding="20px 24px">
           <SectionLabel>Workflow Actions</SectionLabel>
@@ -142,6 +211,24 @@ export function ApplicationDetailPage() {
           No further actions available for state <strong>{currentState}</strong>
           .
         </p>
+      )}
+
+      {(currentState === "ENROLLED" ||
+        currentState === "APPROVED_GOVT" ||
+        currentState === "APPROVED_PRIVATE") && (
+        <Card padding="20px 24px" style={{ marginTop: 16 }}>
+          <SectionLabel>Student Record</SectionLabel>
+          {enrolError && <ErrorBanner message={enrolError} />}
+          <p style={{ fontSize: 14, color: "#6b7280", margin: "0 0 16px" }}>
+            Create a student record pre-filled with this applicant's details.
+          </p>
+          <PrimaryBtn
+            disabled={enrolMut.isPending}
+            onClick={() => enrolMut.mutate()}
+          >
+            {enrolMut.isPending ? "Creating student…" : "🎓 Enrol as Student"}
+          </PrimaryBtn>
+        </Card>
       )}
     </div>
   );
