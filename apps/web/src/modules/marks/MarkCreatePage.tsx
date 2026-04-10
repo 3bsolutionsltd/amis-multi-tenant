@@ -13,6 +13,7 @@ import {
 } from "../../lib/ui";
 
 const PROGRAMMES = ["NCBC", "NCES", "NCAM", "NCP", "NCWF"];
+const TERMS = ["Term 1", "Term 2", "Term 3"];
 
 export function MarkCreatePage() {
   ensureGlobalCss();
@@ -94,13 +95,19 @@ export function MarkCreatePage() {
           </Field>
 
           <Field label="Term" required>
-            <input
+            <select
               required
-              style={inputCss}
+              style={selectCss}
               value={form.term}
-              placeholder="e.g. Term 1"
               onChange={(e) => set("term", e.target.value)}
-            />
+            >
+              <option value="">— Select Term —</option>
+              {TERMS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           </Field>
 
           {error && <ErrorBanner message={error} />}
