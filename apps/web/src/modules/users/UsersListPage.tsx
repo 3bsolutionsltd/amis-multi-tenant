@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { listUsers, updateUser, VALID_ROLES, type User } from "./users.api";
 import {
   ensureGlobalCss,
@@ -26,15 +26,35 @@ export function UsersListPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const [roleFilter, setRoleFilter] = useState("");
-  const [page, setPage] = useState(1);
+  const [params, setParams] = useSearchParams();
+  const roleFilter = params.get("role") ?? "";
+  const page = Number(params.get("page") ?? "1");
+
+  function setRoleFilter(v: string) {
+    setParams((p) => {
+      const n = new URLSearchParams(p);
+      if (v) n.set("role", v);
+      else n.delete("role");
+      n.set("page", "1");
+      return n;
+    });
+  }
+  function setPage(v: number) {
+    setParams((p) => {
+      const n = new URLSearchParams(p);
+      n.set("page", String(v));
+      return n;
+    });
+  }
+
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editRole, setEditRole] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["users", { roleFilter, page }],
-    queryFn: () => listUsers({ role: roleFilter || undefined, page, limit: 20 }),
+    queryFn: () =>
+      listUsers({ role: roleFilter || undefined, page, limit: 20 }),
   });
 
   const updateMut = useMutation({
@@ -152,8 +172,8 @@ export function UsersListPage() {
       <Pagination
         page={page}
         hasMore={(data?.data.length ?? 0) >= 20}
-        onPrev={() => setPage((p) => Math.max(1, p - 1))}
-        onNext={() => setPage((p) => p + 1)}
+        onPrev={() => setPage(Math.max(1, page - 1))}
+        onNext={() => setPage(page + 1)}
       />
 
       {editingUser && (
