@@ -243,3 +243,101 @@ describe("PUT /students/:id", () => {
     expect(res.json()).toEqual(updated);
   });
 });
+
+describe("PATCH /students/:id/deactivate", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("returns 400 when x-tenant-id header is missing", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/students/some-id/deactivate",
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("returns 403 for a role that is not admin or registrar", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/students/some-id/deactivate",
+      headers: { "x-tenant-id": TID, "x-dev-role": "hod" },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns 404 when student not found", async () => {
+    mockWithTenant.mockResolvedValueOnce({ rows: [] } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/students/nonexistent/deactivate",
+      headers: { "x-tenant-id": TID },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toHaveProperty("error", "student not found");
+  });
+
+  it("returns 200 with student marked is_active=false", async () => {
+    const deactivated = {
+      id: TID,
+      first_name: "Alice",
+      last_name: "Smith",
+      is_active: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    mockWithTenant.mockResolvedValueOnce({ rows: [deactivated] } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/students/${TID}/deactivate`,
+      headers: { "x-tenant-id": TID },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ is_active: false });
+  });
+});
+
+describe("PATCH /students/:id/reactivate", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("returns 400 when x-tenant-id header is missing", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/students/some-id/reactivate",
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("returns 403 for a role that is not admin or registrar", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/students/some-id/reactivate",
+      headers: { "x-tenant-id": TID, "x-dev-role": "instructor" },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns 200 with student marked is_active=true", async () => {
+    const reactivated = {
+      id: TID,
+      first_name: "Alice",
+      last_name: "Smith",
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    mockWithTenant.mockResolvedValueOnce({ rows: [reactivated] } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/students/${TID}/reactivate`,
+      headers: { "x-tenant-id": TID },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ is_active: true });
+  });
+});

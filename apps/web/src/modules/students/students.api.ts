@@ -11,6 +11,7 @@ export interface Student {
   email: string | null;
   phone: string | null;
   extension: Record<string, unknown>;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +40,7 @@ export interface ListStudentsParams {
   search?: string;
   page?: number;
   limit?: number;
+  include_inactive?: boolean;
 }
 
 export function listStudents(params?: ListStudentsParams): Promise<Student[]> {
@@ -46,6 +48,7 @@ export function listStudents(params?: ListStudentsParams): Promise<Student[]> {
   if (params?.search) q.set("search", params.search);
   if (params?.page != null) q.set("page", String(params.page));
   if (params?.limit != null) q.set("limit", String(params.limit));
+  if (params?.include_inactive) q.set("include_inactive", "true");
   const qs = q.toString();
   return apiFetch<Student[]>(`/students${qs ? `?${qs}` : ""}`);
 }
@@ -69,4 +72,12 @@ export function updateStudent(
     method: "PUT",
     body: JSON.stringify(body),
   });
+}
+
+export function deactivateStudent(id: string): Promise<Student> {
+  return apiFetch<Student>(`/students/${id}/deactivate`, { method: "PATCH" });
+}
+
+export function reactivateStudent(id: string): Promise<Student> {
+  return apiFetch<Student>(`/students/${id}/reactivate`, { method: "PATCH" });
 }

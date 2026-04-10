@@ -10,7 +10,7 @@ import {
 } from "./students.schema.js";
 
 const SELECT_COLS =
-  "id, first_name, last_name, date_of_birth, admission_number, sponsorship_type, programme, email, phone, extension, created_at, updated_at";
+  "id, first_name, last_name, date_of_birth, admission_number, sponsorship_type, programme, email, phone, extension, is_active, created_at, updated_at";
 
 export async function studentsRoutes(app: FastifyInstance) {
   const WIDE_ROLES = [
@@ -38,22 +38,33 @@ export async function studentsRoutes(app: FastifyInstance) {
         return reply.status(422).send({ error: parsed.error.flatten() });
       }
 
-      const { search, page, limit } = parsed.data;
+      const { search, include_inactive, page, limit } = parsed.data;
       const offset = (page - 1) * limit;
 
       const rows = await withTenant(tenantId, (client) => {
+        const conditions: string[] = [];
+        const params: unknown[] = [];
+
+        if (!include_inactive) {
+          conditions.push(`is_active = true`);
+        }
+
         if (search) {
-          return client.query(
-            `SELECT ${SELECT_COLS} FROM app.students
-           WHERE (first_name ILIKE $1 OR last_name ILIKE $1)
-           ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
-            [`%${search}%`, limit, offset],
+          params.push(`%${search}%`);
+          conditions.push(
+            `(first_name ILIKE $${params.length} OR last_name ILIKE $${params.length})`,
           );
         }
+
+        const where =
+          conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+        params.push(limit, offset);
         return client.query(
           `SELECT ${SELECT_COLS} FROM app.students
-         ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
-          [limit, offset],
+           ${where}
+           ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+          params,
         );
       });
 
@@ -192,6 +203,62 @@ export async function studentsRoutes(app: FastifyInstance) {
             phone ?? null,
             extension !== undefined ? JSON.stringify(extension) : null,
           ],
+        ),
+      );
+
+      if (row.rows.length === 0) {
+        return reply.status(404).send({ error: "student not found" });
+      }
+
+      return row.rows[0];
+    },
+  );
+
+  // PATCH /students/:id/deactivate — soft-delete (admin, registrar only)
+  app.patch<{ Params: { id: string } }>(
+    "/students/:id/deactivate",
+    { preHandler: requireRole("registrar", "admin") },
+    async (req, reply) => {
+      const { tenantId } = req.user;
+      if (!tenantId) {
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+      }
+
+      const row = await withTenant(tenantId, (client) =>
+        client.query(
+          `UPDATE app.students
+           SET is_active = false, updated_at = now()
+           WHERE id = $1
+           RETURNING ${SELECT_COLS}`,
+          [req.params.id],
+        ),
+      );
+
+      if (row.rows.length === 0) {
+        return reply.status(404).send({ error: "student not found" });
+      }
+
+      return row.rows[0];
+    },
+  );
+
+  // PATCH /students/:id/reactivate — restore (admin, registrar only)
+  app.patch<{ Params: { id: string } }>(
+    "/students/:id/reactivate",
+    { preHandler: requireRole("registrar", "admin") },
+    async (req, reply) => {
+      const { tenantId } = req.user;
+      if (!tenantId) {
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+      }
+
+      const row = await withTenant(tenantId, (client) =>
+        client.query(
+          `UPDATE app.students
+           SET is_active = true, updated_at = now()
+           WHERE id = $1
+           RETURNING ${SELECT_COLS}`,
+          [req.params.id],
         ),
       );
 
