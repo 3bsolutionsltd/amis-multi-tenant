@@ -9,6 +9,8 @@ import {
 import {
   getStudent,
   updateStudent,
+  deactivateStudent,
+  reactivateStudent,
   type UpdateStudentBody,
 } from "./students.api";
 import { getFeeSummary } from "../fees/fees.api";
@@ -62,6 +64,22 @@ export function StudentDetailPage() {
       qc.setQueryData(["students", id], updated);
       qc.invalidateQueries({ queryKey: ["students"] });
       setEditing(false);
+    },
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: () => deactivateStudent(id!),
+    onSuccess: (updated) => {
+      qc.setQueryData(["students", id], updated);
+      qc.invalidateQueries({ queryKey: ["students"] });
+    },
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: () => reactivateStudent(id!),
+    onSuccess: (updated) => {
+      qc.setQueryData(["students", id], updated);
+      qc.invalidateQueries({ queryKey: ["students"] });
     },
   });
 
@@ -126,7 +144,28 @@ export function StudentDetailPage() {
         back={{ label: "Students", to: "/students" }}
         action={
           !editing ? (
-            <PrimaryBtn onClick={startEdit}>Edit</PrimaryBtn>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <Badge
+                label={student.is_active ? "Active" : "Inactive"}
+                color={student.is_active ? "green" : "gray"}
+              />
+              <PrimaryBtn onClick={startEdit}>Edit</PrimaryBtn>
+              {student.is_active ? (
+                <SecondaryBtn
+                  onClick={() => deactivateMutation.mutate()}
+                  disabled={deactivateMutation.isPending}
+                >
+                  {deactivateMutation.isPending ? "Deactivating…" : "Deactivate"}
+                </SecondaryBtn>
+              ) : (
+                <SecondaryBtn
+                  onClick={() => reactivateMutation.mutate()}
+                  disabled={reactivateMutation.isPending}
+                >
+                  {reactivateMutation.isPending ? "Reactivating…" : "Reactivate"}
+                </SecondaryBtn>
+              )}
+            </div>
           ) : undefined
         }
       />
