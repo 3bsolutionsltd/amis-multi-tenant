@@ -65,7 +65,10 @@ export function TermRegistrationsListPage() {
   const [page, setPage] = useState(1);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["term-registrations", { academicYear, term, currentState, page }],
+    queryKey: [
+      "term-registrations",
+      { academicYear, term, currentState, page },
+    ],
     queryFn: () =>
       listTermRegistrations({
         academic_year: academicYear || undefined,

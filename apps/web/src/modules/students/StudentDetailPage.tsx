@@ -1,6 +1,11 @@
 import { useState, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useQueries,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   getStudent,
   updateStudent,
@@ -38,6 +43,7 @@ export function StudentDetailPage() {
     first_name: "",
     last_name: "",
     date_of_birth: "",
+    admission_number: "",
   });
 
   const {
@@ -64,6 +70,7 @@ export function StudentDetailPage() {
       first_name: student!.first_name,
       last_name: student!.last_name,
       date_of_birth: student!.date_of_birth ?? "",
+      admission_number: student!.admission_number ?? "",
     });
     setEditing(true);
   }
@@ -73,6 +80,7 @@ export function StudentDetailPage() {
     const body: UpdateStudentBody = {
       first_name: form.first_name,
       last_name: form.last_name,
+      admission_number: form.admission_number || undefined,
     };
     if (form.date_of_birth) body.date_of_birth = form.date_of_birth;
     mutation.mutate(body);
@@ -128,6 +136,9 @@ export function StudentDetailPage() {
           <Card padding="0 24px" style={{ marginBottom: 20 }}>
             <DetailRow label="First name">{student.first_name}</DetailRow>
             <DetailRow label="Last name">{student.last_name}</DetailRow>
+            <DetailRow label="Admission No.">
+              {student.admission_number ?? "—"}
+            </DetailRow>
             <DetailRow label="Date of birth">
               {student.date_of_birth ?? "—"}
             </DetailRow>
@@ -207,15 +218,16 @@ export function StudentDetailPage() {
                         summary.badge === "PAID"
                           ? "green"
                           : summary.badge === "PARTIAL"
-                          ? "yellow"
-                          : "red"
+                            ? "yellow"
+                            : "red"
                       }
                     />
                     {summary.lastPayment && (
                       <div
                         style={{ fontSize: 11, color: C.gray400, marginTop: 6 }}
                       >
-                        Last: {new Date(summary.lastPayment).toLocaleDateString()}
+                        Last:{" "}
+                        {new Date(summary.lastPayment).toLocaleDateString()}
                       </div>
                     )}
                   </Card>
@@ -249,13 +261,9 @@ export function StudentDetailPage() {
                 marginBottom: 10,
               }}
             >
-              <SectionLabel>
-                Term Registrations
-              </SectionLabel>
+              <SectionLabel>Term Registrations</SectionLabel>
               <button
-                onClick={() =>
-                  navigate(`/term-registrations?student_id=${id}`)
-                }
+                onClick={() => navigate(`/term-registrations?student_id=${id}`)}
                 style={{
                   fontSize: 12,
                   color: C.primary,
@@ -308,7 +316,13 @@ export function StudentDetailPage() {
                 {termRegs.map((reg, i) => {
                   const STATE_COLOR: Record<
                     string,
-                    "gray" | "blue" | "cyan" | "green" | "yellow" | "indigo" | "purple"
+                    | "gray"
+                    | "blue"
+                    | "cyan"
+                    | "green"
+                    | "yellow"
+                    | "indigo"
+                    | "purple"
                   > = {
                     REGISTRATION_STARTED: "gray",
                     DOCUMENTS_VERIFIED: "blue",
@@ -322,9 +336,7 @@ export function StudentDetailPage() {
                   return (
                     <div
                       key={reg.id}
-                      onClick={() =>
-                        navigate(`/term-registrations/${reg.id}`)
-                      }
+                      onClick={() => navigate(`/term-registrations/${reg.id}`)}
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
@@ -357,18 +369,20 @@ export function StudentDetailPage() {
                           {reg.academic_year} · {reg.term}
                         </span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
                         {reg.current_state && (
                           <Badge
                             label={reg.current_state}
-                            color={
-                              STATE_COLOR[reg.current_state] ?? "gray"
-                            }
+                            color={STATE_COLOR[reg.current_state] ?? "gray"}
                           />
                         )}
-                        <span
-                          style={{ color: C.gray300, fontSize: 14 }}
-                        >
+                        <span style={{ color: C.gray300, fontSize: 14 }}>
                           ›
                         </span>
                       </div>
@@ -413,6 +427,16 @@ export function StudentDetailPage() {
                 onChange={(e) =>
                   setForm({ ...form, date_of_birth: e.target.value })
                 }
+              />
+            </Field>
+            <Field label="Admission Number">
+              <input
+                style={inputCss}
+                value={form.admission_number}
+                onChange={(e) =>
+                  setForm({ ...form, admission_number: e.target.value })
+                }
+                placeholder="e.g. 2024/CS/001"
               />
             </Field>
             {mutation.isError && (

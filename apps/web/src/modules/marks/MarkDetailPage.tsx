@@ -7,6 +7,7 @@ import {
   fireTransition,
   putEntries,
 } from "./marks.api";
+import { listStudents } from "../students/students.api";
 import {
   ensureGlobalCss,
   Spinner,
@@ -36,11 +37,123 @@ const STATE_BADGE_COLOR: Record<
   PUBLISHED: "cyan",
 };
 
-type DraftRow = { key: number; student_id: string; score: string };
+type DraftRow = { key: number; student_id: string; student_name: string; score: string };
 
 let _key = 0;
-function mkRow(student_id = "", score = ""): DraftRow {
-  return { key: ++_key, student_id, score };
+function mkRow(student_id = "", student_name = "", score = ""): DraftRow {
+  return { key: ++_key, student_id, student_name, score };
+}
+
+// ---------------------------------------------------------------------------
+// Inline student search autocomplete for the entry editor
+// ---------------------------------------------------------------------------
+function StudentSearchInput({
+  studentId,
+  studentName,
+  onChange,
+}: {
+  studentId: string;
+  studentName: string;
+  onChange: (id: string, name: string) => void;
+}) {
+  const [query, setQuery] = useState(studentName || studentId);
+  const [open, setOpen] = useState(false);
+
+  const { data: suggestions } = useQuery({
+    queryKey: ["students-autocomplete", query],
+    queryFn: () => listStudents({ search: query }),
+    enabled: open && query.length >= 2,
+    staleTime: 10_000,
+  });
+
+  function pick(id: string, name: string) {
+    onChange(id, name);
+    setQuery(name);
+    setOpen(false);
+  }
+
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        style={{ ...inputCss, fontSize: 13 }}
+        placeholder="Search student…"
+        value={query}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+          if (!e.target.value) onChange("", "");
+        }}
+      />
+      {open && suggestions && suggestions.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            background: "#fff",
+            border: `1px solid ${C.gray200}`,
+            borderRadius: 7,
+            boxShadow: "0 6px 20px rgba(0,0,0,0.12)",
+            zIndex: 200,
+            maxHeight: 180,
+            overflowY: "auto",
+          }}
+        >
+          {suggestions.map((s) => (
+            <div
+              key={s.id}
+              onMouseDown={() => pick(s.id, `${s.first_name} ${s.last_name}`)}
+              style={{
+                padding: "8px 12px",
+                cursor: "pointer",
+                borderBottom: `1px solid ${C.gray100}`,
+                fontSize: 13,
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLDivElement).style.background = C.gray50;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLDivElement).style.background = "#fff";
+              }}
+            >
+              <span style={{ fontWeight: 500 }}>
+                {s.first_name} {s.last_name}
+              </span>
+              <span
+                style={{
+                  display: "block",
+                  fontFamily: "monospace",
+                  fontSize: 11,
+                  color: C.gray400,
+                }}
+              >
+                {s.id}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {studentId && query !== studentId && (
+        <div
+          style={{
+            fontSize: 10,
+            color: C.gray400,
+            fontFamily: "monospace",
+            paddingTop: 2,
+            paddingLeft: 2,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {studentId}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function MarkDetailPage() {
@@ -97,7 +210,7 @@ export function MarkDetailPage() {
   });
 
   const updateRow = useCallback(
-    (key: number, field: "student_id" | "score", value: string) => {
+    (key: number, field: "student_id" | "student_name" | "score", value: string) => {
       setDraftRows((rows) =>
         rows.map((r) => (r.key === key ? { ...r, [field]: value } : r)),
       );
@@ -136,7 +249,17 @@ export function MarkDetailPage() {
 
   function loadExisting() {
     if (!sub || sub.entries.length === 0) return;
-    setDraftRows(sub.entries.map((e) => mkRow(e.student_id, String(e.score))));
+    setDraftRows(
+      sub.entries.map((e) =>
+        mkRow(
+          e.student_id,
+          e.first_name || e.last_name
+            ? `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim()
+            : "",
+          String(e.score),
+        ),
+      ),
+    );
   }
 
   if (isLoading) return <Spinner />;
@@ -296,7 +419,7 @@ export function MarkDetailPage() {
                 letterSpacing: "0.05em",
               }}
             >
-              Student ID
+              Student
             </span>
             <span
               style={{
@@ -320,15 +443,21 @@ export function MarkDetailPage() {
                 gridTemplateColumns: "1fr 110px 36px",
                 gap: 8,
                 marginBottom: 8,
+                alignItems: "start",
               }}
             >
-              <input
-                style={{ ...inputCss, fontFamily: "monospace", fontSize: 13 }}
-                placeholder="Student UUID"
-                value={row.student_id}
-                onChange={(e) =>
-                  updateRow(row.key, "student_id", e.target.value)
-                }
+              <StudentSearchInput
+                studentId={row.student_id}
+                studentName={row.student_name}
+                onChange={(id, name) => {
+                  setDraftRows((rows) =>
+                    rows.map((r) =>
+                      r.key === row.key
+                        ? { ...r, student_id: id, student_name: name }
+                        : r,
+                    ),
+                  );
+                }}
               />
               <input
                 style={{ ...inputCss, textAlign: "right" }}

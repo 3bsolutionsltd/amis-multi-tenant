@@ -1,3 +1,4 @@
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { ConfigProvider, useConfig } from "./ConfigProvider";
 import { TenantSwitcher } from "./TenantSwitcher";
@@ -7,7 +8,65 @@ import { C, StatCard, ensureGlobalCss } from "../lib/ui";
 
 ensureGlobalCss();
 
-const FALLBACK_NAV = [
+// ---------------------------------------------------------------------------
+// Error Boundary
+// ---------------------------------------------------------------------------
+interface EBState { hasError: boolean; message: string }
+class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
+  state: EBState = { hasError: false, message: "" };
+  static getDerivedStateFromError(err: unknown): EBState {
+    return { hasError: true, message: err instanceof Error ? err.message : String(err) };
+  }
+  componentDidCatch(err: Error, info: ErrorInfo) {
+    console.error("[ErrorBoundary]", err, info.componentStack);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            margin: "40px auto",
+            maxWidth: 520,
+            background: "#fff",
+            border: "1px solid #fca5a5",
+            borderRadius: 10,
+            padding: "32px 36px",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 40, marginBottom: 16 }}>💥</div>
+          <h2 style={{ margin: "0 0 8px", color: "#991b1b", fontSize: 18 }}>
+            Something went wrong
+          </h2>
+          <p style={{ color: "#6b7280", fontSize: 14, margin: "0 0 24px", wordBreak: "break-word" }}>
+            {this.state.message || "An unexpected error occurred."}
+          </p>
+          <button
+            onClick={() => this.setState({ hasError: false, message: "" })}
+            style={{
+              background: "#2563eb",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              padding: "8px 20px",
+              fontSize: 14,
+              cursor: "pointer",
+              fontWeight: 500,
+            }}
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Nav
+// ---------------------------------------------------------------------------
+
   { label: "Students", route: "/students" },
   { label: "Admissions", route: "/admissions" },
   { label: "Term Registrations", route: "/term-registrations" },
@@ -285,7 +344,9 @@ function MainContent() {
       }}
     >
       {pathname === "/" && <DashboardCards />}
-      <Outlet />
+      <ErrorBoundary>
+        <Outlet />
+      </ErrorBoundary>
     </main>
   );
 }

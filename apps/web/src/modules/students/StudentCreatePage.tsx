@@ -17,9 +17,27 @@ import {
 } from "../../lib/ui";
 
 const FALLBACK_FIELDS: StudentFormField[] = [
-  { key: "first_name", label: "First Name", type: "text", visible: true, order: 1 },
-  { key: "last_name", label: "Last Name", type: "text", visible: true, order: 2 },
-  { key: "date_of_birth", label: "Date of Birth", type: "date", visible: true, order: 3 },
+  {
+    key: "first_name",
+    label: "First Name",
+    type: "text",
+    visible: true,
+    order: 1,
+  },
+  {
+    key: "last_name",
+    label: "Last Name",
+    type: "text",
+    visible: true,
+    order: 2,
+  },
+  {
+    key: "date_of_birth",
+    label: "Date of Birth",
+    type: "date",
+    visible: true,
+    order: 3,
+  },
 ];
 
 export function StudentCreatePage() {
@@ -88,9 +106,15 @@ export function StudentCreatePage() {
 
   return (
     <div>
-      <PageHeader title="New Student" back={{ label: "Students", to: "/students" }} />
+      <PageHeader
+        title="New Student"
+        back={{ label: "Students", to: "/students" }}
+      />
       <Card padding="24px" style={{ maxWidth: 520 }}>
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: 16 }}
+        >
           {coreFields.map((f) => (
             <Field
               key={f.key}
@@ -103,20 +127,26 @@ export function StudentCreatePage() {
                   type="date"
                   style={inputCss}
                   value={form[f.key] ?? ""}
-                  onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, [f.key]: e.target.value }))
+                  }
                 />
               ) : f.type === "textarea" ? (
                 <textarea
                   style={{ ...inputCss, minHeight: 80 }}
                   value={form[f.key] ?? ""}
-                  onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, [f.key]: e.target.value }))
+                  }
                 />
               ) : (
                 <input
                   style={inputCss}
                   value={form[f.key] ?? ""}
                   required={f.key === "first_name" || f.key === "last_name"}
-                  onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, [f.key]: e.target.value }))
+                  }
                 />
               )}
             </Field>
@@ -126,25 +156,35 @@ export function StudentCreatePage() {
             <>
               <SectionLabel>Additional Information</SectionLabel>
               {extFields.map((f) => (
-                <Field key={f.key} label={f.label} error={fieldErrors[f.key]?.[0]}>
+                <Field
+                  key={f.key}
+                  label={f.label}
+                  error={fieldErrors[f.key]?.[0]}
+                >
                   {f.type === "date" ? (
                     <input
                       type="date"
                       style={inputCss}
                       value={extForm[f.key] ?? ""}
-                      onChange={(e) => setExtForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                      onChange={(e) =>
+                        setExtForm((p) => ({ ...p, [f.key]: e.target.value }))
+                      }
                     />
                   ) : f.type === "textarea" ? (
                     <textarea
                       style={{ ...inputCss, minHeight: 80 }}
                       value={extForm[f.key] ?? ""}
-                      onChange={(e) => setExtForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                      onChange={(e) =>
+                        setExtForm((p) => ({ ...p, [f.key]: e.target.value }))
+                      }
                     />
                   ) : (
                     <input
                       style={inputCss}
                       value={extForm[f.key] ?? ""}
-                      onChange={(e) => setExtForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                      onChange={(e) =>
+                        setExtForm((p) => ({ ...p, [f.key]: e.target.value }))
+                      }
                     />
                   )}
                 </Field>

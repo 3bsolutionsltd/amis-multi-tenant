@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { listStudents } from "./students.api";
 import {
   ensureGlobalCss,
@@ -18,8 +17,16 @@ import {
 export function StudentsListPage() {
   ensureGlobalCss();
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [params, setParams] = useSearchParams();
+  const search = params.get("search") ?? "";
+  const page = Number(params.get("page") ?? "1");
+
+  function setSearch(v: string) {
+    setParams((p) => { const n = new URLSearchParams(p); n.set("search", v); n.set("page", "1"); return n; });
+  }
+  function setPage(v: number) {
+    setParams((p) => { const n = new URLSearchParams(p); n.set("page", String(v)); return n; });
+  }
 
   const {
     data: students,
@@ -50,10 +57,7 @@ export function StudentsListPage() {
       <FilterBar>
         <SearchInput
           value={search}
-          onChange={(v) => {
-            setSearch(v);
-            setPage(1);
-          }}
+          onChange={(v) => setSearch(v)}
           placeholder="Search by name…"
         />
       </FilterBar>

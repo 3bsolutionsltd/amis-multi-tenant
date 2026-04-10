@@ -114,7 +114,11 @@ export function TermRegistrationDetailPage() {
           {reg.student_id ? (
             <Link
               to={`/students/${reg.student_id}`}
-              style={{ color: "#2563eb", textDecoration: "none", fontWeight: 500 }}
+              style={{
+                color: "#2563eb",
+                textDecoration: "none",
+                fontWeight: 500,
+              }}
             >
               {studentName}
             </Link>

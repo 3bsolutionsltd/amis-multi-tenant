@@ -29,7 +29,11 @@ export function TermRegistrationCreatePage() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(
     prefillStudentId && prefillStudentName
-      ? ({ id: prefillStudentId, first_name: prefillStudentName, last_name: "" } as Student)
+      ? ({
+          id: prefillStudentId,
+          first_name: prefillStudentName,
+          last_name: "",
+        } as Student)
       : null,
   );
   const [form, setForm] = useState({
