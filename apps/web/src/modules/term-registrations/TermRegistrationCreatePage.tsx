@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createTermRegistration } from "./term-registrations.api";
 import { listStudents, type Student } from "../students/students.api";
@@ -20,10 +20,18 @@ export function TermRegistrationCreatePage() {
   ensureGlobalCss();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
 
-  const [search, setSearch] = useState("");
+  const prefillStudentId = searchParams.get("student_id") ?? undefined;
+  const prefillStudentName = searchParams.get("student_name") ?? undefined;
+
+  const [search, setSearch] = useState(prefillStudentName ?? "");
   const [showDropdown, setShowDropdown] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(
+    prefillStudentId && prefillStudentName
+      ? ({ id: prefillStudentId, first_name: prefillStudentName, last_name: "" } as Student)
+      : null,
+  );
   const [form, setForm] = useState({
     academic_year: "2026/2027",
     term: "Term 1",

@@ -220,7 +220,13 @@ export function StudentDetailPage() {
                     )}
                   </Card>
                 </div>
-                <SecondaryBtn onClick={() => navigate("/finance/entry")}>
+                <SecondaryBtn
+                  onClick={() =>
+                    navigate(
+                      `/finance/entry?student_id=${id}&student_name=${encodeURIComponent(`${student.first_name} ${student.last_name}`)}`,
+                    )
+                  }
+                >
                   + Record Payment
                 </SecondaryBtn>
               </>
@@ -278,7 +284,11 @@ export function StudentDetailPage() {
                 <span style={{ fontSize: 13, color: C.gray400 }}>
                   No term registrations yet.{" "}
                   <button
-                    onClick={() => navigate("/term-registrations/new")}
+                    onClick={() =>
+                      navigate(
+                        `/term-registrations/new?student_id=${id}&student_name=${encodeURIComponent(`${student.first_name} ${student.last_name}`)}`,
+                      )
+                    }
                     style={{
                       color: C.primary,
                       background: "none",
