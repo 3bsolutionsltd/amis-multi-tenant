@@ -10,6 +10,7 @@ import {
   TR,
   TD,
   Badge,
+  Pagination,
   PrimaryBtn,
   ErrorBanner,
 } from "../../lib/ui";
@@ -39,14 +40,16 @@ export function MarksListPage() {
   const [programme, setProgramme] = useState("");
   const [intake, setIntake] = useState("");
   const [term, setTerm] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["submissions", { programme, intake, term }],
+    queryKey: ["submissions", { programme, intake, term, page }],
     queryFn: () =>
       listSubmissions({
         programme: programme || undefined,
         intake: intake || undefined,
         term: term || undefined,
+        page,
       }),
   });
 
@@ -142,6 +145,13 @@ export function MarksListPage() {
           </TR>
         ))}
       </DataTable>
+
+      <Pagination
+        page={page}
+        hasMore={(data?.length ?? 0) >= 20}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => p + 1)}
+      />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   TR,
   TD,
   Badge,
+  Pagination,
   PrimaryBtn,
   ErrorBanner,
 } from "../../lib/ui";
@@ -61,14 +62,16 @@ export function TermRegistrationsListPage() {
   const [academicYear, setAcademicYear] = useState("");
   const [term, setTerm] = useState("");
   const [currentState, setCurrentState] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["term-registrations", { academicYear, term, currentState }],
+    queryKey: ["term-registrations", { academicYear, term, currentState, page }],
     queryFn: () =>
       listTermRegistrations({
         academic_year: academicYear || undefined,
         term: term || undefined,
         current_state: currentState || undefined,
+        page,
       }),
   });
 
@@ -177,6 +180,13 @@ export function TermRegistrationsListPage() {
           </TR>
         ))}
       </DataTable>
+
+      <Pagination
+        page={page}
+        hasMore={(data?.length ?? 0) >= 20}
+        onPrev={() => setPage((p) => Math.max(1, p - 1))}
+        onNext={() => setPage((p) => p + 1)}
+      />
     </div>
   );
 }

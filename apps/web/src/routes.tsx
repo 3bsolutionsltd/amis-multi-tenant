@@ -21,6 +21,7 @@ import { ConfigDashboard } from "./admin-studio/ConfigDashboard";
 import { ConfigEditor } from "./admin-studio/ConfigEditor";
 import { WorkflowViewer } from "./admin-studio/WorkflowViewer";
 import { NavigationEditor } from "./admin-studio/NavigationEditor";
+import { DashboardPage } from "./modules/dashboard/DashboardPage";
 import { LoginPage } from "./auth/LoginPage";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 
@@ -39,14 +40,7 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: (
-          <div>
-            <h2 style={{ marginTop: 0 }}>Welcome to AMIS</h2>
-            <p style={{ color: "#6b7280" }}>
-              Select a module from the sidebar to get started.
-            </p>
-          </div>
-        ),
+        element: <DashboardPage />,
       },
       { path: "students", element: <StudentsListPage /> },
       { path: "students/new", element: <StudentCreatePage /> },

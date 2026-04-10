@@ -48,9 +48,9 @@ export function StudentCreatePage() {
 
   const mutation = useMutation({
     mutationFn: (body: CreateStudentBody) => createStudent(body),
-    onSuccess: () => {
+    onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ["students"] });
-      navigate("/students");
+      navigate(`/students/${created.id}`);
     },
     onError: (err) => {
       if (err instanceof ApiError && err.status === 422) {
