@@ -463,6 +463,130 @@ function QuickActions({ navigate }: { navigate: (to: string) => void }) {
   );
 }
 
+// ── WorkflowPipeline ─────────────────────────────────────────────────────────
+
+const MARK_PIPELINE_STATES: { key: string; label?: string; color: string }[] = [
+  { key: "DRAFT",      color: "#9ca3af" },
+  { key: "SUBMITTED",  color: "#3b82f6" },
+  { key: "HOD_REVIEW", label: "HOD Review", color: "#f59e0b" },
+  { key: "APPROVED",   color: "#10b981" },
+  { key: "PUBLISHED",  color: "#8b5cf6" },
+];
+
+const ADMISSION_PIPELINE_STATES: { key: string; label?: string; color: string }[] = [
+  { key: "SUBMITTED",  color: "#3b82f6" },
+  { key: "IN_REVIEW",  label: "In Review", color: "#f59e0b" },
+  { key: "ENROLLED",   color: "#10b981" },
+  { key: "REJECTED",   color: "#ef4444" },
+];
+
+const TREG_PIPELINE_STATES: { key: string; label?: string; color: string }[] = [
+  { key: "REGISTRATION_STARTED",  label: "Started",       color: "#9ca3af" },
+  { key: "DOCUMENTS_VERIFIED",    label: "Docs Verified", color: "#3b82f6" },
+  { key: "FEES_VERIFIED",         label: "Fees Verified", color: "#0891b2" },
+  { key: "GUILD_FEES_VERIFIED",   label: "Guild Fees",    color: "#7c3aed" },
+  { key: "DEAN_ENDORSED",         label: "Dean Endorsed", color: "#a855f7" },
+  { key: "HALL_ALLOCATED",        label: "Hall",          color: "#ec4899" },
+  { key: "CLEARANCE_ISSUED",      label: "Cleared",       color: "#10b981" },
+  { key: "EXAM_ENROLLED",         label: "Enrolled",      color: "#8b5cf6" },
+];
+
+function WorkflowPipeline({
+  title,
+  states,
+  items,
+  loading,
+}: {
+  title: string;
+  states: { key: string; label?: string; color: string }[];
+  items: { current_state: string | null }[];
+  loading: boolean;
+}) {
+  return (
+    <Card padding="20px">
+      <div
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: C.gray700,
+          marginBottom: 14,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        {title}
+      </div>
+      {loading ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                height: 12,
+                borderRadius: 4,
+                background: C.gray100,
+                animation: "amis-pulse 1.5s ease-in-out infinite",
+              }}
+            />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <p style={{ fontSize: 13, color: C.gray400, margin: 0 }}>No records yet.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {states.map(({ key, color, label }) => {
+            const count = items.filter((x) => x.current_state === key).length;
+            const pct = (count / items.length) * 100;
+            return (
+              <div key={key}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: 4,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: C.gray600 ?? C.gray500,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {label ?? key}
+                  </span>
+                  <span style={{ fontSize: 12, color: C.gray500, fontWeight: 600 }}>
+                    {count}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    height: 5,
+                    borderRadius: 3,
+                    background: C.gray100,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${pct}%`,
+                      background: color,
+                      borderRadius: 3,
+                      transition: "width 0.4s ease-out",
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 // ── Avatar initials ───────────────────────────────────────────────────────────
 
 function Avatar({ name, color }: { name: string; color: string }) {
@@ -757,101 +881,12 @@ export function DashboardPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <QuickActions navigate={navigate} />
 
-          {/* System status card */}
-          <Card padding="20px">
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: C.gray700,
-                marginBottom: 14,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              📈 Marks Pipeline
-            </div>
-            {markQ.isLoading ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      height: 12,
-                      borderRadius: 4,
-                      background: C.gray100,
-                      animation: "amis-pulse 1.5s ease-in-out infinite",
-                    }}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {(["DRAFT", "SUBMITTED", "HOD_REVIEW", "APPROVED", "PUBLISHED"] as const).map(
-                  (state) => {
-                    const count = submissions.filter((s) => s.current_state === state).length;
-                    const pct = submissions.length > 0 ? (count / submissions.length) * 100 : 0;
-                    const colors: Record<string, string> = {
-                      DRAFT: "#9ca3af",
-                      SUBMITTED: "#3b82f6",
-                      HOD_REVIEW: "#f59e0b",
-                      APPROVED: "#10b981",
-                      PUBLISHED: "#8b5cf6",
-                    };
-
-                    return (
-                      <div key={state}>
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            marginBottom: 4,
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: 12,
-                              color: C.gray600 ?? C.gray500,
-                              fontWeight: 500,
-                            }}
-                          >
-                            {state}
-                          </span>
-                          <span style={{ fontSize: 12, color: C.gray500, fontWeight: 600 }}>
-                            {count}
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            height: 5,
-                            borderRadius: 3,
-                            background: C.gray100,
-                            overflow: "hidden",
-                          }}
-                        >
-                          <div
-                            style={{
-                              height: "100%",
-                              width: `${pct}%`,
-                              background: colors[state],
-                              borderRadius: 3,
-                              transition: "width 0.4s ease-out",
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  },
-                )}
-                {submissions.length === 0 && (
-                  <p style={{ fontSize: 13, color: C.gray400, margin: 0 }}>
-                    No mark sheets yet.
-                  </p>
-                )}
-              </div>
-            )}
-          </Card>
+          <WorkflowPipeline
+            title="📈 Marks Pipeline"
+            states={MARK_PIPELINE_STATES}
+            items={submissions}
+            loading={markQ.isLoading}
+          />
 
           {/* Module links */}
           <Card>
@@ -920,6 +955,29 @@ export function DashboardPage() {
             ))}
           </Card>
         </div>
+      </div>
+
+      {/* Workflow state breakdowns */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+          gap: 16,
+          marginTop: 20,
+        }}
+      >
+        <WorkflowPipeline
+          title="📋 Admissions Pipeline"
+          states={ADMISSION_PIPELINE_STATES}
+          items={applications}
+          loading={appQ.isLoading}
+        />
+        <WorkflowPipeline
+          title="📅 Registrations Pipeline"
+          states={TREG_PIPELINE_STATES}
+          items={termRegs}
+          loading={tregQ.isLoading}
+        />
       </div>
     </div>
   );
