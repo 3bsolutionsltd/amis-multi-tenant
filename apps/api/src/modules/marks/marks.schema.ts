@@ -1,10 +1,13 @@
 import { z } from "zod";
 
+export const VALID_TERMS = ["Term 1", "Term 2", "Term 3"] as const;
+export type ValidTerm = (typeof VALID_TERMS)[number];
+
 export const CreateSubmissionSchema = z.object({
   course_id: z.string().min(1),
   programme: z.string().min(1),
   intake: z.string().min(1),
-  term: z.string().min(1),
+  term: z.enum(VALID_TERMS),
   correction_of_submission_id: z.string().uuid().optional(),
 });
 
