@@ -17,6 +17,7 @@ import {
   TR,
   TD,
   PrimaryBtn,
+  SecondaryBtn,
   EmptyState,
   Badge,
 } from "../../lib/ui";
@@ -118,21 +119,25 @@ export function FeesPage() {
       <PageHeader
         title="Fees"
         action={
-          selectedStudentId ? (
-            <PrimaryBtn
-              onClick={() => {
-                const name =
-                  selectedStudent
+          <div style={{ display: "flex", gap: 10 }}>
+            <SecondaryBtn onClick={() => navigate("/finance/import")}>
+              ⬆ Import CSV
+            </SecondaryBtn>
+            {selectedStudentId && (
+              <PrimaryBtn
+                onClick={() => {
+                  const name = selectedStudent
                     ? `${selectedStudent.first_name} ${selectedStudent.last_name}`
                     : (prefillName ?? "");
-                navigate(
-                  `/finance/entry?student_id=${selectedStudentId}&student_name=${encodeURIComponent(name)}`,
-                );
-              }}
-            >
-              + Record Payment
-            </PrimaryBtn>
-          ) : undefined
+                  navigate(
+                    `/finance/entry?student_id=${selectedStudentId}&student_name=${encodeURIComponent(name)}`,
+                  );
+                }}
+              >
+                + Record Payment
+              </PrimaryBtn>
+            )}
+          </div>
         }
       />
 

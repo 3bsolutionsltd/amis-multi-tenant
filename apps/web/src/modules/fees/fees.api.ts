@@ -49,3 +49,22 @@ export function recordFeeEntry(body: FeeEntryBody): Promise<Transaction> {
     body: JSON.stringify(body),
   });
 }
+
+export interface FeeImportRow {
+  studentId: string;
+  amount: number;
+  reference: string;
+  paid_at: string;
+}
+
+export interface FeeImportResult {
+  inserted: number;
+  errors: Array<{ row: number; message: string }>;
+}
+
+export function importFees(rows: FeeImportRow[]): Promise<FeeImportResult> {
+  return apiFetch<FeeImportResult>("/fees/import", {
+    method: "POST",
+    body: JSON.stringify({ rows }),
+  });
+}

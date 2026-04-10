@@ -11,6 +11,7 @@ import { UsersListPage } from "./modules/users/UsersListPage";
 import { UserCreatePage } from "./modules/users/UserCreatePage";
 import { FeesPage } from "./modules/fees/FeesPage";
 import { FeeEntryPage } from "./modules/fees/FeeEntryPage";
+import { FeesImportPage } from "./modules/fees/FeesImportPage";
 import { MarksListPage } from "./modules/marks/MarksListPage";
 import { MarkCreatePage } from "./modules/marks/MarkCreatePage";
 import { MarkDetailPage } from "./modules/marks/MarkDetailPage";
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
       { path: "users/new", element: <UserCreatePage /> },
       { path: "finance", element: <FeesPage /> },
       { path: "finance/entry", element: <FeeEntryPage /> },
+      { path: "finance/import", element: <FeesImportPage /> },
       { path: "marks", element: <MarksListPage /> },
       { path: "marks/new", element: <MarkCreatePage /> },
       { path: "marks/:id", element: <MarkDetailPage /> },
