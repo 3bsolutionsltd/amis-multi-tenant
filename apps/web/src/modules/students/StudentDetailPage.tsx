@@ -78,7 +78,10 @@ export function StudentDetailPage() {
   if (error || !student)
     return (
       <div>
-        <PageHeader title="Student" back={{ label: "Students", to: "/students" }} />
+        <PageHeader
+          title="Student"
+          back={{ label: "Students", to: "/students" }}
+        />
         <ErrorBanner message="Student not found." />
       </div>
     );

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { getFeeSummary, getFeeTransactions, type FeeSummary } from "./fees.api";
+import { getFeeSummary, getFeeTransactions, type FeeSummary, type Transaction } from "./fees.api";
 import { listStudents, type Student } from "../students/students.api";
 import {
   ensureGlobalCss,
@@ -90,11 +90,12 @@ export function FeesPage() {
     enabled: !!selectedStudentId,
   });
 
-  const { data: transactions, isLoading: txnLoading } = useQuery({
+  const { data: txnResult, isLoading: txnLoading } = useQuery({
     queryKey: ["feeTransactions", selectedStudentId],
     queryFn: () => getFeeTransactions(selectedStudentId!),
     enabled: !!selectedStudentId,
   });
+  const transactions: Transaction[] = txnResult?.rows ?? [];
 
   const selectedStudent = students?.find((s) => s.id === selectedStudentId);
 
@@ -230,13 +231,13 @@ export function FeesPage() {
           <DataTable
             headers={["Date", "Amount", "Currency", "Reference", "Source"]}
             isLoading={txnLoading}
-            isEmpty={!txnLoading && (transactions?.length ?? 0) === 0}
+            isEmpty={!txnLoading && transactions.length === 0}
             emptyIcon="💳"
             emptyTitle="No payments recorded"
             emptyDescription='Click "+ Record Payment" to add the first.'
             colCount={5}
           >
-            {transactions?.map((txn) => (
+            {transactions.map((txn) => (
               <TR key={txn.id}>
                 <TD muted>{new Date(txn.paid_at).toLocaleDateString()}</TD>
                 <TD>
@@ -255,29 +256,3 @@ export function FeesPage() {
     </div>
   );
 }
-
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 20,
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Fees</h2>
-        {selectedStudentId && (
-          <button
-            onClick={() => navigate("/finance/entry")}
-            style={{
-              backgroundColor: primary,
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              padding: "8px 16px",
-              cursor: "pointer",
-              fontWeight: 600,
-            }}
-          >
-            + Record Payment
-          </button>
-        )}
-      </div>
-
-

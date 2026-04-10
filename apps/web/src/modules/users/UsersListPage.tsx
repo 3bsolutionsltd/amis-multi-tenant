@@ -110,7 +110,7 @@ export function UsersListPage() {
         emptyDescription="Adjust the role filter or create a new user."
         colCount={5}
       >
-        {data?.map((user) => (
+        {data?.data.map((user) => (
           <TR key={user.id}>
             <TD>
               <span style={{ fontWeight: 600, color: "#111827" }}>

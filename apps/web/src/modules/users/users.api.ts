@@ -38,14 +38,21 @@ export interface ListUsersParams {
   limit?: number;
 }
 
-export function listUsers(params?: ListUsersParams): Promise<User[]> {
+export interface ListUsersResult {
+  data: User[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export function listUsers(params?: ListUsersParams): Promise<ListUsersResult> {
   const q = new URLSearchParams();
   if (params?.role) q.set("role", params.role);
   if (params?.isActive != null) q.set("isActive", String(params.isActive));
   if (params?.page != null) q.set("page", String(params.page));
   if (params?.limit != null) q.set("limit", String(params.limit));
   const qs = q.toString();
-  return apiFetch<User[]>(`/users${qs ? `?${qs}` : ""}`);
+  return apiFetch<ListUsersResult>(`/users${qs ? `?${qs}` : ""}`);
 }
 
 export function createUser(body: CreateUserBody): Promise<User> {
