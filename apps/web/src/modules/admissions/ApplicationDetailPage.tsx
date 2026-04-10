@@ -122,9 +122,7 @@ export function ApplicationDetailPage() {
       {availableActions.length > 0 && (
         <Card padding="20px 24px">
           <SectionLabel>Workflow Actions</SectionLabel>
-          {transitionError && (
-            <ErrorBanner message={transitionError} />
-          )}
+          {transitionError && <ErrorBanner message={transitionError} />}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {availableActions.map((action) => (
               <PrimaryBtn
@@ -141,12 +139,10 @@ export function ApplicationDetailPage() {
 
       {currentState && availableActions.length === 0 && (
         <p style={{ color: "#6b7280", fontSize: 14, margin: "16px 0 0" }}>
-          No further actions available for state{" "}
-          <strong>{currentState}</strong>.
+          No further actions available for state <strong>{currentState}</strong>
+          .
         </p>
       )}
     </div>
   );
 }
-
-

@@ -31,8 +31,16 @@ export function getFeeSummary(studentId: string): Promise<FeeSummary> {
   return apiFetch<FeeSummary>(`/fees/students/${studentId}/summary`);
 }
 
-export function getFeeTransactions(studentId: string): Promise<Transaction[]> {
-  return apiFetch<Transaction[]>(`/fees/students/${studentId}/transactions`);
+export interface GetFeeTransactionsResult {
+  rows: Transaction[];
+}
+
+export function getFeeTransactions(
+  studentId: string,
+): Promise<GetFeeTransactionsResult> {
+  return apiFetch<GetFeeTransactionsResult>(
+    `/fees/students/${studentId}/transactions`,
+  );
 }
 
 export function recordFeeEntry(body: FeeEntryBody): Promise<Transaction> {

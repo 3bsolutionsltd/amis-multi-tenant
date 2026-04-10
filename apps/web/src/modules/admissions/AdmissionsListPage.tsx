@@ -16,11 +16,24 @@ import {
 
 const PROGRAMMES = ["NCBC", "NCES", "NCAM", "NCP", "NCWF"];
 const ADMISSION_STATES = [
-  "DRAFT","SUBMITTED","UNDER_REVIEW","COMMITTEE_REVIEW",
-  "APPROVED_GOVT","APPROVED_PRIVATE","REJECTED","ENROLLED",
+  "DRAFT",
+  "SUBMITTED",
+  "UNDER_REVIEW",
+  "COMMITTEE_REVIEW",
+  "APPROVED_GOVT",
+  "APPROVED_PRIVATE",
+  "REJECTED",
+  "ENROLLED",
 ];
 
-type BadgeColor = "gray"|"blue"|"yellow"|"purple"|"green"|"red"|"cyan";
+type BadgeColor =
+  | "gray"
+  | "blue"
+  | "yellow"
+  | "purple"
+  | "green"
+  | "red"
+  | "cyan";
 const STATE_BADGE: Record<string, BadgeColor> = {
   DRAFT: "gray",
   SUBMITTED: "blue",
@@ -63,40 +76,73 @@ export function AdmissionsListPage() {
         }
       />
 
-      {error && <ErrorBanner message="Failed to load applications. Please try again." />}
+      {error && (
+        <ErrorBanner message="Failed to load applications. Please try again." />
+      )}
 
       <FilterBar>
         <input
           placeholder="Intake (e.g. 2026/2027)"
           value={intake}
           onChange={(e) => setIntake(e.target.value)}
-          style={{ padding: "7px 12px", border: "1px solid #d1d5db", borderRadius: 6, fontSize: 14, minWidth: 180 }}
+          style={{
+            padding: "7px 12px",
+            border: "1px solid #d1d5db",
+            borderRadius: 6,
+            fontSize: 14,
+            minWidth: 180,
+          }}
         />
         <select
           value={programme}
           onChange={(e) => setProgramme(e.target.value)}
-          style={{ padding: "7px 12px", border: "1px solid #d1d5db", borderRadius: 6, fontSize: 14 }}
+          style={{
+            padding: "7px 12px",
+            border: "1px solid #d1d5db",
+            borderRadius: 6,
+            fontSize: 14,
+          }}
         >
           <option value="">All Programmes</option>
-          {PROGRAMMES.map((p) => <option key={p} value={p}>{p}</option>)}
+          {PROGRAMMES.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
         </select>
         <select
           value={currentState}
           onChange={(e) => setCurrentState(e.target.value)}
-          style={{ padding: "7px 12px", border: "1px solid #d1d5db", borderRadius: 6, fontSize: 14 }}
+          style={{
+            padding: "7px 12px",
+            border: "1px solid #d1d5db",
+            borderRadius: 6,
+            fontSize: 14,
+          }}
         >
           <option value="">All States</option>
-          {ADMISSION_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+          {ADMISSION_STATES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
         </select>
       </FilterBar>
 
       <DataTable
-        headers={["Name", "Programme", "Intake", "Sponsorship", "State", "Applied"]}
+        headers={[
+          "Name",
+          "Programme",
+          "Intake",
+          "Sponsorship",
+          "State",
+          "Applied",
+        ]}
         isLoading={isLoading}
         isEmpty={isEmpty}
         emptyIcon="📋"
         emptyTitle="No applications found"
-        emptyDescription="Adjust filters or click "+ New Application" to add one."
+        emptyDescription='Adjust filters or click "+ New Application" to add one.'
         colCount={6}
       >
         {data?.map((app) => (
@@ -122,5 +168,3 @@ export function AdmissionsListPage() {
     </div>
   );
 }
-
-

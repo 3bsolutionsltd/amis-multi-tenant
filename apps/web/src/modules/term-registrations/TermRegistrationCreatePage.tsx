@@ -24,7 +24,10 @@ export function TermRegistrationCreatePage() {
   const [search, setSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [form, setForm] = useState({ academic_year: "2026/2027", term: "Term 1" });
+  const [form, setForm] = useState({
+    academic_year: "2026/2027",
+    term: "Term 1",
+  });
   const [error, setError] = useState<string | null>(null);
 
   const { data: searchResults } = useQuery({
@@ -40,7 +43,9 @@ export function TermRegistrationCreatePage() {
       navigate(`/term-registrations/${data.registration.id}`);
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : "Failed to create registration");
+      setError(
+        err instanceof Error ? err.message : "Failed to create registration",
+      );
     },
   });
 
@@ -91,49 +96,58 @@ export function TermRegistrationCreatePage() {
                 onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
                 autoComplete="off"
               />
-              {showDropdown && searchResults && searchResults.students.length > 0 && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    right: 0,
-                    background: "#fff",
-                    border: "1px solid #d1d5db",
-                    borderRadius: 6,
-                    zIndex: 10,
-                    maxHeight: 200,
-                    overflowY: "auto",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                  }}
-                >
-                  {searchResults.students.map((s) => (
-                    <div
-                      key={s.id}
-                      onMouseDown={() => selectStudent(s)}
-                      style={{
-                        padding: "8px 12px",
-                        cursor: "pointer",
-                        borderBottom: "1px solid #f3f4f6",
-                        fontSize: 14,
-                      }}
-                      onMouseEnter={(e) =>
-                        ((e.target as HTMLElement).style.background = "#f9fafb")
-                      }
-                      onMouseLeave={(e) =>
-                        ((e.target as HTMLElement).style.background = "")
-                      }
-                    >
-                      {s.first_name} {s.last_name}
-                      {s.student_id && (
-                        <span style={{ color: "#6b7280", marginLeft: 8, fontSize: 12 }}>
-                          {s.student_id}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              {showDropdown &&
+                searchResults &&
+                searchResults.students.length > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      right: 0,
+                      background: "#fff",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 6,
+                      zIndex: 10,
+                      maxHeight: 200,
+                      overflowY: "auto",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                    }}
+                  >
+                    {searchResults.students.map((s) => (
+                      <div
+                        key={s.id}
+                        onMouseDown={() => selectStudent(s)}
+                        style={{
+                          padding: "8px 12px",
+                          cursor: "pointer",
+                          borderBottom: "1px solid #f3f4f6",
+                          fontSize: 14,
+                        }}
+                        onMouseEnter={(e) =>
+                          ((e.target as HTMLElement).style.background =
+                            "#f9fafb")
+                        }
+                        onMouseLeave={(e) =>
+                          ((e.target as HTMLElement).style.background = "")
+                        }
+                      >
+                        {s.first_name} {s.last_name}
+                        {s.student_id && (
+                          <span
+                            style={{
+                              color: "#6b7280",
+                              marginLeft: 8,
+                              fontSize: 12,
+                            }}
+                          >
+                            {s.student_id}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
             </div>
           </Field>
 
@@ -142,7 +156,9 @@ export function TermRegistrationCreatePage() {
               required
               style={inputCss}
               value={form.academic_year}
-              onChange={(e) => setForm((f) => ({ ...f, academic_year: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, academic_year: e.target.value }))
+              }
             />
           </Field>
 

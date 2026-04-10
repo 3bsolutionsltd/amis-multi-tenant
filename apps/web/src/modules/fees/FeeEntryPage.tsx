@@ -22,7 +22,11 @@ export function FeeEntryPage() {
   const [search, setSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [form, setForm] = useState({ amount: "", reference: "", paid_at: todayIso() });
+  const [form, setForm] = useState({
+    amount: "",
+    reference: "",
+    paid_at: todayIso(),
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -109,49 +113,58 @@ export function FeeEntryPage() {
                 onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
                 autoComplete="off"
               />
-              {showDropdown && searchResults && searchResults.students.length > 0 && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    right: 0,
-                    background: "#fff",
-                    border: "1px solid #d1d5db",
-                    borderRadius: 6,
-                    zIndex: 10,
-                    maxHeight: 200,
-                    overflowY: "auto",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                  }}
-                >
-                  {searchResults.students.map((s) => (
-                    <div
-                      key={s.id}
-                      onMouseDown={() => selectStudent(s)}
-                      style={{
-                        padding: "8px 12px",
-                        cursor: "pointer",
-                        borderBottom: "1px solid #f3f4f6",
-                        fontSize: 14,
-                      }}
-                      onMouseEnter={(e) =>
-                        ((e.target as HTMLElement).style.background = "#f9fafb")
-                      }
-                      onMouseLeave={(e) =>
-                        ((e.target as HTMLElement).style.background = "")
-                      }
-                    >
-                      {s.first_name} {s.last_name}
-                      {s.student_id && (
-                        <span style={{ color: "#6b7280", marginLeft: 8, fontSize: 12 }}>
-                          {s.student_id}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              {showDropdown &&
+                searchResults &&
+                searchResults.students.length > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      right: 0,
+                      background: "#fff",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 6,
+                      zIndex: 10,
+                      maxHeight: 200,
+                      overflowY: "auto",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                    }}
+                  >
+                    {searchResults.students.map((s) => (
+                      <div
+                        key={s.id}
+                        onMouseDown={() => selectStudent(s)}
+                        style={{
+                          padding: "8px 12px",
+                          cursor: "pointer",
+                          borderBottom: "1px solid #f3f4f6",
+                          fontSize: 14,
+                        }}
+                        onMouseEnter={(e) =>
+                          ((e.target as HTMLElement).style.background =
+                            "#f9fafb")
+                        }
+                        onMouseLeave={(e) =>
+                          ((e.target as HTMLElement).style.background = "")
+                        }
+                      >
+                        {s.first_name} {s.last_name}
+                        {s.student_id && (
+                          <span
+                            style={{
+                              color: "#6b7280",
+                              marginLeft: 8,
+                              fontSize: 12,
+                            }}
+                          >
+                            {s.student_id}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
             </div>
           </Field>
 
@@ -164,7 +177,9 @@ export function FeeEntryPage() {
               style={inputCss}
               value={form.amount}
               placeholder="0.00"
-              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, amount: e.target.value }))
+              }
             />
           </Field>
 
@@ -174,7 +189,9 @@ export function FeeEntryPage() {
               style={inputCss}
               value={form.reference}
               placeholder="Receipt / bank ref"
-              onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, reference: e.target.value }))
+              }
             />
           </Field>
 
@@ -184,7 +201,9 @@ export function FeeEntryPage() {
               type="date"
               style={inputCss}
               value={form.paid_at}
-              onChange={(e) => setForm((f) => ({ ...f, paid_at: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, paid_at: e.target.value }))
+              }
             />
           </Field>
 

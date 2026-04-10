@@ -111,7 +111,9 @@ export function TermRegistrationDetailPage() {
       {/* Details */}
       <Card padding="0 24px" style={{ marginBottom: 20 }}>
         <DetailRow label="Student">{studentName}</DetailRow>
-        <DetailRow label="Admission no.">{reg.admission_number ?? "—"}</DetailRow>
+        <DetailRow label="Admission no.">
+          {reg.admission_number ?? "—"}
+        </DetailRow>
         <DetailRow label="Programme">{reg.student_programme ?? "—"}</DetailRow>
         <DetailRow label="Academic year">{reg.academic_year ?? "—"}</DetailRow>
         <DetailRow label="Term">{reg.term ?? "—"}</DetailRow>
@@ -126,12 +128,12 @@ export function TermRegistrationDetailPage() {
           )}
         </DetailRow>
         <DetailRow label="Registered">
-          {reg.created_at
-            ? new Date(reg.created_at).toLocaleDateString()
-            : "—"}
+          {reg.created_at ? new Date(reg.created_at).toLocaleDateString() : "—"}
         </DetailRow>
         <DetailRow label="ID">
-          <span style={{ fontFamily: "monospace", fontSize: 12, color: "#6b7280" }}>
+          <span
+            style={{ fontFamily: "monospace", fontSize: 12, color: "#6b7280" }}
+          >
             {reg.id}
           </span>
         </DetailRow>
@@ -158,8 +160,8 @@ export function TermRegistrationDetailPage() {
 
       {currentState && availableActions.length === 0 && (
         <p style={{ color: "#6b7280", fontSize: 14, margin: "16px 0 0" }}>
-          No further actions available for state{" "}
-          <strong>{currentState}</strong>.
+          No further actions available for state <strong>{currentState}</strong>
+          .
         </p>
       )}
     </div>

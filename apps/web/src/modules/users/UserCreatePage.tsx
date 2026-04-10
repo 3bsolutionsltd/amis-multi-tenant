@@ -16,7 +16,11 @@ export function UserCreatePage() {
   ensureGlobalCss();
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({ email: "", password: "", role: "registrar" });
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    role: "registrar",
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,10 +44,7 @@ export function UserCreatePage() {
 
   return (
     <div>
-      <PageHeader
-        title="New User"
-        back={{ label: "Users", to: "/users" }}
-      />
+      <PageHeader title="New User" back={{ label: "Users", to: "/users" }} />
       <Card padding="24px" style={{ maxWidth: 480 }}>
         <form
           onSubmit={handleSubmit}

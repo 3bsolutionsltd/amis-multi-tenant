@@ -104,7 +104,10 @@ export function MarkDetailPage() {
   if (!sub)
     return (
       <div>
-        <PageHeader title="Submission" back={{ label: "Marks", to: "/marks" }} />
+        <PageHeader
+          title="Submission"
+          back={{ label: "Marks", to: "/marks" }}
+        />
         <ErrorBanner message="Submission not found." />
       </div>
     );
@@ -165,9 +168,7 @@ export function MarkDetailPage() {
             borderBottom: "1px solid #f3f4f6",
           }}
         >
-          <SectionLabel>
-            Mark Entries ({sub.entries.length})
-          </SectionLabel>
+          <SectionLabel>Mark Entries ({sub.entries.length})</SectionLabel>
         </div>
         <DataTable
           headers={["Student ID", "Score", "Last Updated"]}
@@ -228,9 +229,7 @@ export function MarkDetailPage() {
             }}
             placeholder='[{"student_id":"uuid-here","score":85}]'
           />
-          {entriesError && (
-            <ErrorBanner message={entriesError} />
-          )}
+          {entriesError && <ErrorBanner message={entriesError} />}
           {entriesSuccess && (
             <p
               style={{
