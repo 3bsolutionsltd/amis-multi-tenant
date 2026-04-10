@@ -1,7 +1,11 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
-import { previewImport, confirmImport, type ImportPreviewResult } from "./admissions.api";
+import {
+  previewImport,
+  confirmImport,
+  type ImportPreviewResult,
+} from "./admissions.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -18,14 +22,51 @@ import {
 } from "../../lib/ui";
 
 // ---------------------------------------------------------------------------
-// Simple CSV parser: first row = headers, remaining rows = data objects
+// RFC 4180-compliant CSV parser: handles quoted fields with embedded commas
 // ---------------------------------------------------------------------------
 function parseCsv(text: string): Record<string, string>[] {
+  /** Split one CSV row into fields, respecting double-quoted fields. */
+  function splitRow(row: string): string[] {
+    const fields: string[] = [];
+    let i = 0;
+    while (i < row.length) {
+      if (row[i] === '"') {
+        // Quoted field — collect until matching close-quote
+        let field = "";
+        i++; // skip opening quote
+        while (i < row.length) {
+          if (row[i] === '"' && i + 1 < row.length && row[i + 1] === '"') {
+            field += '"'; // escaped double-quote
+            i += 2;
+          } else if (row[i] === '"') {
+            i++; // skip closing quote
+            break;
+          } else {
+            field += row[i++];
+          }
+        }
+        fields.push(field.trim());
+        if (i < row.length && row[i] === ",") i++; // skip delimiter
+      } else {
+        // Unquoted field — read until next comma
+        const comma = row.indexOf(",", i);
+        if (comma === -1) {
+          fields.push(row.slice(i).trim());
+          i = row.length;
+        } else {
+          fields.push(row.slice(i, comma).trim());
+          i = comma + 1;
+        }
+      }
+    }
+    return fields;
+  }
+
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+  const headers = splitRow(lines[0]);
   return lines.slice(1).map((line) => {
-    const values = line.split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
+    const values = splitRow(line);
     return Object.fromEntries(headers.map((h, i) => [h, values[i] ?? ""]));
   });
 }
@@ -40,12 +81,20 @@ export function AdmissionsImportPage() {
 
   const [parseError, setParseError] = useState<string | null>(null);
   const [preview, setPreview] = useState<ImportPreviewResult | null>(null);
-  const [done, setDone] = useState<{ imported: number; skipped: number } | null>(null);
+  const [done, setDone] = useState<{
+    imported: number;
+    skipped: number;
+  } | null>(null);
   const [filename, setFilename] = useState("");
 
   const previewMut = useMutation({
-    mutationFn: ({ name, rows }: { name: string; rows: Record<string, unknown>[] }) =>
-      previewImport(name, rows),
+    mutationFn: ({
+      name,
+      rows,
+    }: {
+      name: string;
+      rows: Record<string, unknown>[];
+    }) => previewImport(name, rows),
     onSuccess: (result) => {
       setPreview(result);
     },
@@ -75,9 +124,14 @@ export function AdmissionsImportPage() {
           setParseError("The CSV file appears empty or has only headers.");
           return;
         }
-        previewMut.mutate({ name: file.name, rows: rows as Record<string, unknown>[] });
+        previewMut.mutate({
+          name: file.name,
+          rows: rows as Record<string, unknown>[],
+        });
       } catch {
-        setParseError("Failed to parse CSV. Ensure it is a valid comma-separated file.");
+        setParseError(
+          "Failed to parse CSV. Ensure it is a valid comma-separated file.",
+        );
       }
     };
     reader.readAsText(file);
@@ -166,10 +220,19 @@ export function AdmissionsImportPage() {
                 gap: 4,
               }}
             >
-              <span style={{ fontSize: 11, color: C.gray500, fontWeight: 700, textTransform: "uppercase" }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: C.gray500,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                }}
+              >
                 Total rows
               </span>
-              <span style={{ fontSize: 24, fontWeight: 700 }}>{preview.total}</span>
+              <span style={{ fontSize: 24, fontWeight: 700 }}>
+                {preview.total}
+              </span>
             </div>
             <div
               style={{
@@ -182,7 +245,14 @@ export function AdmissionsImportPage() {
                 gap: 4,
               }}
             >
-              <span style={{ fontSize: 11, color: C.green, fontWeight: 700, textTransform: "uppercase" }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: C.green,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                }}
+              >
                 Valid
               </span>
               <span style={{ fontSize: 24, fontWeight: 700, color: C.green }}>
@@ -200,7 +270,14 @@ export function AdmissionsImportPage() {
                 gap: 4,
               }}
             >
-              <span style={{ fontSize: 11, color: preview.invalid.length > 0 ? C.red : C.gray500, fontWeight: 700, textTransform: "uppercase" }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: preview.invalid.length > 0 ? C.red : C.gray500,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                }}
+              >
                 Invalid
               </span>
               <span
@@ -218,7 +295,12 @@ export function AdmissionsImportPage() {
           {/* Valid rows preview */}
           {preview.valid.length > 0 && (
             <Card style={{ marginBottom: 20 }}>
-              <div style={{ padding: "14px 20px 10px", borderBottom: `1px solid ${C.gray100}` }}>
+              <div
+                style={{
+                  padding: "14px 20px 10px",
+                  borderBottom: `1px solid ${C.gray100}`,
+                }}
+              >
                 <SectionLabel>
                   Step 2 — Valid Rows ({preview.valid.length})
                 </SectionLabel>
@@ -233,7 +315,8 @@ export function AdmissionsImportPage() {
                   <TR key={i}>
                     <TD>
                       <span style={{ fontWeight: 500 }}>
-                        {String(row.first_name ?? "")} {String(row.last_name ?? "")}
+                        {String(row.first_name ?? "")}{" "}
+                        {String(row.last_name ?? "")}
                       </span>
                     </TD>
                     <TD>{String(row.programme ?? "—")}</TD>
@@ -261,8 +344,15 @@ export function AdmissionsImportPage() {
           {/* Invalid rows */}
           {preview.invalid.length > 0 && (
             <Card style={{ marginBottom: 20 }}>
-              <div style={{ padding: "14px 20px 10px", borderBottom: `1px solid ${C.gray100}` }}>
-                <SectionLabel>Invalid Rows ({preview.invalid.length})</SectionLabel>
+              <div
+                style={{
+                  padding: "14px 20px 10px",
+                  borderBottom: `1px solid ${C.gray100}`,
+                }}
+              >
+                <SectionLabel>
+                  Invalid Rows ({preview.invalid.length})
+                </SectionLabel>
               </div>
               <DataTable
                 headers={["Row data", "Errors"]}
@@ -327,12 +417,15 @@ export function AdmissionsImportPage() {
             Import complete
           </h2>
           <p style={{ color: C.gray500, fontSize: 14, margin: "0 0 24px" }}>
-            <strong style={{ color: C.green }}>{done.imported}</strong> applications
-            imported
+            <strong style={{ color: C.green }}>{done.imported}</strong>{" "}
+            applications imported
             {done.skipped > 0 && (
-              <>, <strong style={{ color: C.yellow }}>{done.skipped}</strong> skipped</>
-            )}
-            {" "}from <em>{filename}</em>.
+              <>
+                , <strong style={{ color: C.yellow }}>{done.skipped}</strong>{" "}
+                skipped
+              </>
+            )}{" "}
+            from <em>{filename}</em>.
           </p>
           <PrimaryBtn onClick={() => navigate("/admissions")}>
             View Admissions →
