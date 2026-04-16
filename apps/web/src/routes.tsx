@@ -37,6 +37,9 @@ import { FieldPlacementDetailPage } from "./modules/field-placements/FieldPlacem
 import { AnalyticsPage } from "./modules/analytics/AnalyticsPage";
 import { StaffListPage } from "./modules/staff/StaffListPage";
 import { StaffDetailPage } from "./modules/staff/StaffDetailPage";
+import { ITReportsPage } from "./modules/reports/ITReportsPage";
+import { TeacherEvaluationsPage } from "./modules/reports/TeacherEvaluationsPage";
+import { InstructorReportsPage } from "./modules/reports/InstructorReportsPage";
 
 export const router = createBrowserRouter([
   {
@@ -84,6 +87,9 @@ export const router = createBrowserRouter([
       { path: "analytics", element: <AnalyticsPage /> },
       { path: "staff", element: <StaffListPage /> },
       { path: "staff/:id", element: <StaffDetailPage /> },
+      { path: "reports/it", element: <ITReportsPage /> },
+      { path: "reports/evaluations", element: <TeacherEvaluationsPage /> },
+      { path: "reports/instructor", element: <InstructorReportsPage /> },
     ],
   },
   {

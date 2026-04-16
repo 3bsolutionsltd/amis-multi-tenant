@@ -92,6 +92,7 @@ const FALLBACK_NAV = [
   { label: "Field Placements", route: "/field-placements" },
   { label: "Analytics", route: "/analytics" },
   { label: "Staff", route: "/staff" },
+  { label: "Reports", route: "/reports/it" },
   { label: "Users", route: "/users" },
 ];
 
@@ -108,6 +109,7 @@ const NAV_ICONS: Record<string, string> = {
   "/analytics": "📈",
   "/users": "👥",
   "/staff": "👔",
+  "/reports/it": "📋",
 };
 
 function Header() {
