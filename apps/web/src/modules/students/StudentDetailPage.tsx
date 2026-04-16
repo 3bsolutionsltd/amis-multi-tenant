@@ -13,6 +13,7 @@ import {
   reactivateStudent,
   type UpdateStudentBody,
 } from "./students.api";
+import { listProgrammes } from "../programmes/programmes.api";
 import { getFeeSummary } from "../fees/fees.api";
 import { listTermRegistrations } from "../term-registrations/term-registrations.api";
 import { useConfig } from "../../app/ConfigProvider";
@@ -30,6 +31,7 @@ import {
   SectionLabel,
   Field,
   inputCss,
+  selectCss,
   C,
 } from "../../lib/ui";
 
@@ -46,6 +48,12 @@ export function StudentDetailPage() {
     last_name: "",
     date_of_birth: "",
     admission_number: "",
+    programme: "",
+  });
+
+  const { data: programmes } = useQuery({
+    queryKey: ["programmes"],
+    queryFn: () => listProgrammes(),
   });
 
   const {
@@ -89,6 +97,7 @@ export function StudentDetailPage() {
       last_name: student!.last_name,
       date_of_birth: student!.date_of_birth ?? "",
       admission_number: student!.admission_number ?? "",
+      programme: student!.programme ?? "",
     });
     setEditing(true);
   }
@@ -99,6 +108,7 @@ export function StudentDetailPage() {
       first_name: form.first_name,
       last_name: form.last_name,
       admission_number: form.admission_number || undefined,
+      programme: form.programme || undefined,
     };
     if (form.date_of_birth) body.date_of_birth = form.date_of_birth;
     mutation.mutate(body);
@@ -155,14 +165,18 @@ export function StudentDetailPage() {
                   onClick={() => deactivateMutation.mutate()}
                   disabled={deactivateMutation.isPending}
                 >
-                  {deactivateMutation.isPending ? "Deactivating…" : "Deactivate"}
+                  {deactivateMutation.isPending
+                    ? "Deactivating…"
+                    : "Deactivate"}
                 </SecondaryBtn>
               ) : (
                 <SecondaryBtn
                   onClick={() => reactivateMutation.mutate()}
                   disabled={reactivateMutation.isPending}
                 >
-                  {reactivateMutation.isPending ? "Reactivating…" : "Reactivate"}
+                  {reactivateMutation.isPending
+                    ? "Reactivating…"
+                    : "Reactivate"}
                 </SecondaryBtn>
               )}
             </div>
@@ -175,6 +189,7 @@ export function StudentDetailPage() {
           <Card padding="0 24px" style={{ marginBottom: 20 }}>
             <DetailRow label="First name">{student.first_name}</DetailRow>
             <DetailRow label="Last name">{student.last_name}</DetailRow>
+            <DetailRow label="Programme">{student.programme ?? "—"}</DetailRow>
             <DetailRow label="Admission No.">
               {student.admission_number ?? "—"}
             </DetailRow>
@@ -467,6 +482,20 @@ export function StudentDetailPage() {
                   setForm({ ...form, date_of_birth: e.target.value })
                 }
               />
+            </Field>
+            <Field label="Programme">
+              <select
+                style={selectCss}
+                value={form.programme}
+                onChange={(e) => setForm({ ...form, programme: e.target.value })}
+              >
+                <option value="">— Select Programme —</option>
+                {(programmes ?? []).map((p) => (
+                  <option key={p.id} value={p.code}>
+                    {p.code} — {p.title}
+                  </option>
+                ))}
+              </select>
             </Field>
             <Field label="Admission Number">
               <input

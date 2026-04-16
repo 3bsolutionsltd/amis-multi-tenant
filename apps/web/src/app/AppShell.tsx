@@ -11,11 +11,17 @@ ensureGlobalCss();
 // ---------------------------------------------------------------------------
 // Error Boundary
 // ---------------------------------------------------------------------------
-interface EBState { hasError: boolean; message: string }
+interface EBState {
+  hasError: boolean;
+  message: string;
+}
 class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
   state: EBState = { hasError: false, message: "" };
   static getDerivedStateFromError(err: unknown): EBState {
-    return { hasError: true, message: err instanceof Error ? err.message : String(err) };
+    return {
+      hasError: true,
+      message: err instanceof Error ? err.message : String(err),
+    };
   }
   componentDidCatch(err: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", err, info.componentStack);
@@ -38,7 +44,14 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
           <h2 style={{ margin: "0 0 8px", color: "#991b1b", fontSize: 18 }}>
             Something went wrong
           </h2>
-          <p style={{ color: "#6b7280", fontSize: 14, margin: "0 0 24px", wordBreak: "break-word" }}>
+          <p
+            style={{
+              color: "#6b7280",
+              fontSize: 14,
+              margin: "0 0 24px",
+              wordBreak: "break-word",
+            }}
+          >
             {this.state.message || "An unexpected error occurred."}
           </p>
           <button
@@ -67,21 +80,34 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 // Nav
 // ---------------------------------------------------------------------------
 
+const FALLBACK_NAV = [
+  { label: "Dashboard", route: "/" },
   { label: "Students", route: "/students" },
   { label: "Admissions", route: "/admissions" },
+  { label: "Programmes", route: "/programmes" },
   { label: "Term Registrations", route: "/term-registrations" },
   { label: "Marks", route: "/marks" },
   { label: "Finance", route: "/finance" },
+  { label: "Industrial Training", route: "/industrial-training" },
+  { label: "Field Placements", route: "/field-placements" },
+  { label: "Analytics", route: "/analytics" },
+  { label: "Staff", route: "/staff" },
   { label: "Users", route: "/users" },
 ];
 
 const NAV_ICONS: Record<string, string> = {
+  "/": "🏠",
   "/students": "👨‍🎓",
   "/admissions": "📋",
+  "/programmes": "🎓",
   "/term-registrations": "📅",
   "/marks": "📊",
   "/finance": "💰",
+  "/industrial-training": "🏗️",
+  "/field-placements": "📍",
+  "/analytics": "📈",
   "/users": "👥",
+  "/staff": "👔",
 };
 
 function Header() {
@@ -216,8 +242,10 @@ function Sidebar() {
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {navLinks.map(({ label, route }) => {
             const active =
-              pathname === route ||
-              (route !== "/" && pathname.startsWith(route));
+              route === "/"
+                ? pathname === "/"
+                : pathname === route ||
+                  pathname.startsWith(route);
             const icon = NAV_ICONS[route] ?? "•";
             return (
               <li key={route}>

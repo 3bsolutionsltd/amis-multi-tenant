@@ -26,6 +26,17 @@ import { NavigationEditor } from "./admin-studio/NavigationEditor";
 import { DashboardPage } from "./modules/dashboard/DashboardPage";
 import { LoginPage } from "./auth/LoginPage";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { ProgrammesListPage } from "./modules/programmes/ProgrammesListPage";
+import { ProgrammeDetailPage } from "./modules/programmes/ProgrammeDetailPage";
+import { IndustrialTrainingListPage } from "./modules/industrial-training/IndustrialTrainingListPage";
+import { IndustrialTrainingCreatePage } from "./modules/industrial-training/IndustrialTrainingCreatePage";
+import { IndustrialTrainingDetailPage } from "./modules/industrial-training/IndustrialTrainingDetailPage";
+import { FieldPlacementsListPage } from "./modules/field-placements/FieldPlacementsListPage";
+import { FieldPlacementCreatePage } from "./modules/field-placements/FieldPlacementCreatePage";
+import { FieldPlacementDetailPage } from "./modules/field-placements/FieldPlacementDetailPage";
+import { AnalyticsPage } from "./modules/analytics/AnalyticsPage";
+import { StaffListPage } from "./modules/staff/StaffListPage";
+import { StaffDetailPage } from "./modules/staff/StaffDetailPage";
 
 export const router = createBrowserRouter([
   {
@@ -60,14 +71,19 @@ export const router = createBrowserRouter([
       { path: "marks/new", element: <MarkCreatePage /> },
       { path: "marks/:id", element: <MarkDetailPage /> },
       { path: "term-registrations", element: <TermRegistrationsListPage /> },
-      {
-        path: "term-registrations/new",
-        element: <TermRegistrationCreatePage />,
-      },
-      {
-        path: "term-registrations/:id",
-        element: <TermRegistrationDetailPage />,
-      },
+      { path: "term-registrations/new", element: <TermRegistrationCreatePage /> },
+      { path: "term-registrations/:id", element: <TermRegistrationDetailPage /> },
+      { path: "programmes", element: <ProgrammesListPage /> },
+      { path: "programmes/:id", element: <ProgrammeDetailPage /> },
+      { path: "industrial-training", element: <IndustrialTrainingListPage /> },
+      { path: "industrial-training/new", element: <IndustrialTrainingCreatePage /> },
+      { path: "industrial-training/:id", element: <IndustrialTrainingDetailPage /> },
+      { path: "field-placements", element: <FieldPlacementsListPage /> },
+      { path: "field-placements/new", element: <FieldPlacementCreatePage /> },
+      { path: "field-placements/:id", element: <FieldPlacementDetailPage /> },
+      { path: "analytics", element: <AnalyticsPage /> },
+      { path: "staff", element: <StaffListPage /> },
+      { path: "staff/:id", element: <StaffDetailPage /> },
     ],
   },
   {

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { createApplication } from "./admissions.api";
+import { listProgrammes } from "../programmes/programmes.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -12,12 +14,16 @@ import {
   ErrorBanner,
 } from "../../lib/ui";
 
-const PROGRAMMES = ["NCBC", "NCES", "NCAM", "NCP", "NCWF"];
 const SPONSORSHIP_TYPES = ["Government", "Private"];
 
 export function ApplicationCreatePage() {
   ensureGlobalCss();
   const navigate = useNavigate();
+
+  const { data: programmes } = useQuery({
+    queryKey: ["programmes"],
+    queryFn: () => listProgrammes(),
+  });
 
   const [form, setForm] = useState({
     first_name: "",
@@ -150,9 +156,9 @@ export function ApplicationCreatePage() {
                 onChange={(e) => set("programme", e.target.value)}
               >
                 <option value="">— Select Programme —</option>
-                {PROGRAMMES.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                {(programmes ?? []).map((p) => (
+                  <option key={p.id} value={p.code}>
+                    {p.code} — {p.title}
                   </option>
                 ))}
               </select>

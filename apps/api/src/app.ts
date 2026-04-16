@@ -9,6 +9,11 @@ import { feesRoutes } from "./modules/fees/fees.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import { usersRoutes } from "./modules/users/users.routes.js";
 import { termRegistrationsRoutes } from "./modules/term-registrations/term-registrations.routes.js";
+import { programmesRoutes } from "./modules/programmes/programmes.routes.js";
+import { staffRoutes } from "./modules/staff/staff.routes.js";
+import { industrialTrainingRoutes } from "./modules/industrial-training/industrial-training.routes.js";
+import { fieldPlacementsRoutes } from "./modules/field-placements/field-placements.routes.js";
+import { analyticsRoutes } from "./modules/analytics/analytics.routes.js";
 import { registerDevIdentity } from "./middleware/devIdentity.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 
@@ -38,6 +43,11 @@ export function buildApp() {
   app.register(marksRoutes);
   app.register(feesRoutes);
   app.register(termRegistrationsRoutes);
+  app.register(programmesRoutes);
+  app.register(staffRoutes);
+  app.register(industrialTrainingRoutes);
+  app.register(fieldPlacementsRoutes);
+  app.register(analyticsRoutes);
 
   return app;
 }

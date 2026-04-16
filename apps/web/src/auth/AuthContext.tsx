@@ -57,17 +57,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(() => {
     const refreshToken = getRefreshToken();
+    // Fire-and-forget — revoke on server best-effort, don't block the redirect
     if (refreshToken) {
-      try {
-        await apiFetch("/auth/logout", {
-          method: "POST",
-          body: JSON.stringify({ refreshToken }),
-        });
-      } catch {
-        // fire-and-forget — ignore errors
-      }
+      apiFetch("/auth/logout", {
+        method: "POST",
+        body: JSON.stringify({ refreshToken }),
+      }).catch(() => {});
     }
     clearTokens();
     setUser(null);

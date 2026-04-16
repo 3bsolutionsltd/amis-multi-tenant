@@ -198,10 +198,8 @@ export function FeesImportPage() {
             </code>
           </p>
           <p style={{ fontSize: 13, color: C.gray400, margin: "0 0 20px" }}>
-            <strong>studentId</strong> — UUID of the student
-            &nbsp;·&nbsp;
-            <strong>amount</strong> — positive number (ZAR)
-            &nbsp;·&nbsp;
+            <strong>studentId</strong> — UUID of the student &nbsp;·&nbsp;
+            <strong>amount</strong> — positive number (ZAR) &nbsp;·&nbsp;
             <strong>paid_at</strong> — YYYY-MM-DD
           </p>
           <input
@@ -409,8 +407,7 @@ export function FeesImportPage() {
           </h2>
           <p style={{ color: C.gray500, fontSize: 14, margin: "0 0 8px" }}>
             <strong style={{ color: C.green }}>{done.inserted}</strong> payment
-            {done.inserted !== 1 ? "s" : ""} recorded from{" "}
-            <em>{filename}</em>.
+            {done.inserted !== 1 ? "s" : ""} recorded from <em>{filename}</em>.
           </p>
           {done.errors.length > 0 && (
             <p

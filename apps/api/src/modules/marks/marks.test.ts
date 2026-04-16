@@ -294,3 +294,59 @@ describe("GET /marks/submissions/:id", () => {
     });
   });
 });
+
+// ------------------------------------------------------------------ GET /marks/submissions/:id/audit (SR-F-022)
+
+describe("GET /marks/submissions/:id/audit", () => {
+  it("returns 400 when x-tenant-id header is missing", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/marks/submissions/${fakeSubmission.id}/audit`,
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toHaveProperty("error", "x-tenant-id header required");
+  });
+
+  it("returns 403 for finance role", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/marks/submissions/${fakeSubmission.id}/audit`,
+      headers: { "x-tenant-id": TID, "x-dev-role": "finance" },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns 404 when submission not found in tenant", async () => {
+    mockWithTenant.mockResolvedValueOnce(null as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/marks/submissions/${fakeSubmission.id}/audit`,
+      headers: adminHeaders,
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("returns audit log entries", async () => {
+    const auditEntry = {
+      id: "aa000000-0000-0000-0000-000000000001",
+      entry_id: fakeEntry.id,
+      student_id: fakeEntry.student_id,
+      old_score: null,
+      new_score: 85,
+      actor_user_id: null,
+      changed_at: new Date().toISOString(),
+    };
+    mockWithTenant.mockResolvedValueOnce([auditEntry] as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/marks/submissions/${fakeSubmission.id}/audit`,
+      headers: adminHeaders,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([auditEntry]);
+  });
+});

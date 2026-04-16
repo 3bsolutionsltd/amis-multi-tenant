@@ -56,10 +56,19 @@ export function AdmissionsListPage() {
   const page = Number(params.get("page") ?? "1");
 
   function set(key: string, value: string) {
-    setParams((p) => { const n = new URLSearchParams(p); n.set(key, value); n.set("page", "1"); return n; });
+    setParams((p) => {
+      const n = new URLSearchParams(p);
+      n.set(key, value);
+      n.set("page", "1");
+      return n;
+    });
   }
   function setPage(v: number) {
-    setParams((p) => { const n = new URLSearchParams(p); n.set("page", String(v)); return n; });
+    setParams((p) => {
+      const n = new URLSearchParams(p);
+      n.set("page", String(v));
+      return n;
+    });
   }
 
   const { data, isLoading, error } = useQuery({
@@ -184,8 +193,8 @@ export function AdmissionsListPage() {
       <Pagination
         page={page}
         hasMore={(data?.length ?? 0) >= 20}
-        onPrev={() => setPage((p) => Math.max(1, p - 1))}
-        onNext={() => setPage((p) => p + 1)}
+        onPrev={() => setPage(Math.max(1, page - 1))}
+        onNext={() => setPage(page + 1)}
       />
     </div>
   );

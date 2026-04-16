@@ -1,14 +1,19 @@
 # AMIS Rebuild — Current Status
+_Last board sync: 2026-04-14_
 
 ## Phase 1 (Foundation) — COMPLETE ✅
 
 ## Phase 2 (Pilot Modules) — COMPLETE ✅ (134/134 tests, 12 test files)
 
-## Phase 3 Progress — IN PROGRESS 🔄 (226/226 tests, 17 test files)
+## Wave 2 — COMPLETE ✅ (GH issues #13–#16 all closed)
+- [x] #13 Fees CSV bulk import — frontend UI ✅
+- [x] #14 Student deactivation / soft-delete ✅
+- [x] #15 Dashboard workflow state breakdown ✅
+- [x] #16 MarksListPage term filter (constrain to valid values) ✅
 
-## Phase 3 (Auth + Deployment + Migration) — PLANNING 🔄
+## Phase 3 Progress — IN PROGRESS 🔄 (272/272 tests, 21 test files)
 
-### Track A — Authentication
+### Track A — Authentication — COMPLETE ✅
 
 - [x] Prompt 16 — Users + roles DB tables + password hashing ✅ (160/160 tests)
 - [x] Prompt 17 — POST /auth/login (JWT) + GET /auth/me ✅ (180/180 tests)
@@ -16,7 +21,7 @@
 - [x] Prompt 19 — User management API (tenant admin) ✅ (226/226 tests)
 - [x] Prompt 20 — Login page + auth flow (web) ✅ (226/226 tests — web only, no new API tests)
 
-### Track B — Deployment
+### Track B — Deployment — NOT STARTED
 
 - [ ] Prompt 21 — Supabase Postgres setup + migrations
 - [ ] Prompt 22 — Render deployment (API + Web)
@@ -36,6 +41,46 @@
 - [ ] Prompt 30 — Route param UUID validation
 - [ ] Prompt 31 — Error handling + structured logging
 - [ ] Prompt 32 — Rate limiting + security headers
+
+## Wave 3 — BACKLOG 🔲 (Next up)
+
+### Wave 3 — Feature Gaps (from Epic board sync)
+- [x] **#12 Programme catalog** (SR-F-012, Epic C) ✅ — `app.programmes` table, FK migration on students/admissions, GET/POST/PATCH/DELETE /programmes, ProgrammesListPage + ProgrammeDetailPage, catalogue dropdown in student + admissions forms (272/272 tests)
+- [ ] **Epic E — Staff/HR module** (SR-F-017/018/019) — Not started. HR profiles, contracts, appraisals, instructor attendance, staff status
+- [ ] **Epic F gaps** — Marks audit view (SR-F-022), industrial training (SR-F-023), field placement (SR-F-026), term analytics (SR-F-027)
+- [ ] **Epic A gaps** — Guardian/next-of-kin fields (SR-F-002), dropout tracking (SR-F-003), management reports (SR-F-007)
+
+### Wave 3 — Phase 3 Track B Deployment
+- [ ] Prompt 21 — Supabase Postgres setup + migrations
+- [ ] Prompt 22 — Render deployment (API + Web)
+- [ ] Prompt 23 — CI/CD (GitHub Actions → Render auto-deploy)
+- [ ] Prompt 24 — Offline Docker Compose build (UTC Kyema)
+
+### Wave 3 — Phase 3 Track C Data Migration (UTC Kyema)
+- [ ] Prompt 25 — Audit UTC Kyema data (Excel/CSV analysis)
+- [ ] Prompt 26 — Migration scripts (CSV → AMIS format)
+- [ ] Prompt 27 — Dry-run + validation report
+- [ ] Prompt 28 — Production migration + verification
+
+### Wave 3 — Phase 3 Track D Production Hardening
+- [ ] Prompt 29 — Module toggle enforcement (API + Web)
+- [ ] Prompt 30 — Route param UUID validation
+- [ ] Prompt 31 — Error handling + structured logging
+- [ ] Prompt 32 — Rate limiting + security headers
+
+## Epic Board Sync (Wave 1-2 closing state)
+
+| Epic | Key Items | Done | Partial | Not built |
+|------|-----------|------|---------|-----------|
+| A — Student Registry | SR-F-001, 006 | ✅ | SR-F-004, 008 | SR-F-002, 003, 005, 007, 011 |
+| B — Admissions | SR-F-010, 028, 029, 030 | ✅ all | — | — |
+| C — Programmes | SR-F-012 | ✅ built | — | — |
+| D — Fees & Finance | SR-F-013, 015 | ✅ | SR-F-016 | SR-F-014 (Wave 4) |
+| E — Staff/HR | SR-F-017, 018, 019 | — | — | ❌ Wave 3 |
+| F — Marks | SR-F-020, 021, 024 | ✅ | SR-F-022 | SR-F-023, 026, 027 |
+| NF | SR-NF-001, 002, 004 | ✅ | SR-NF-003 (no perf tests) | — |
+
+---
 
 ## Confirmed Phase 3 decisions
 
