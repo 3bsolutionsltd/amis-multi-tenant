@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { createDraft, getConfigStatus } from "./admin-studio.api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createDraft, getConfigStatus, publishConfig } from "./admin-studio.api";
 
 const ALL_ROLES = [
   "admin",
@@ -73,7 +73,10 @@ export function NavigationEditor() {
   const [navItems, setNavItems] = useState<NavItem[]>([]);
   const [newLabel, setNewLabel] = useState("");
   const [newRoute, setNewRoute] = useState("");
-  const [savedMsg, setSavedMsg] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<"draft" | "published" | null>(null);
+
+  const qc = useQueryClient();
+  const role = localStorage.getItem("amis_dev_role") ?? "admin";
 
   const payload = (status?.draft?.payload ??
     status?.published?.payload ??
@@ -84,23 +87,33 @@ export function NavigationEditor() {
   // Sync nav items when role or payload changes
   useEffect(() => {
     setNavItems(navigation[selectedRole] ?? []);
-    setSavedMsg(false);
+    setSavedMsg(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRole, payloadStr]);
 
+  function buildUpdatedPayload() {
+    return {
+      ...JSON.parse(payloadStr),
+      navigation: { ...navigation, [selectedRole]: navItems },
+    } as Record<string, unknown>;
+  }
+
   const saveMut = useMutation({
-    mutationFn: () => {
-      const updatedPayload: Record<string, unknown> = {
-        ...JSON.parse(payloadStr),
-        navigation: {
-          ...navigation,
-          [selectedRole]: navItems,
-        },
-      };
-      return createDraft(updatedPayload);
+    mutationFn: () => createDraft(buildUpdatedPayload()),
+    onSuccess: () => {
+      setSavedMsg("draft");
+      void refetch();
+    },
+  });
+
+  const saveAndPublishMut = useMutation({
+    mutationFn: async () => {
+      await createDraft(buildUpdatedPayload());
+      return publishConfig(role);
     },
     onSuccess: () => {
-      setSavedMsg(true);
+      setSavedMsg("published");
+      qc.invalidateQueries({ queryKey: ["config"] });
       void refetch();
     },
   });
@@ -114,12 +127,12 @@ export function NavigationEditor() {
     setNavItems((prev) => [...prev, { label, route }]);
     setNewLabel("");
     setNewRoute("");
-    setSavedMsg(false);
+    setSavedMsg(null);
   }
 
   function removeItem(i: number) {
     setNavItems((prev) => prev.filter((_, idx) => idx !== i));
-    setSavedMsg(false);
+    setSavedMsg(null);
   }
 
   function moveUp(i: number) {
@@ -129,7 +142,7 @@ export function NavigationEditor() {
       [next[i - 1], next[i]] = [next[i], next[i - 1]];
       return next;
     });
-    setSavedMsg(false);
+    setSavedMsg(null);
   }
 
   function moveDown(i: number) {
@@ -139,7 +152,7 @@ export function NavigationEditor() {
       [next[i + 1], next[i]] = [next[i], next[i + 1]];
       return next;
     });
-    setSavedMsg(false);
+    setSavedMsg(null);
   }
 
   return (
@@ -309,39 +322,37 @@ export function NavigationEditor() {
         </div>
 
         {/* Save */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <button
             style={btnPrimary}
             onClick={() => saveMut.mutate()}
-            disabled={saveMut.isPending}
+            disabled={saveMut.isPending || saveAndPublishMut.isPending}
           >
             {saveMut.isPending ? "Saving…" : "Save as Draft"}
           </button>
-          {savedMsg && (
-            <span style={{ color: "#16a34a", fontSize: 13, fontWeight: 500 }}>
-              ✓ Saved as draft
+          <button
+            style={{ ...btnPrimary, background: "#16a34a", borderColor: "#16a34a" }}
+            onClick={() => saveAndPublishMut.mutate()}
+            disabled={saveMut.isPending || saveAndPublishMut.isPending}
+          >
+            {saveAndPublishMut.isPending ? "Publishing…" : "Save & Publish"}
+          </button>
+          {savedMsg === "draft" && (
+            <span style={{ color: "#2563eb", fontSize: 13, fontWeight: 500 }}>
+              ✓ Saved as draft — publish to apply
             </span>
           )}
-          {saveMut.isError && (
+          {savedMsg === "published" && (
+            <span style={{ color: "#16a34a", fontSize: 13, fontWeight: 500 }}>
+              ✓ Published — nav updated live
+            </span>
+          )}
+          {(saveMut.isError || saveAndPublishMut.isError) && (
             <span style={{ color: "#dc2626", fontSize: 13 }}>
               Failed to save
             </span>
           )}
         </div>
-        <p
-          style={{
-            fontSize: 12,
-            color: "#94a3b8",
-            marginBottom: 0,
-            marginTop: 10,
-          }}
-        >
-          Changes are saved as a draft. Go to{" "}
-          <a href="/admin-studio/editor" style={{ color: "#2563eb" }}>
-            Config Editor
-          </a>{" "}
-          to publish.
-        </p>
       </div>
     </div>
   );
