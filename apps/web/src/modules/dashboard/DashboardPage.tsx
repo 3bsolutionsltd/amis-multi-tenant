@@ -32,13 +32,7 @@ function relativeTime(iso: string): string {
 
 // ── WelcomeBanner ─────────────────────────────────────────────────────────────
 
-function WelcomeBanner({
-  email,
-  role,
-}: {
-  email: string;
-  role: string;
-}) {
+function WelcomeBanner({ email, role }: { email: string; role: string }) {
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -182,7 +176,8 @@ function StatTile({
         if (onClick) {
           (e.currentTarget as HTMLDivElement).style.boxShadow =
             "0 4px 16px rgba(0,0,0,0.12)";
-          (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
+          (e.currentTarget as HTMLDivElement).style.transform =
+            "translateY(-2px)";
         }
       }}
       onMouseLeave={(e) => {
@@ -204,7 +199,13 @@ function StatTile({
         }}
       />
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+        }}
+      >
         <div>
           <div
             style={{
@@ -291,9 +292,7 @@ function RecentList({
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 18 }}>{icon}</span>
-          <span
-            style={{ fontSize: 14, fontWeight: 700, color: C.gray900 }}
-          >
+          <span style={{ fontSize: 14, fontWeight: 700, color: C.gray900 }}>
             {title}
           </span>
         </div>
@@ -388,9 +387,24 @@ function RecentList({
 function QuickActions({ navigate }: { navigate: (to: string) => void }) {
   const actions = [
     { icon: "👨‍🎓", label: "New Student", to: "/students/new", color: C.blue },
-    { icon: "📋", label: "New Application", to: "/admissions/new", color: C.purple },
-    { icon: "📅", label: "Register Term", to: "/term-registrations/new", color: C.cyan },
-    { icon: "💰", label: "Record Payment", to: "/finance/entry", color: C.green },
+    {
+      icon: "📋",
+      label: "New Application",
+      to: "/admissions/new",
+      color: C.purple,
+    },
+    {
+      icon: "📅",
+      label: "Register Term",
+      to: "/term-registrations/new",
+      color: C.cyan,
+    },
+    {
+      icon: "💰",
+      label: "Record Payment",
+      to: "/finance/entry",
+      color: C.green,
+    },
     { icon: "📊", label: "New Mark Sheet", to: "/marks/new", color: C.yellow },
     { icon: "👥", label: "Add User", to: "/users/new", color: "#ec4899" },
   ];
@@ -434,7 +448,8 @@ function QuickActions({ navigate }: { navigate: (to: string) => void }) {
               transition: "background 0.12s",
             }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = C.gray50;
+              (e.currentTarget as HTMLButtonElement).style.background =
+                C.gray50;
             }}
             onMouseLeave={(e) => {
               (e.currentTarget as HTMLButtonElement).style.background = C.white;
@@ -466,29 +481,33 @@ function QuickActions({ navigate }: { navigate: (to: string) => void }) {
 // ── WorkflowPipeline ─────────────────────────────────────────────────────────
 
 const MARK_PIPELINE_STATES: { key: string; label?: string; color: string }[] = [
-  { key: "DRAFT",      color: "#9ca3af" },
-  { key: "SUBMITTED",  color: "#3b82f6" },
+  { key: "DRAFT", color: "#9ca3af" },
+  { key: "SUBMITTED", color: "#3b82f6" },
   { key: "HOD_REVIEW", label: "HOD Review", color: "#f59e0b" },
-  { key: "APPROVED",   color: "#10b981" },
-  { key: "PUBLISHED",  color: "#8b5cf6" },
+  { key: "APPROVED", color: "#10b981" },
+  { key: "PUBLISHED", color: "#8b5cf6" },
 ];
 
-const ADMISSION_PIPELINE_STATES: { key: string; label?: string; color: string }[] = [
-  { key: "SUBMITTED",  color: "#3b82f6" },
-  { key: "IN_REVIEW",  label: "In Review", color: "#f59e0b" },
-  { key: "ENROLLED",   color: "#10b981" },
-  { key: "REJECTED",   color: "#ef4444" },
+const ADMISSION_PIPELINE_STATES: {
+  key: string;
+  label?: string;
+  color: string;
+}[] = [
+  { key: "SUBMITTED", color: "#3b82f6" },
+  { key: "IN_REVIEW", label: "In Review", color: "#f59e0b" },
+  { key: "ENROLLED", color: "#10b981" },
+  { key: "REJECTED", color: "#ef4444" },
 ];
 
 const TREG_PIPELINE_STATES: { key: string; label?: string; color: string }[] = [
-  { key: "REGISTRATION_STARTED",  label: "Started",       color: "#9ca3af" },
-  { key: "DOCUMENTS_VERIFIED",    label: "Docs Verified", color: "#3b82f6" },
-  { key: "FEES_VERIFIED",         label: "Fees Verified", color: "#0891b2" },
-  { key: "GUILD_FEES_VERIFIED",   label: "Guild Fees",    color: "#7c3aed" },
-  { key: "DEAN_ENDORSED",         label: "Dean Endorsed", color: "#a855f7" },
-  { key: "HALL_ALLOCATED",        label: "Hall",          color: "#ec4899" },
-  { key: "CLEARANCE_ISSUED",      label: "Cleared",       color: "#10b981" },
-  { key: "EXAM_ENROLLED",         label: "Enrolled",      color: "#8b5cf6" },
+  { key: "REGISTRATION_STARTED", label: "Started", color: "#9ca3af" },
+  { key: "DOCUMENTS_VERIFIED", label: "Docs Verified", color: "#3b82f6" },
+  { key: "FEES_VERIFIED", label: "Fees Verified", color: "#0891b2" },
+  { key: "GUILD_FEES_VERIFIED", label: "Guild Fees", color: "#7c3aed" },
+  { key: "DEAN_ENDORSED", label: "Dean Endorsed", color: "#a855f7" },
+  { key: "HALL_ALLOCATED", label: "Hall", color: "#ec4899" },
+  { key: "CLEARANCE_ISSUED", label: "Cleared", color: "#10b981" },
+  { key: "EXAM_ENROLLED", label: "Enrolled", color: "#8b5cf6" },
 ];
 
 function WorkflowPipeline({
@@ -532,7 +551,9 @@ function WorkflowPipeline({
           ))}
         </div>
       ) : items.length === 0 ? (
-        <p style={{ fontSize: 13, color: C.gray400, margin: 0 }}>No records yet.</p>
+        <p style={{ fontSize: 13, color: C.gray400, margin: 0 }}>
+          No records yet.
+        </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {states.map(({ key, color, label }) => {
@@ -556,7 +577,9 @@ function WorkflowPipeline({
                   >
                     {label ?? key}
                   </span>
-                  <span style={{ fontSize: 12, color: C.gray500, fontWeight: 600 }}>
+                  <span
+                    style={{ fontSize: 12, color: C.gray500, fontWeight: 600 }}
+                  >
                     {count}
                   </span>
                 </div>
@@ -628,18 +651,22 @@ export function DashboardPage() {
       {
         queryKey: ["dash-students"],
         queryFn: () => listStudents({ limit: 100 }),
+        enabled: !!user,
       },
       {
         queryKey: ["dash-applications"],
         queryFn: () => listApplications({ limit: 100 }),
+        enabled: !!user,
       },
       {
         queryKey: ["dash-term-regs"],
         queryFn: () => listTermRegistrations({ limit: 100 }),
+        enabled: !!user,
       },
       {
         queryKey: ["dash-submissions"],
         queryFn: () => listSubmissions({ limit: 100 }),
+        enabled: !!user,
       },
     ],
   });
@@ -657,7 +684,8 @@ export function DashboardPage() {
 
   // Applications by state
   const pendingApps = applications.filter(
-    (a) => a.current_state && !["ENROLLED", "REJECTED"].includes(a.current_state),
+    (a) =>
+      a.current_state && !["ENROLLED", "REJECTED"].includes(a.current_state),
   ).length;
 
   // Term regs by clearance issued
@@ -710,7 +738,10 @@ export function DashboardPage() {
           icon="📊"
           label="Mark Sheets"
           value={fmt(submissions.length)}
-          sub={submissions.filter((s) => s.current_state === "PUBLISHED").length + " published"}
+          sub={
+            submissions.filter((s) => s.current_state === "PUBLISHED").length +
+            " published"
+          }
           accentColor="#d97706"
           loading={markQ.isLoading}
           onClick={() => navigate("/marks")}
@@ -753,15 +784,20 @@ export function DashboardPage() {
                     alignItems: "center",
                     gap: 12,
                     padding: "12px 20px",
-                    borderBottom: i < recentStudents.length - 1 ? `1px solid ${C.gray100}` : "none",
+                    borderBottom:
+                      i < recentStudents.length - 1
+                        ? `1px solid ${C.gray100}`
+                        : "none",
                     cursor: "pointer",
                     transition: "background 0.12s",
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.background = C.gray50;
+                    (e.currentTarget as HTMLDivElement).style.background =
+                      C.gray50;
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.background = "transparent";
+                    (e.currentTarget as HTMLDivElement).style.background =
+                      "transparent";
                   }}
                 >
                   <Avatar
@@ -781,12 +817,20 @@ export function DashboardPage() {
                     >
                       {s.first_name} {s.last_name}
                     </div>
-                    <div style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>
+                    <div
+                      style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}
+                    >
                       {s.programme ?? "No programme"}{" "}
                       {s.admission_number ? `· ${s.admission_number}` : ""}
                     </div>
                   </div>
-                  <div style={{ fontSize: 12, color: C.gray400, whiteSpace: "nowrap" }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: C.gray400,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {relativeTime(s.created_at)}
                   </div>
                 </div>
@@ -812,7 +856,10 @@ export function DashboardPage() {
                 created_at: string;
               };
 
-              const stateColor: Record<string, "gray" | "blue" | "green" | "red" | "yellow"> = {
+              const stateColor: Record<
+                string,
+                "gray" | "blue" | "green" | "red" | "yellow"
+              > = {
                 SUBMITTED: "blue",
                 ENROLLED: "green",
                 REJECTED: "red",
@@ -828,15 +875,20 @@ export function DashboardPage() {
                     alignItems: "center",
                     gap: 12,
                     padding: "12px 20px",
-                    borderBottom: i < recentApps.length - 1 ? `1px solid ${C.gray100}` : "none",
+                    borderBottom:
+                      i < recentApps.length - 1
+                        ? `1px solid ${C.gray100}`
+                        : "none",
                     cursor: "pointer",
                     transition: "background 0.12s",
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.background = C.gray50;
+                    (e.currentTarget as HTMLDivElement).style.background =
+                      C.gray50;
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.background = "transparent";
+                    (e.currentTarget as HTMLDivElement).style.background =
+                      "transparent";
                   }}
                 >
                   <Avatar
@@ -856,11 +908,20 @@ export function DashboardPage() {
                     >
                       {a.first_name} {a.last_name}
                     </div>
-                    <div style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>
+                    <div
+                      style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}
+                    >
                       {a.programme} · {a.intake}
                     </div>
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-end",
+                      gap: 4,
+                    }}
+                  >
                     {a.current_state && (
                       <Badge
                         label={a.current_state}
@@ -901,13 +962,38 @@ export function DashboardPage() {
               </span>
             </div>
             {[
-              { icon: "👨‍🎓", label: "Students", to: "/students", color: "#2563eb" },
-              { icon: "📋", label: "Admissions", to: "/admissions", color: "#7c3aed" },
-              { icon: "📅", label: "Term Registrations", to: "/term-registrations", color: "#0891b2" },
+              {
+                icon: "👨‍🎓",
+                label: "Students",
+                to: "/students",
+                color: "#2563eb",
+              },
+              {
+                icon: "📋",
+                label: "Admissions",
+                to: "/admissions",
+                color: "#7c3aed",
+              },
+              {
+                icon: "📅",
+                label: "Term Registrations",
+                to: "/term-registrations",
+                color: "#0891b2",
+              },
               { icon: "📊", label: "Marks", to: "/marks", color: "#d97706" },
-              { icon: "💰", label: "Finance", to: "/finance", color: "#16a34a" },
+              {
+                icon: "💰",
+                label: "Finance",
+                to: "/finance",
+                color: "#16a34a",
+              },
               { icon: "👥", label: "Users", to: "/users", color: "#db2777" },
-              { icon: "⚙️", label: "Admin Studio", to: "/admin-studio", color: "#64748b" },
+              {
+                icon: "⚙️",
+                label: "Admin Studio",
+                to: "/admin-studio",
+                color: "#64748b",
+              },
             ].map(({ icon, label, to, color }, i, arr) => (
               <button
                 key={to}
@@ -920,7 +1006,8 @@ export function DashboardPage() {
                   padding: "11px 20px",
                   background: "none",
                   border: "none",
-                  borderBottom: i < arr.length - 1 ? `1px solid ${C.gray100}` : "none",
+                  borderBottom:
+                    i < arr.length - 1 ? `1px solid ${C.gray100}` : "none",
                   cursor: "pointer",
                   textAlign: "left",
                   fontSize: 13,
@@ -929,10 +1016,12 @@ export function DashboardPage() {
                   transition: "background 0.1s",
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = C.gray50;
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    C.gray50;
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                  (e.currentTarget as HTMLButtonElement).style.background =
+                    "transparent";
                 }}
               >
                 <span
@@ -950,7 +1039,11 @@ export function DashboardPage() {
                   {icon}
                 </span>
                 {label}
-                <span style={{ marginLeft: "auto", color: C.gray300, fontSize: 15 }}>›</span>
+                <span
+                  style={{ marginLeft: "auto", color: C.gray300, fontSize: 15 }}
+                >
+                  ›
+                </span>
               </button>
             ))}
           </Card>

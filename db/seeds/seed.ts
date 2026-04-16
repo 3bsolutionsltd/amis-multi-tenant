@@ -90,6 +90,71 @@ async function seed() {
       console.log("Seeded 2 students for Tenant B");
     });
 
+    // Seed programmes for Tenant A (Greenfield VTI)
+    await withTenant(client, idA, async () => {
+      await client.query(
+        `INSERT INTO app.programmes (tenant_id, code, title, department, duration_months, level, is_active)
+         VALUES
+           ($1, 'NCBC',  'National Certificate in Business Computing',    'Business & ICT',     12, 'National Certificate', true),
+           ($1, 'NCES',  'National Certificate in Electrical Systems',    'Engineering',        24, 'National Certificate', true),
+           ($1, 'NCAM',  'National Certificate in Automotive Mechanics',  'Engineering',        24, 'National Certificate', true),
+           ($1, 'NCP',   'National Certificate in Plumbing',              'Built Environment',  24, 'National Certificate', true),
+           ($1, 'NCWF',  'National Certificate in Welding & Fabrication', 'Engineering',        18, 'National Certificate', true),
+           ($1, 'NCCA',  'National Certificate in Civil & Construction',  'Built Environment',  24, 'National Certificate', true),
+           ($1, 'NCHM',  'National Certificate in Hospitality Mgmt',      'Hospitality',        12, 'National Certificate', true)
+         ON CONFLICT (tenant_id, code) DO NOTHING`,
+        [idA],
+      );
+      console.log("Seeded 7 programmes for Tenant A");
+    });
+
+    // Seed programmes for Tenant B (Riverside Tech College)
+    await withTenant(client, idB, async () => {
+      await client.query(
+        `INSERT INTO app.programmes (tenant_id, code, title, department, duration_months, level, is_active)
+         VALUES
+           ($1, 'ND-IT',   'National Diploma in Information Technology', 'ICT',         36, 'National Diploma', true),
+           ($1, 'ND-EE',   'National Diploma in Electrical Engineering', 'Engineering', 36, 'National Diploma', true),
+           ($1, 'ND-MM',   'National Diploma in Mechanical Manufacturing','Engineering',36, 'National Diploma', true),
+           ($1, 'CERT-CS', 'Certificate in Computer Science',            'ICT',         12, 'Certificate',      true),
+           ($1, 'CERT-NET','Certificate in Networking & Cybersecurity',  'ICT',         12, 'Certificate',      true)
+         ON CONFLICT (tenant_id, code) DO NOTHING`,
+        [idB],
+      );
+      console.log("Seeded 5 programmes for Tenant B");
+    });
+
+    // Seed staff for Tenant A (Greenfield VTI)
+    await withTenant(client, idA, async () => {
+      await client.query(
+        `INSERT INTO app.staff_profiles
+           (tenant_id, staff_number, first_name, last_name, email, department, designation, employment_type, join_date, salary)
+         VALUES
+           ($1, 'STF001', 'Jane',    'Ndlovu',   'jane.ndlovu@greenfield.ac.za',    'ICT',          'Lecturer',          'full_time', '2022-01-10', 35000),
+           ($1, 'STF002', 'Peter',   'Sithole',  'peter.sithole@greenfield.ac.za',  'Engineering',  'Senior Lecturer',   'full_time', '2020-03-01', 42000),
+           ($1, 'STF003', 'Sarah',   'Mahlangu', 'sarah.mahlangu@greenfield.ac.za', 'Hospitality',  'Lecturer',          'part_time', '2023-07-15', 18000),
+           ($1, 'STF004', 'Moses',   'Khumalo',  'moses.khumalo@greenfield.ac.za',  'ICT',          'Lab Technician',    'contract',  '2024-02-01', 22000)
+         ON CONFLICT DO NOTHING`,
+        [idA],
+      );
+      console.log("Seeded 4 staff for Tenant A");
+    });
+
+    // Seed staff for Tenant B (Riverside Tech College)
+    await withTenant(client, idB, async () => {
+      await client.query(
+        `INSERT INTO app.staff_profiles
+           (tenant_id, staff_number, first_name, last_name, email, department, designation, employment_type, join_date, salary)
+         VALUES
+           ($1, 'STF001', 'Michael', 'Asante',  'michael.asante@riverside.ac.za',  'ICT',         'HOD',               'full_time', '2019-09-01', 55000),
+           ($1, 'STF002', 'Grace',   'Mensah',  'grace.mensah@riverside.ac.za',    'Engineering', 'Lecturer',          'full_time', '2021-04-12', 38000),
+           ($1, 'STF003', 'Eric',    'Boateng', 'eric.boateng@riverside.ac.za',    'ICT',         'Visiting Lecturer', 'temporary', '2025-01-15', 15000)
+         ON CONFLICT DO NOTHING`,
+        [idB],
+      );
+      console.log("Seeded 3 staff for Tenant B");
+    });
+
     // Seed published UI config for Tenant A
     await withTenant(client, idA, async () => {
       await client.query(
@@ -115,34 +180,59 @@ async function seed() {
             theme: { primaryColor: "#2563EB" },
             navigation: {
               admin: [
+                { label: "Dashboard", route: "/" },
                 { label: "Students", route: "/students" },
                 { label: "Admissions", route: "/admissions" },
+                { label: "Programmes", route: "/programmes" },
                 { label: "Term Registrations", route: "/term-registrations" },
                 { label: "Marks", route: "/marks" },
                 { label: "Finance", route: "/finance" },
+                { label: "Industrial Training", route: "/industrial-training" },
+                { label: "Field Placements", route: "/field-placements" },
+                { label: "Analytics", route: "/analytics" },
+                { label: "Staff", route: "/staff" },
                 { label: "Users", route: "/users" },
               ],
               registrar: [
+                { label: "Dashboard", route: "/" },
                 { label: "Students", route: "/students" },
                 { label: "Admissions", route: "/admissions" },
+                { label: "Programmes", route: "/programmes" },
                 { label: "Term Registrations", route: "/term-registrations" },
                 { label: "Marks", route: "/marks" },
+                { label: "Industrial Training", route: "/industrial-training" },
+                { label: "Field Placements", route: "/field-placements" },
+                { label: "Analytics", route: "/analytics" },
               ],
               instructor: [
+                { label: "Dashboard", route: "/" },
                 { label: "Students", route: "/students" },
                 { label: "Marks", route: "/marks" },
               ],
-              finance: [{ label: "Finance", route: "/finance" }],
+              finance: [
+                { label: "Dashboard", route: "/" },
+                { label: "Finance", route: "/finance" },
+              ],
               hod: [
+                { label: "Dashboard", route: "/" },
                 { label: "Students", route: "/students" },
+                { label: "Programmes", route: "/programmes" },
                 { label: "Marks", route: "/marks" },
+                { label: "Industrial Training", route: "/industrial-training" },
+                { label: "Field Placements", route: "/field-placements" },
+                { label: "Analytics", route: "/analytics" },
               ],
               principal: [
+                { label: "Dashboard", route: "/" },
                 { label: "Students", route: "/students" },
                 { label: "Admissions", route: "/admissions" },
+                { label: "Programmes", route: "/programmes" },
                 { label: "Term Registrations", route: "/term-registrations" },
                 { label: "Marks", route: "/marks" },
                 { label: "Finance", route: "/finance" },
+                { label: "Industrial Training", route: "/industrial-training" },
+                { label: "Field Placements", route: "/field-placements" },
+                { label: "Analytics", route: "/analytics" },
               ],
             },
             dashboards: {
@@ -299,32 +389,59 @@ async function seed() {
             theme: { primaryColor: "#7C3AED" },
             navigation: {
               admin: [
+                { label: "Dashboard", route: "/" },
                 { label: "Students", route: "/students" },
                 { label: "Admissions", route: "/admissions" },
+                { label: "Programmes", route: "/programmes" },
                 { label: "Term Registrations", route: "/term-registrations" },
                 { label: "Marks", route: "/marks" },
                 { label: "Finance", route: "/finance" },
+                { label: "Industrial Training", route: "/industrial-training" },
+                { label: "Field Placements", route: "/field-placements" },
+                { label: "Analytics", route: "/analytics" },
+                { label: "Staff", route: "/staff" },
                 { label: "Users", route: "/users" },
               ],
               registrar: [
+                { label: "Dashboard", route: "/" },
                 { label: "Students", route: "/students" },
+                { label: "Admissions", route: "/admissions" },
+                { label: "Programmes", route: "/programmes" },
                 { label: "Term Registrations", route: "/term-registrations" },
                 { label: "Marks", route: "/marks" },
+                { label: "Industrial Training", route: "/industrial-training" },
+                { label: "Field Placements", route: "/field-placements" },
+                { label: "Analytics", route: "/analytics" },
               ],
               instructor: [
+                { label: "Dashboard", route: "/" },
                 { label: "Students", route: "/students" },
                 { label: "Marks", route: "/marks" },
               ],
-              finance: [{ label: "Finance", route: "/finance" }],
+              finance: [
+                { label: "Dashboard", route: "/" },
+                { label: "Finance", route: "/finance" },
+              ],
               hod: [
+                { label: "Dashboard", route: "/" },
                 { label: "Students", route: "/students" },
+                { label: "Programmes", route: "/programmes" },
                 { label: "Marks", route: "/marks" },
+                { label: "Industrial Training", route: "/industrial-training" },
+                { label: "Field Placements", route: "/field-placements" },
+                { label: "Analytics", route: "/analytics" },
               ],
               principal: [
+                { label: "Dashboard", route: "/" },
                 { label: "Students", route: "/students" },
+                { label: "Admissions", route: "/admissions" },
+                { label: "Programmes", route: "/programmes" },
                 { label: "Term Registrations", route: "/term-registrations" },
                 { label: "Marks", route: "/marks" },
                 { label: "Finance", route: "/finance" },
+                { label: "Industrial Training", route: "/industrial-training" },
+                { label: "Field Placements", route: "/field-placements" },
+                { label: "Analytics", route: "/analytics" },
               ],
             },
             dashboards: {

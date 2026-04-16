@@ -33,6 +33,7 @@ export interface UpdateStudentBody {
   last_name?: string;
   date_of_birth?: string | null;
   admission_number?: string;
+  programme?: string;
   extension?: Record<string, unknown>;
 }
 

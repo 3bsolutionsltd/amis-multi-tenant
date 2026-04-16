@@ -80,6 +80,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     queryFn: () => apiFetch<ConfigData>("/config"),
     staleTime: 60_000,
     retry: false,
+    enabled: !!user,
   });
 
   const primaryColor = config?.payload?.theme?.primaryColor ?? "#2563EB";

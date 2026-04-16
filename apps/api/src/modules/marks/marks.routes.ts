@@ -321,4 +321,42 @@ export async function marksRoutes(app: FastifyInstance) {
       return row;
     },
   );
+
+  // ---------- GET /marks/submissions/:id/audit  (SR-F-022)
+  app.get<{ Params: { id: string } }>(
+    "/marks/submissions/:id/audit",
+    { preHandler: requireRole("admin", "registrar", "hod", "instructor") },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const { id } = req.params;
+
+      const rows = await withTenant(tid, async (client) => {
+        // Verify submission belongs to this tenant
+        const { rows: check } = await client.query(
+          `SELECT id FROM app.mark_submissions WHERE id = $1`,
+          [id],
+        );
+        if (check.length === 0) return null;
+
+        const { rows: audit } = await client.query(
+          `SELECT
+             al.id, al.entry_id, al.old_score, al.new_score,
+             al.actor_user_id, al.changed_at,
+             me.student_id
+           FROM app.mark_audit_log al
+           LEFT JOIN app.mark_entries me ON me.id = al.entry_id
+           WHERE al.submission_id = $1
+           ORDER BY al.changed_at DESC`,
+          [id],
+        );
+        return audit;
+      });
+
+      if (rows === null) return reply.status(404).send({ error: "not found" });
+      return rows;
+    },
+  );
 }

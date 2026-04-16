@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { createStudent, type CreateStudentBody } from "./students.api";
+import { listProgrammes } from "../programmes/programmes.api";
 import { ApiError } from "../../lib/apiFetch";
 import { useConfig, type StudentFormField } from "../../app/ConfigProvider";
 import {
@@ -10,6 +11,7 @@ import {
   Card,
   Field,
   inputCss,
+  selectCss,
   PrimaryBtn,
   SecondaryBtn,
   ErrorBanner,
@@ -45,6 +47,11 @@ export function StudentCreatePage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { studentFormConfig } = useConfig();
+
+  const { data: programmes } = useQuery({
+    queryKey: ["programmes"],
+    queryFn: () => listProgrammes(),
+  });
 
   const coreFields =
     studentFormConfig?.fields
@@ -139,6 +146,21 @@ export function StudentCreatePage() {
                     setForm((p) => ({ ...p, [f.key]: e.target.value }))
                   }
                 />
+              ) : f.key === "programme" ? (
+                <select
+                  style={selectCss}
+                  value={form[f.key] ?? ""}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, [f.key]: e.target.value }))
+                  }
+                >
+                  <option value="">— Select Programme —</option>
+                  {(programmes ?? []).map((p) => (
+                    <option key={p.id} value={p.code}>
+                      {p.code} — {p.title}
+                    </option>
+                  ))}
+                </select>
               ) : (
                 <input
                   style={inputCss}

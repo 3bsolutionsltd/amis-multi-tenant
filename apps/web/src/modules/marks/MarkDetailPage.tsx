@@ -6,6 +6,7 @@ import {
   getWorkflowDef,
   fireTransition,
   putEntries,
+  getAuditLog,
 } from "./marks.api";
 import { listStudents } from "../students/students.api";
 import {
@@ -37,7 +38,12 @@ const STATE_BADGE_COLOR: Record<
   PUBLISHED: "cyan",
 };
 
-type DraftRow = { key: number; student_id: string; student_name: string; score: string };
+type DraftRow = {
+  key: number;
+  student_id: string;
+  student_name: string;
+  score: string;
+};
 
 let _key = 0;
 function mkRow(student_id = "", student_name = "", score = ""): DraftRow {
@@ -156,6 +162,108 @@ function StudentSearchInput({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Audit trail panel (SR-F-022)
+// ---------------------------------------------------------------------------
+function AuditPanel({ submissionId }: { submissionId: string }) {
+  const [open, setOpen] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["submissionAudit", submissionId],
+    queryFn: () => getAuditLog(submissionId),
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  return (
+    <Card style={{ marginTop: 20 }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          padding: "16px 24px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          fontSize: 14,
+          fontWeight: 600,
+          color: C.gray700,
+          textAlign: "left",
+        }}
+      >
+        <span>Audit Trail</span>
+        <span style={{ fontSize: 12, color: C.gray400 }}>
+          {open ? "▲ hide" : "▼ show"}
+        </span>
+      </button>
+      {open && (
+        <div style={{ borderTop: `1px solid ${C.gray100}` }}>
+          {isLoading ? (
+            <div style={{ padding: "16px 24px" }}>
+              <Spinner />
+            </div>
+          ) : !data || data.length === 0 ? (
+            <p
+              style={{
+                color: C.gray400,
+                fontSize: 13,
+                padding: "12px 24px",
+                margin: 0,
+              }}
+            >
+              No score changes recorded for this submission.
+            </p>
+          ) : (
+            <DataTable
+              headers={["Student ID", "Old Score", "New Score", "Changed", "By"]}
+              isLoading={false}
+              isEmpty={false}
+              colCount={5}
+            >
+              {data.map((row) => (
+                <TR key={row.id}>
+                  <TD>
+                    <span
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: 11,
+                        color: C.gray500,
+                      }}
+                    >
+                      {row.student_id ?? "—"}
+                    </span>
+                  </TD>
+                  <TD muted>{row.old_score ?? "—"}</TD>
+                  <TD>
+                    <span style={{ fontWeight: 600 }}>{row.new_score}</span>
+                  </TD>
+                  <TD muted>{new Date(row.changed_at).toLocaleString()}</TD>
+                  <TD>
+                    <span
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: 10,
+                        color: C.gray400,
+                      }}
+                    >
+                      {row.actor_user_id
+                        ? row.actor_user_id.slice(0, 8) + "…"
+                        : "—"}
+                    </span>
+                  </TD>
+                </TR>
+              ))}
+            </DataTable>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function MarkDetailPage() {
   ensureGlobalCss();
   const { id } = useParams<{ id: string }>();
@@ -210,7 +318,11 @@ export function MarkDetailPage() {
   });
 
   const updateRow = useCallback(
-    (key: number, field: "student_id" | "student_name" | "score", value: string) => {
+    (
+      key: number,
+      field: "student_id" | "student_name" | "score",
+      value: string,
+    ) => {
       setDraftRows((rows) =>
         rows.map((r) => (r.key === key ? { ...r, [field]: value } : r)),
       );
@@ -554,6 +666,9 @@ export function MarkDetailPage() {
           No further actions for state <strong>{currentState}</strong>.
         </p>
       )}
+
+      {/* Audit trail (SR-F-022) */}
+      <AuditPanel submissionId={id!} />
     </div>
   );
 }

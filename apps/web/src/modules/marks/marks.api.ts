@@ -100,3 +100,17 @@ export function fireTransition(
     body: JSON.stringify({ workflowKey, action }),
   });
 }
+
+export interface AuditEntry {
+  id: string;
+  entry_id: string;
+  student_id: string | null;
+  old_score: number | null;
+  new_score: number;
+  actor_user_id: string | null;
+  changed_at: string;
+}
+
+export function getAuditLog(submissionId: string): Promise<AuditEntry[]> {
+  return apiFetch<AuditEntry[]>(`/marks/submissions/${submissionId}/audit`);
+}
