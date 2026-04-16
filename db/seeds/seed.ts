@@ -191,6 +191,7 @@ async function seed() {
                 { label: "Field Placements", route: "/field-placements" },
                 { label: "Analytics", route: "/analytics" },
                 { label: "Staff", route: "/staff" },
+                { label: "Reports", route: "/reports/it" },
                 { label: "Users", route: "/users" },
               ],
               registrar: [
@@ -203,11 +204,13 @@ async function seed() {
                 { label: "Industrial Training", route: "/industrial-training" },
                 { label: "Field Placements", route: "/field-placements" },
                 { label: "Analytics", route: "/analytics" },
+                { label: "Reports", route: "/reports/it" },
               ],
               instructor: [
                 { label: "Dashboard", route: "/" },
                 { label: "Students", route: "/students" },
                 { label: "Marks", route: "/marks" },
+                { label: "Reports", route: "/reports/it" },
               ],
               finance: [
                 { label: "Dashboard", route: "/" },
@@ -221,6 +224,7 @@ async function seed() {
                 { label: "Industrial Training", route: "/industrial-training" },
                 { label: "Field Placements", route: "/field-placements" },
                 { label: "Analytics", route: "/analytics" },
+                { label: "Reports", route: "/reports/it" },
               ],
               principal: [
                 { label: "Dashboard", route: "/" },
@@ -233,6 +237,7 @@ async function seed() {
                 { label: "Industrial Training", route: "/industrial-training" },
                 { label: "Field Placements", route: "/field-placements" },
                 { label: "Analytics", route: "/analytics" },
+                { label: "Reports", route: "/reports/it" },
               ],
             },
             dashboards: {
@@ -400,6 +405,7 @@ async function seed() {
                 { label: "Field Placements", route: "/field-placements" },
                 { label: "Analytics", route: "/analytics" },
                 { label: "Staff", route: "/staff" },
+                { label: "Reports", route: "/reports/it" },
                 { label: "Users", route: "/users" },
               ],
               registrar: [
@@ -412,11 +418,13 @@ async function seed() {
                 { label: "Industrial Training", route: "/industrial-training" },
                 { label: "Field Placements", route: "/field-placements" },
                 { label: "Analytics", route: "/analytics" },
+                { label: "Reports", route: "/reports/it" },
               ],
               instructor: [
                 { label: "Dashboard", route: "/" },
                 { label: "Students", route: "/students" },
                 { label: "Marks", route: "/marks" },
+                { label: "Reports", route: "/reports/it" },
               ],
               finance: [
                 { label: "Dashboard", route: "/" },
@@ -430,6 +438,7 @@ async function seed() {
                 { label: "Industrial Training", route: "/industrial-training" },
                 { label: "Field Placements", route: "/field-placements" },
                 { label: "Analytics", route: "/analytics" },
+                { label: "Reports", route: "/reports/it" },
               ],
               principal: [
                 { label: "Dashboard", route: "/" },
@@ -442,6 +451,7 @@ async function seed() {
                 { label: "Industrial Training", route: "/industrial-training" },
                 { label: "Field Placements", route: "/field-placements" },
                 { label: "Analytics", route: "/analytics" },
+                { label: "Reports", route: "/reports/it" },
               ],
             },
             dashboards: {
