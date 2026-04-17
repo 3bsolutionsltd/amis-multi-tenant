@@ -115,6 +115,25 @@ export async function analyticsRoutes(app: FastifyInstance) {
           [tid],
         );
 
+        // 8. Fees summary (SR-F-007 — management financial summary)
+        const { rows: feeRows } = await client.query(
+          `SELECT
+             COALESCE(SUM(amount_due), 0)    AS total_due,
+             COALESCE(SUM(amount_paid), 0)   AS total_collected,
+             COALESCE(SUM(GREATEST(amount_due - amount_paid, 0)), 0) AS total_outstanding,
+             COUNT(*) FILTER (WHERE amount_due > amount_paid) AS students_with_arrears
+           FROM (
+             SELECT
+               p.student_id,
+               COALESCE(SUM(p.amount), 0) AS amount_paid,
+               MAX(p.amount_due)          AS amount_due
+             FROM app.payments p
+             WHERE p.tenant_id = $1
+             GROUP BY p.student_id
+           ) sub`,
+          [tid],
+        );
+
         return {
           students: {
             total_active: Number(studentRows[0]?.total_students ?? 0),
@@ -144,6 +163,12 @@ export async function analyticsRoutes(app: FastifyInstance) {
             status: r.status,
             count: Number(r.count),
           })),
+          fees_summary: {
+            total_due:              Number(feeRows[0]?.total_due ?? 0),
+            total_collected:        Number(feeRows[0]?.total_collected ?? 0),
+            total_outstanding:      Number(feeRows[0]?.total_outstanding ?? 0),
+            students_with_arrears:  Number(feeRows[0]?.students_with_arrears ?? 0),
+          },
         };
       });
 

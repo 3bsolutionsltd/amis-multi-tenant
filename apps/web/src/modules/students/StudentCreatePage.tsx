@@ -16,6 +16,7 @@ import {
   SecondaryBtn,
   ErrorBanner,
   SectionLabel,
+  C,
 } from "../../lib/ui";
 
 const FALLBACK_FIELDS: StudentFormField[] = [
@@ -69,6 +70,12 @@ export function StudentCreatePage() {
   const [extForm, setExtForm] = useState<Record<string, string>>(
     Object.fromEntries(extFields.map((f) => [f.key, ""])),
   );
+  const [guardianForm, setGuardianForm] = useState({
+    guardian_name: "",
+    guardian_phone: "",
+    guardian_email: "",
+    guardian_relationship: "",
+  });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
   const mutation = useMutation({
@@ -102,6 +109,10 @@ export function StudentCreatePage() {
       }
       payload.extension = ext;
     }
+    if (guardianForm.guardian_name) payload.guardian_name = guardianForm.guardian_name;
+    if (guardianForm.guardian_phone) payload.guardian_phone = guardianForm.guardian_phone;
+    if (guardianForm.guardian_email) payload.guardian_email = guardianForm.guardian_email;
+    if (guardianForm.guardian_relationship) payload.guardian_relationship = guardianForm.guardian_relationship;
     mutation.mutate(payload);
   }
 
@@ -215,6 +226,42 @@ export function StudentCreatePage() {
           )}
 
           {apiError && <ErrorBanner message={apiError} />}
+
+          {/* Guardian / Next-of-Kin section (SR-F-002) */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 8 }}>Guardian / Next of Kin (optional)</div>
+          <Field label="Guardian name">
+            <input
+              style={inputCss}
+              value={guardianForm.guardian_name}
+              onChange={(e) => setGuardianForm((p) => ({ ...p, guardian_name: e.target.value }))}
+              placeholder="Full name"
+            />
+          </Field>
+          <Field label="Relationship">
+            <input
+              style={inputCss}
+              value={guardianForm.guardian_relationship}
+              onChange={(e) => setGuardianForm((p) => ({ ...p, guardian_relationship: e.target.value }))}
+              placeholder="e.g. Mother, Father, Sibling"
+            />
+          </Field>
+          <Field label="Guardian phone">
+            <input
+              style={inputCss}
+              value={guardianForm.guardian_phone}
+              onChange={(e) => setGuardianForm((p) => ({ ...p, guardian_phone: e.target.value }))}
+              placeholder="+256 …"
+            />
+          </Field>
+          <Field label="Guardian email">
+            <input
+              type="email"
+              style={inputCss}
+              value={guardianForm.guardian_email}
+              onChange={(e) => setGuardianForm((p) => ({ ...p, guardian_email: e.target.value }))}
+              placeholder="guardian@example.com"
+            />
+          </Field>
 
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
             <PrimaryBtn type="submit" disabled={mutation.isPending}>

@@ -15,6 +15,12 @@ export interface TermAnalytics {
   }[];
   industrial_training_by_status: { status: string; count: number }[];
   field_placements_by_status: { status: string; count: number }[];
+  fees_summary: {
+    total_due: number;
+    total_collected: number;
+    total_outstanding: number;
+    students_with_arrears: number;
+  };
 }
 
 export function getTermAnalytics(params?: {

@@ -23,6 +23,7 @@ const ANALYTICS_RESULT = {
   students_by_programme: [{ code: "NCBC", title: "Biz Computing", student_count: 15 }],
   industrial_training_by_status: [{ status: "active", count: 8 }],
   field_placements_by_status: [{ status: "active", count: 6 }],
+  fees_summary: { total_due: 5000000, total_collected: 3000000, total_outstanding: 2000000, students_with_arrears: 7 },
 };
 
 beforeEach(() => vi.resetAllMocks());
@@ -64,6 +65,7 @@ describe("GET /analytics/term", () => {
     expect(body).toHaveProperty("students_by_programme");
     expect(body).toHaveProperty("industrial_training_by_status");
     expect(body).toHaveProperty("field_placements_by_status");
+    expect(body).toHaveProperty("fees_summary");
   });
 
   it("returns analytics data for registrar", async () => {

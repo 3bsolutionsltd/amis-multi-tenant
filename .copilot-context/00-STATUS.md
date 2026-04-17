@@ -1,5 +1,5 @@
 # AMIS Rebuild — Current Status
-_Last board sync: 2026-04-14_
+_Last board sync: 2026-04-19_
 
 ## Phase 1 (Foundation) — COMPLETE ✅
 
@@ -11,7 +11,7 @@ _Last board sync: 2026-04-14_
 - [x] #15 Dashboard workflow state breakdown ✅
 - [x] #16 MarksListPage term filter (constrain to valid values) ✅
 
-## Phase 3 Progress — IN PROGRESS 🔄 (272/272 tests, 21 test files)
+## Phase 3 Progress — IN PROGRESS 🔄 (356/356 tests, 27 migrations, 26 test files)
 
 ### Track A — Authentication — COMPLETE ✅
 
@@ -20,6 +20,14 @@ _Last board sync: 2026-04-14_
 - [x] Prompt 18 — requireAuth JWT middleware + dual-mode identity ✅ (195/195 tests)
 - [x] Prompt 19 — User management API (tenant admin) ✅ (226/226 tests)
 - [x] Prompt 20 — Login page + auth flow (web) ✅ (226/226 tests — web only, no new API tests)
+
+### Wave 3 Feature Epics — IN PROGRESS
+
+- [x] **Epic E — Staff/HR module** (SR-F-017, 018, 019) ✅ — `app.staff` + contracts + appraisals, GET/POST/PATCH /staff, StaffListPage + StaffDetailPage (commit `20019bb`)
+- [x] **Epic G — Reporting/Evaluations** (SR-F-031, 032, 033) ✅ — IT reports, teacher evaluations, instructor reports; migration, API routes, 3 web pages, tests (commit `cad7e66`, issue #8 closed)
+- [x] **Nav persistence fix** — NavigationEditor "Save & Publish" button; re-seeded nav for all roles/tenants (commit `fe9343d`)
+- [x] **Epic F gaps** — Marks audit view (SR-F-022) ✅, industrial training module (SR-F-023) ✅, field placement tracking (SR-F-026) ✅, term analytics (SR-F-027) ✅ — all already fully built (confirmed via audit)
+- [x] **Epic A gaps** (SR-F-002, SR-F-003, SR-F-007) ✅ — Guardian/NOK fields on students (migration + API + web), dropout tracking with modal (deactivation body + dropout_reason/date/notes), fees analytics in TermAnalytics (total_due/collected/outstanding/students_with_arrears) (commit pending)
 
 ### Track B — Deployment — NOT STARTED
 
@@ -47,8 +55,8 @@ _Last board sync: 2026-04-14_
 ### Wave 3 — Feature Gaps (from Epic board sync)
 - [x] **#12 Programme catalog** (SR-F-012, Epic C) ✅ — `app.programmes` table, FK migration on students/admissions, GET/POST/PATCH/DELETE /programmes, ProgrammesListPage + ProgrammeDetailPage, catalogue dropdown in student + admissions forms (272/272 tests)
 - [ ] **Epic E — Staff/HR module** (SR-F-017/018/019) — Not started. HR profiles, contracts, appraisals, instructor attendance, staff status
-- [ ] **Epic F gaps** — Marks audit view (SR-F-022), industrial training (SR-F-023), field placement (SR-F-026), term analytics (SR-F-027)
-- [ ] **Epic A gaps** — Guardian/next-of-kin fields (SR-F-002), dropout tracking (SR-F-003), management reports (SR-F-007)
+- [x] **Epic F gaps** — Marks audit view (SR-F-022) ✅, industrial training (SR-F-023) ✅, field placement (SR-F-026) ✅, term analytics (SR-F-027) ✅
+- [x] **Epic A gaps** — Guardian/next-of-kin fields (SR-F-002) ✅, dropout tracking (SR-F-003) ✅, fees summary (SR-F-007) ✅
 
 ### Wave 3 — Phase 3 Track B Deployment
 - [ ] Prompt 21 — Supabase Postgres setup + migrations
@@ -72,12 +80,13 @@ _Last board sync: 2026-04-14_
 
 | Epic | Key Items | Done | Partial | Not built |
 |------|-----------|------|---------|-----------|
-| A — Student Registry | SR-F-001, 006 | ✅ | SR-F-004, 008 | SR-F-002, 003, 005, 007, 011 |
+| A — Student Registry | SR-F-001, 002, 003, 006, 007 | ✅ | SR-F-004, 008 | SR-F-005, 011 |
 | B — Admissions | SR-F-010, 028, 029, 030 | ✅ all | — | — |
 | C — Programmes | SR-F-012 | ✅ built | — | — |
 | D — Fees & Finance | SR-F-013, 015 | ✅ | SR-F-016 | SR-F-014 (Wave 4) |
-| E — Staff/HR | SR-F-017, 018, 019 | — | — | ❌ Wave 3 |
-| F — Marks | SR-F-020, 021, 024 | ✅ | SR-F-022 | SR-F-023, 026, 027 |
+| E — Staff/HR | SR-F-017, 018, 019 | ✅ all | — | — |
+| F — Marks | SR-F-020, 021, 022, 023, 024, 026, 027 | ✅ all | — | — |
+| G — Reporting/Evals | SR-F-031, 032, 033 | ✅ all | — | — |
 | NF | SR-NF-001, 002, 004 | ✅ | SR-NF-003 (no perf tests) | — |
 
 ---
