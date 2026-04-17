@@ -15,6 +15,7 @@ import {
   StatCard,
   Spinner,
   inputCss,
+  C,
 } from "../../lib/ui";
 
 type BadgeColor = "gray" | "blue" | "green" | "red" | "yellow";
@@ -252,6 +253,35 @@ export function AnalyticsPage() {
               ))}
             </DataTable>
           </Card>
+
+          {/* Fees summary (SR-F-007) */}
+          {data.fees_summary && (
+            <div style={{ marginBottom: 20 }}>
+              <SectionLabel>Financial Summary</SectionLabel>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px,1fr))", gap: 12, marginBottom: 12 }}>
+                <StatCard
+                  label="Total Billed"
+                  value={`UGX ${Number(data.fees_summary.total_due).toLocaleString()}`}
+                  accent={C.blue}
+                />
+                <StatCard
+                  label="Total Collected"
+                  value={`UGX ${Number(data.fees_summary.total_collected).toLocaleString()}`}
+                  accent={C.green}
+                />
+                <StatCard
+                  label="Outstanding"
+                  value={`UGX ${Number(data.fees_summary.total_outstanding).toLocaleString()}`}
+                  accent={data.fees_summary.total_outstanding > 0 ? C.red : C.green}
+                />
+                <StatCard
+                  label="Students with Arrears"
+                  value={String(data.fees_summary.students_with_arrears)}
+                  accent={data.fees_summary.students_with_arrears > 0 ? C.yellow : C.green}
+                />
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

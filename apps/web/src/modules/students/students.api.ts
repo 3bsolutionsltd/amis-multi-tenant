@@ -11,6 +11,15 @@ export interface Student {
   email: string | null;
   phone: string | null;
   extension: Record<string, unknown>;
+  // Guardian / Next-of-Kin (SR-F-002)
+  guardian_name: string | null;
+  guardian_phone: string | null;
+  guardian_email: string | null;
+  guardian_relationship: string | null;
+  // Dropout tracking (SR-F-003)
+  dropout_reason: string | null;
+  dropout_date: string | null;
+  dropout_notes: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -26,6 +35,10 @@ export interface CreateStudentBody {
   email?: string;
   phone?: string;
   extension?: Record<string, unknown>;
+  guardian_name?: string;
+  guardian_phone?: string;
+  guardian_email?: string;
+  guardian_relationship?: string;
 }
 
 export interface UpdateStudentBody {
@@ -35,6 +48,16 @@ export interface UpdateStudentBody {
   admission_number?: string;
   programme?: string;
   extension?: Record<string, unknown>;
+  guardian_name?: string;
+  guardian_phone?: string;
+  guardian_email?: string;
+  guardian_relationship?: string;
+}
+
+export interface DeactivateStudentBody {
+  dropout_reason?: string;
+  dropout_date?: string;
+  dropout_notes?: string;
 }
 
 export interface ListStudentsParams {
@@ -75,8 +98,11 @@ export function updateStudent(
   });
 }
 
-export function deactivateStudent(id: string): Promise<Student> {
-  return apiFetch<Student>(`/students/${id}/deactivate`, { method: "PATCH" });
+export function deactivateStudent(id: string, body?: DeactivateStudentBody): Promise<Student> {
+  return apiFetch<Student>(`/students/${id}/deactivate`, {
+    method: "PATCH",
+    body: body ? JSON.stringify(body) : undefined,
+  });
 }
 
 export function reactivateStudent(id: string): Promise<Student> {

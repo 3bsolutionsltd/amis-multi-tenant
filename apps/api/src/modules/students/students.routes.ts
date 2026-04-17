@@ -4,13 +4,18 @@ import { requireRole } from "../../middleware/devIdentity.js";
 import {
   CreateStudentSchema,
   UpdateStudentSchema,
+  DeactivateStudentSchema,
   StudentsQuerySchema,
   type CreateStudent,
   type UpdateStudent,
+  type DeactivateStudent,
 } from "./students.schema.js";
 
 const SELECT_COLS =
-  "id, first_name, last_name, date_of_birth, admission_number, sponsorship_type, programme, email, phone, extension, is_active, created_at, updated_at";
+  "id, first_name, last_name, date_of_birth, admission_number, sponsorship_type, programme, email, phone, extension, " +
+  "guardian_name, guardian_phone, guardian_email, guardian_relationship, " +
+  "dropout_reason, dropout_date, dropout_notes, " +
+  "is_active, created_at, updated_at";
 
 export async function studentsRoutes(app: FastifyInstance) {
   const WIDE_ROLES = [
@@ -121,13 +126,18 @@ export async function studentsRoutes(app: FastifyInstance) {
         email,
         phone,
         extension,
+        guardian_name,
+        guardian_phone,
+        guardian_email,
+        guardian_relationship,
       } = parsed.data;
 
       const row = await withTenant(tenantId, (client) =>
         client.query(
           `INSERT INTO app.students
-             (tenant_id, first_name, last_name, date_of_birth, admission_number, sponsorship_type, programme, email, phone, extension)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             (tenant_id, first_name, last_name, date_of_birth, admission_number, sponsorship_type, programme, email, phone, extension,
+              guardian_name, guardian_phone, guardian_email, guardian_relationship)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
            RETURNING ${SELECT_COLS}`,
           [
             tenantId,
@@ -140,6 +150,10 @@ export async function studentsRoutes(app: FastifyInstance) {
             email ?? null,
             phone ?? null,
             JSON.stringify(extension ?? {}),
+            guardian_name ?? null,
+            guardian_phone ?? null,
+            guardian_email ?? null,
+            guardian_relationship ?? null,
           ],
         ),
       );
@@ -173,22 +187,30 @@ export async function studentsRoutes(app: FastifyInstance) {
         email,
         phone,
         extension,
+        guardian_name,
+        guardian_phone,
+        guardian_email,
+        guardian_relationship,
       } = parsed.data;
 
       const row = await withTenant(tenantId, (client) =>
         client.query(
           `UPDATE app.students
            SET
-             first_name       = COALESCE($2, first_name),
-             last_name        = COALESCE($3, last_name),
-             date_of_birth    = COALESCE($4::date, date_of_birth),
-             admission_number = COALESCE($5, admission_number),
-             sponsorship_type = COALESCE($6, sponsorship_type),
-             programme        = COALESCE($7, programme),
-             email            = COALESCE($8, email),
-             phone            = COALESCE($9, phone),
-             extension        = COALESCE($10::jsonb, extension),
-             updated_at       = now()
+             first_name            = COALESCE($2, first_name),
+             last_name             = COALESCE($3, last_name),
+             date_of_birth         = COALESCE($4::date, date_of_birth),
+             admission_number      = COALESCE($5, admission_number),
+             sponsorship_type      = COALESCE($6, sponsorship_type),
+             programme             = COALESCE($7, programme),
+             email                 = COALESCE($8, email),
+             phone                 = COALESCE($9, phone),
+             extension             = COALESCE($10::jsonb, extension),
+             guardian_name         = COALESCE($11, guardian_name),
+             guardian_phone        = COALESCE($12, guardian_phone),
+             guardian_email        = COALESCE($13, guardian_email),
+             guardian_relationship = COALESCE($14, guardian_relationship),
+             updated_at            = now()
            WHERE id = $1
            RETURNING ${SELECT_COLS}`,
           [
@@ -202,6 +224,10 @@ export async function studentsRoutes(app: FastifyInstance) {
             email ?? null,
             phone ?? null,
             extension !== undefined ? JSON.stringify(extension) : null,
+            guardian_name ?? null,
+            guardian_phone ?? null,
+            guardian_email ?? null,
+            guardian_relationship ?? null,
           ],
         ),
       );
@@ -214,8 +240,8 @@ export async function studentsRoutes(app: FastifyInstance) {
     },
   );
 
-  // PATCH /students/:id/deactivate — soft-delete (admin, registrar only)
-  app.patch<{ Params: { id: string } }>(
+  // PATCH /students/:id/deactivate — soft-delete with optional dropout info (admin, registrar only)
+  app.patch<{ Params: { id: string }; Body: DeactivateStudent }>(
     "/students/:id/deactivate",
     { preHandler: requireRole("registrar", "admin") },
     async (req, reply) => {
@@ -224,13 +250,29 @@ export async function studentsRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: "x-tenant-id header required" });
       }
 
+      const parsed = DeactivateStudentSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return reply.status(422).send({ error: parsed.error.flatten() });
+      }
+
+      const { dropout_reason, dropout_date, dropout_notes } = parsed.data;
+
       const row = await withTenant(tenantId, (client) =>
         client.query(
           `UPDATE app.students
-           SET is_active = false, updated_at = now()
+           SET is_active      = false,
+               dropout_reason = COALESCE($2, dropout_reason),
+               dropout_date   = COALESCE($3::date, dropout_date),
+               dropout_notes  = COALESCE($4, dropout_notes),
+               updated_at     = now()
            WHERE id = $1
            RETURNING ${SELECT_COLS}`,
-          [req.params.id],
+          [
+            req.params.id,
+            dropout_reason ?? null,
+            dropout_date ?? null,
+            dropout_notes ?? null,
+          ],
         ),
       );
 

@@ -12,6 +12,7 @@ import {
   deactivateStudent,
   reactivateStudent,
   type UpdateStudentBody,
+  type DeactivateStudentBody,
 } from "./students.api";
 import { listProgrammes } from "../programmes/programmes.api";
 import { getFeeSummary } from "../fees/fees.api";
@@ -49,6 +50,17 @@ export function StudentDetailPage() {
     date_of_birth: "",
     admission_number: "",
     programme: "",
+    guardian_name: "",
+    guardian_phone: "",
+    guardian_email: "",
+    guardian_relationship: "",
+  });
+
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [dropoutForm, setDropoutForm] = useState<DeactivateStudentBody>({
+    dropout_reason: "",
+    dropout_date: "",
+    dropout_notes: "",
   });
 
   const { data: programmes } = useQuery({
@@ -76,10 +88,11 @@ export function StudentDetailPage() {
   });
 
   const deactivateMutation = useMutation({
-    mutationFn: () => deactivateStudent(id!),
+    mutationFn: (body: DeactivateStudentBody) => deactivateStudent(id!, body),
     onSuccess: (updated) => {
       qc.setQueryData(["students", id], updated);
       qc.invalidateQueries({ queryKey: ["students"] });
+      setShowDeactivateModal(false);
     },
   });
 
@@ -98,6 +111,10 @@ export function StudentDetailPage() {
       date_of_birth: student!.date_of_birth ?? "",
       admission_number: student!.admission_number ?? "",
       programme: student!.programme ?? "",
+      guardian_name: student!.guardian_name ?? "",
+      guardian_phone: student!.guardian_phone ?? "",
+      guardian_email: student!.guardian_email ?? "",
+      guardian_relationship: student!.guardian_relationship ?? "",
     });
     setEditing(true);
   }
@@ -109,6 +126,10 @@ export function StudentDetailPage() {
       last_name: form.last_name,
       admission_number: form.admission_number || undefined,
       programme: form.programme || undefined,
+      guardian_name: form.guardian_name || undefined,
+      guardian_phone: form.guardian_phone || undefined,
+      guardian_email: form.guardian_email || undefined,
+      guardian_relationship: form.guardian_relationship || undefined,
     };
     if (form.date_of_birth) body.date_of_birth = form.date_of_birth;
     mutation.mutate(body);
@@ -162,12 +183,13 @@ export function StudentDetailPage() {
               <PrimaryBtn onClick={startEdit}>Edit</PrimaryBtn>
               {student.is_active ? (
                 <SecondaryBtn
-                  onClick={() => deactivateMutation.mutate()}
+                  onClick={() => {
+                    setDropoutForm({ dropout_reason: "", dropout_date: "", dropout_notes: "" });
+                    setShowDeactivateModal(true);
+                  }}
                   disabled={deactivateMutation.isPending}
                 >
-                  {deactivateMutation.isPending
-                    ? "Deactivating…"
-                    : "Deactivate"}
+                  Deactivate
                 </SecondaryBtn>
               ) : (
                 <SecondaryBtn
@@ -204,6 +226,27 @@ export function StudentDetailPage() {
               </Fragment>
             ))}
           </Card>
+
+          {/* Guardian / Next-of-Kin (SR-F-002) */}
+          {(student.guardian_name || student.guardian_phone || student.guardian_email || student.guardian_relationship) && (
+            <Card padding="0 24px" style={{ marginBottom: 20 }}>
+              <div style={{ padding: "16px 0 4px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: C.gray500 }}>Guardian / Next of Kin</div>
+              {student.guardian_name && <DetailRow label="Name">{student.guardian_name}</DetailRow>}
+              {student.guardian_relationship && <DetailRow label="Relationship">{student.guardian_relationship}</DetailRow>}
+              {student.guardian_phone && <DetailRow label="Phone">{student.guardian_phone}</DetailRow>}
+              {student.guardian_email && <DetailRow label="Email">{student.guardian_email}</DetailRow>}
+            </Card>
+          )}
+
+          {/* Dropout info (SR-F-003) */}
+          {!student.is_active && (student.dropout_reason || student.dropout_date || student.dropout_notes) && (
+            <Card padding="16px 24px" style={{ marginBottom: 20, borderLeft: `4px solid ${C.red}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: C.red, marginBottom: 8 }}>Dropout / Deactivation Record</div>
+              {student.dropout_date && <DetailRow label="Date">{student.dropout_date}</DetailRow>}
+              {student.dropout_reason && <DetailRow label="Reason">{student.dropout_reason}</DetailRow>}
+              {student.dropout_notes && <DetailRow label="Notes">{student.dropout_notes}</DetailRow>}
+            </Card>
+          )}
 
           {/* Fee summary */}
           <div style={{ marginBottom: 20 }}>
@@ -507,6 +550,40 @@ export function StudentDetailPage() {
                 placeholder="e.g. 2024/CS/001"
               />
             </Field>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.07em", paddingTop: 8 }}>Guardian / Next of Kin</div>
+            <Field label="Guardian name">
+              <input
+                style={inputCss}
+                value={form.guardian_name}
+                onChange={(e) => setForm({ ...form, guardian_name: e.target.value })}
+                placeholder="Full name"
+              />
+            </Field>
+            <Field label="Relationship">
+              <input
+                style={inputCss}
+                value={form.guardian_relationship}
+                onChange={(e) => setForm({ ...form, guardian_relationship: e.target.value })}
+                placeholder="e.g. Mother, Father, Sibling"
+              />
+            </Field>
+            <Field label="Guardian phone">
+              <input
+                style={inputCss}
+                value={form.guardian_phone}
+                onChange={(e) => setForm({ ...form, guardian_phone: e.target.value })}
+                placeholder="+256 …"
+              />
+            </Field>
+            <Field label="Guardian email">
+              <input
+                type="email"
+                style={inputCss}
+                value={form.guardian_email}
+                onChange={(e) => setForm({ ...form, guardian_email: e.target.value })}
+                placeholder="guardian@example.com"
+              />
+            </Field>
             {mutation.isError && (
               <ErrorBanner message="Save failed. Please try again." />
             )}
@@ -520,6 +597,60 @@ export function StudentDetailPage() {
             </div>
           </form>
         </Card>
+      )}
+
+      {/* Deactivate / Dropout modal (SR-F-003) */}
+      {showDeactivateModal && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowDeactivateModal(false); }}
+        >
+          <Card padding="28px" style={{ width: 440, maxWidth: "95vw" }}>
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Deactivate Student</div>
+            <div style={{ fontSize: 13, color: C.gray500, marginBottom: 20 }}>
+              Optionally record the reason for deactivation / dropout.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <Field label="Dropout date">
+                <input
+                  type="date"
+                  style={inputCss}
+                  value={dropoutForm.dropout_date ?? ""}
+                  onChange={(e) => setDropoutForm({ ...dropoutForm, dropout_date: e.target.value })}
+                />
+              </Field>
+              <Field label="Reason">
+                <input
+                  style={inputCss}
+                  value={dropoutForm.dropout_reason ?? ""}
+                  onChange={(e) => setDropoutForm({ ...dropoutForm, dropout_reason: e.target.value })}
+                  placeholder="e.g. Financial hardship, Transfer, Medical leave"
+                />
+              </Field>
+              <Field label="Notes">
+                <textarea
+                  style={{ ...inputCss, height: 72, resize: "vertical" }}
+                  value={dropoutForm.dropout_notes ?? ""}
+                  onChange={(e) => setDropoutForm({ ...dropoutForm, dropout_notes: e.target.value })}
+                  placeholder="Any additional context…"
+                />
+              </Field>
+              {deactivateMutation.isError && <ErrorBanner message="Deactivation failed. Please try again." />}
+              <div style={{ display: "flex", gap: 8 }}>
+                <PrimaryBtn
+                  onClick={() => deactivateMutation.mutate(dropoutForm)}
+                  disabled={deactivateMutation.isPending}
+                >
+                  {deactivateMutation.isPending ? "Deactivating…" : "Confirm Deactivate"}
+                </PrimaryBtn>
+                <SecondaryBtn onClick={() => setShowDeactivateModal(false)}>Cancel</SecondaryBtn>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );

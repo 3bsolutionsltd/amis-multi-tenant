@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+const GuardianFields = {
+  guardian_name:         z.string().optional(),
+  guardian_phone:        z.string().optional(),
+  guardian_email:        z.string().email().optional(),
+  guardian_relationship: z.string().optional(),
+};
+
 export const CreateStudentSchema = z.object({
   first_name: z.string().min(1),
   last_name: z.string().min(1),
@@ -10,6 +17,7 @@ export const CreateStudentSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().optional(),
   extension: z.record(z.string(), z.unknown()).optional(),
+  ...GuardianFields,
 });
 
 export type CreateStudent = z.infer<typeof CreateStudentSchema>;
@@ -24,9 +32,18 @@ export const UpdateStudentSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().optional(),
   extension: z.record(z.string(), z.unknown()).optional(),
+  ...GuardianFields,
 });
 
 export type UpdateStudent = z.infer<typeof UpdateStudentSchema>;
+
+export const DeactivateStudentSchema = z.object({
+  dropout_reason: z.string().optional(),
+  dropout_date:   z.string().date().optional(),
+  dropout_notes:  z.string().optional(),
+});
+
+export type DeactivateStudent = z.infer<typeof DeactivateStudentSchema>;
 
 export const StudentsQuerySchema = z.object({
   search: z.string().optional(),
