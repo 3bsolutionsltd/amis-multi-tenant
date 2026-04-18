@@ -104,16 +104,6 @@ export function AdminStudioLayout() {
             Navigation
           </NavLink>
           <NavLink to="/admin-studio/workflows" style={studioNavStyle}>
-            Workflows-studio/branding" style={studioNavStyle}>
-            Branding &amp; Theme
-          </NavLink>
-          <NavLink to="/admin-studio/modules" style={studioNavStyle}>
-            Module Toggles
-          </NavLink>
-          <NavLink to="/admin-studio/navigation" style={studioNavStyle}>
-            Navigation
-          </NavLink>
-          <NavLink to="/admin-studio/workflows" style={studioNavStyle}>
             Workflows
           </NavLink>
         </nav>
