@@ -19,7 +19,7 @@ beforeEach(() => vi.resetAllMocks());
 // ------------------------------------------------------------------ stub data
 
 const fakeSubmission = {
-  id: "ssss0000-0000-0000-0000-000000000001",
+  id: "aa000000-0000-0000-0000-000000000001",
   tenant_id: TID,
   course_id: "CS101",
   programme: "Computer Science",
@@ -165,7 +165,7 @@ describe("PUT /marks/submissions/:id/entries", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "PUT",
-      url: "/marks/submissions/nonexistent-id/entries",
+      url: "/marks/submissions/00000000-0000-0000-0000-ffffffffffff/entries",
       headers: instructorHeaders,
       payload: validEntriesBody,
     });
@@ -259,7 +259,7 @@ describe("GET /marks/submissions/:id", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "GET",
-      url: "/marks/submissions/some-id",
+      url: "/marks/submissions/11111111-1111-1111-1111-111111111111",
     });
     expect(res.statusCode).toBe(400);
     expect(res.json()).toHaveProperty("error", "x-tenant-id header required");
@@ -270,7 +270,7 @@ describe("GET /marks/submissions/:id", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "GET",
-      url: "/marks/submissions/nonexistent-id",
+      url: "/marks/submissions/00000000-0000-0000-0000-ffffffffffff",
       headers,
     });
     expect(res.statusCode).toBe(404);
