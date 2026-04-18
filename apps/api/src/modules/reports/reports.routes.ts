@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
-import { requireRole } from "../../middleware/devIdentity.js";
+import { requireRole } from "../../middleware/requireRole.js";
 import {
   CreateITReportSchema,
   ITReportQuerySchema,
@@ -449,3 +449,4 @@ export async function reportsRoutes(app: FastifyInstance) {
     },
   );
 }
+

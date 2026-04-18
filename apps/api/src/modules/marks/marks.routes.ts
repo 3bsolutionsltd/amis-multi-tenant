@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
-import { requireRole } from "../../middleware/devIdentity.js";
+import { requireRole } from "../../middleware/requireRole.js";
+import { getTenantId } from "../../lib/tenantId.js";
+import { loadWorkflowDef } from "../../lib/workflowDef.js";
 import type { WorkflowDefinition } from "../config/config.schema.js";
 import {
   CreateSubmissionSchema,
@@ -13,36 +15,6 @@ import {
 const PUBLISHED_STATE = "PUBLISHED";
 const ENTITY_TYPE = "marks";
 const WORKFLOW_KEY = "marks";
-
-// ------------------------------------------------------------------ helpers
-
-function getTenantId(req: {
-  user?: { tenantId?: string };
-  headers: Record<string, string | string[] | undefined>;
-}): string | null {
-  const fromUser = req.user?.tenantId;
-  if (fromUser) return fromUser;
-  const h = req.headers["x-tenant-id"];
-  return typeof h === "string" && h.length > 0 ? h : null;
-}
-
-async function loadWorkflowDef(
-  tid: string,
-  key: string,
-  client: import("pg").PoolClient,
-): Promise<WorkflowDefinition | null> {
-  const { rows } = await client.query<{
-    payload: { workflows?: Record<string, WorkflowDefinition> };
-  }>(
-    `SELECT payload FROM platform.config_versions
-     WHERE tenant_id = $1 AND status = 'published'
-     LIMIT 1`,
-    [tid],
-  );
-  const config = rows[0];
-  if (!config) return null;
-  return config.payload?.workflows?.[key] ?? null;
-}
 
 const SUBMISSION_SELECT = `
   s.id, s.tenant_id, s.course_id, s.programme, s.intake, s.term,
@@ -360,3 +332,4 @@ export async function marksRoutes(app: FastifyInstance) {
     },
   );
 }
+

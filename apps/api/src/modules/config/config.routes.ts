@@ -1,6 +1,6 @@
-﻿import type { FastifyInstance } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
-import { requireRole } from "../../middleware/devIdentity.js";
+import { requireRole } from "../../middleware/requireRole.js";
 import { configPayloadSchema } from "./config.schema.js";
 
 export async function configRoutes(app: FastifyInstance) {
@@ -370,3 +370,4 @@ export async function configRoutes(app: FastifyInstance) {
     return reply.status(200).send(rows);
   });
 }
+

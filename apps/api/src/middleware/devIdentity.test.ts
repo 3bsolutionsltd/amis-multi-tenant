@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import Fastify from "fastify";
 import { buildApp } from "../app.js";
-import { devIdentityHook, requireRole } from "./devIdentity.js";
+import { devIdentityHook } from "./devIdentity.js";
+import { requireRole } from "./requireRole.js";
 
 // Mock withTenant at top level so workflow route tests don't need a real DB
 vi.mock("../db/tenant.js", () => ({ withTenant: vi.fn() }));

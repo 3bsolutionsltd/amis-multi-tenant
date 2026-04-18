@@ -62,24 +62,3 @@ export async function devIdentityHook(req: FastifyRequest): Promise<void> {
 export function registerDevIdentity(app: FastifyInstance): void {
   app.addHook("onRequest", devIdentityHook);
 }
-
-/**
- * Fastify preHandler factory.
- * Returns a hook that responds 403 if request.user.role is not in the allowed list.
- *
- * Usage:
- *   app.post('/route', { preHandler: requireRole('admin', 'registrar') }, handler)
- */
-export function requireRole(...roles: string[]) {
-  return async function (req: FastifyRequest, reply: FastifyReply) {
-    // Guard: identity must have been set by devIdentity or requireAuth
-    if ((req as unknown as { user?: object }).user === undefined) {
-      return reply.status(401).send({ message: "Authentication required" });
-    }
-    if (!roles.includes(req.user.role)) {
-      return reply.status(403).send({
-        error: `Forbidden: role '${req.user.role}' is not allowed; requires one of: ${roles.join(", ")}`,
-      });
-    }
-  };
-}

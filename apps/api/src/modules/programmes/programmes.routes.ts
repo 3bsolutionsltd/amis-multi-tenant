@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
-import { requireRole } from "../../middleware/devIdentity.js";
+import { requireRole } from "../../middleware/requireRole.js";
 import {
   CreateProgrammeSchema,
   UpdateProgrammeSchema,
@@ -185,3 +185,4 @@ export async function programmesRoutes(app: FastifyInstance) {
     },
   );
 }
+

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
-import { requireRole } from "../../middleware/devIdentity.js";
+import { requireRole } from "../../middleware/requireRole.js";
 import {
   CreateStudentSchema,
   UpdateStudentSchema,
@@ -312,3 +312,4 @@ export async function studentsRoutes(app: FastifyInstance) {
     },
   );
 }
+
