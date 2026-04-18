@@ -15,6 +15,9 @@ export async function withTenant<T>(
     await client.query("SELECT set_config('app.tenant_id', $1, true)", [
       tenantId,
     ]);
+    await client.query(
+      `SET LOCAL statement_timeout = '${parseInt(process.env.STATEMENT_TIMEOUT_MS ?? "30000", 10)}'`,
+    );
     const result = await fn(client);
     await client.query("COMMIT");
     return result;

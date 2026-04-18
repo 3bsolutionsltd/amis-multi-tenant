@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
-import { requireRole } from "../../middleware/devIdentity.js";
+import { requireRole } from "../../middleware/requireRole.js";
+import { getTenantId } from "../../lib/tenantId.js";
+import { loadWorkflowDef } from "../../lib/workflowDef.js";
 import type { WorkflowDefinition } from "../config/config.schema.js";
 import {
   CreateApplicationSchema,
@@ -8,31 +10,6 @@ import {
 } from "./admissions.schema.js";
 
 // ------------------------------------------------------------------ helpers
-
-function tenantHeader(req: {
-  headers: Record<string, string | string[] | undefined>;
-}): string | null {
-  const h = req.headers["x-tenant-id"];
-  return typeof h === "string" && h.length > 0 ? h : null;
-}
-
-async function loadWorkflowDef(
-  tid: string,
-  key: string,
-  client: import("pg").PoolClient,
-): Promise<WorkflowDefinition | null> {
-  const { rows } = await client.query<{
-    payload: { workflows?: Record<string, WorkflowDefinition> };
-  }>(
-    `SELECT payload FROM platform.config_versions
-     WHERE tenant_id = $1 AND status = 'published'
-     LIMIT 1`,
-    [tid],
-  );
-  const config = rows[0];
-  if (!config) return null;
-  return config.payload?.workflows?.[key] ?? null;
-}
 
 const APP_SELECT = `
   a.id, a.tenant_id, a.first_name, a.last_name, a.programme, a.intake,
@@ -385,3 +362,4 @@ export async function admissionsRoutes(app: FastifyInstance) {
     },
   );
 }
+

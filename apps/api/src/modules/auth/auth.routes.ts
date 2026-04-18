@@ -108,7 +108,9 @@ export async function authRoutes(app: FastifyInstance) {
    * POST /auth/login
    * Body: { email, password, tenantId }
    */
-  app.post("/auth/login", async (req, reply) => {
+  app.post("/auth/login", {
+    config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+  }, async (req, reply) => {
     const parsed = LoginSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.status(400).send({
@@ -303,7 +305,9 @@ export async function authRoutes(app: FastifyInstance) {
    * Always returns 200 to prevent user enumeration.
    * Logs raw token to console in dev (no email service yet).
    */
-  app.post("/auth/forgot-password", async (req, reply) => {
+  app.post("/auth/forgot-password", {
+    config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+  }, async (req, reply) => {
     const parsed = ForgotPasswordSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply
@@ -346,7 +350,9 @@ export async function authRoutes(app: FastifyInstance) {
    * Body: { token, newPassword }
    * Public — no auth required.
    */
-  app.post("/auth/reset-password", async (req, reply) => {
+  app.post("/auth/reset-password", {
+    config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+  }, async (req, reply) => {
     const parsed = ResetPasswordSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply

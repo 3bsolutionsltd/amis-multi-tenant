@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
-import { requireRole } from "../../middleware/devIdentity.js";
+import { requireRole } from "../../middleware/requireRole.js";
+import { getTenantId } from "../../lib/tenantId.js";
+import { loadWorkflowDef } from "../../lib/workflowDef.js";
 import type { WorkflowDefinition } from "../config/config.schema.js";
 
 // ------------------------------------------------------------------ types
@@ -29,37 +31,6 @@ interface WorkflowEvent {
   created_at: string;
 }
 
-// ------------------------------------------------------------------ helpers
-
-function tenantHeader(req: {
-  headers: Record<string, string | string[] | undefined>;
-}): string | null {
-  const h = req.headers["x-tenant-id"];
-  return typeof h === "string" && h.length > 0 ? h : null;
-}
-
-/**
- * Load the published config for a tenant and extract the named workflow.
- * Returns null if no published config or the workflow key doesn't exist.
- */
-async function loadWorkflowDef(
-  tid: string,
-  key: string,
-  client: import("pg").PoolClient,
-): Promise<WorkflowDefinition | null> {
-  const { rows } = await client.query<{
-    payload: { workflows?: Record<string, WorkflowDefinition> };
-  }>(
-    `SELECT payload FROM platform.config_versions
-     WHERE tenant_id = $1 AND status = 'published'
-     LIMIT 1`,
-    [tid],
-  );
-  const config = rows[0];
-  if (!config) return null;
-  return config.payload?.workflows?.[key] ?? null;
-}
-
 // ------------------------------------------------------------------ routes
 
 export async function workflowRoutes(app: FastifyInstance) {
@@ -69,7 +40,7 @@ export async function workflowRoutes(app: FastifyInstance) {
     Params: { entityType: string; entityId: string };
     Body: { workflowKey: string; initialState?: string };
   }>("/workflow/:entityType/:entityId/init", async (req, reply) => {
-    const tid = tenantHeader(req);
+    const tid = getTenantId(req);
     if (!tid)
       return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -162,7 +133,7 @@ export async function workflowRoutes(app: FastifyInstance) {
       ),
     },
     async (req, reply) => {
-      const tid = tenantHeader(req);
+      const tid = getTenantId(req);
       if (!tid)
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -269,7 +240,7 @@ export async function workflowRoutes(app: FastifyInstance) {
       preHandler: requireRole("admin", "registrar", "hod", "principal", "dean"),
     },
     async (req, reply) => {
-      const tid = tenantHeader(req);
+      const tid = getTenantId(req);
       if (!tid)
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -302,7 +273,7 @@ export async function workflowRoutes(app: FastifyInstance) {
     "/workflows/:workflowKey",
     { preHandler: requireRole("admin", "registrar", "hod") },
     async (req, reply) => {
-      const tid = tenantHeader(req);
+      const tid = getTenantId(req);
       if (!tid)
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -327,7 +298,7 @@ export async function workflowRoutes(app: FastifyInstance) {
     Params: { entityType: string; entityId: string };
     Querystring: { workflowKey?: string };
   }>("/workflow/:entityType/:entityId/history", async (req, reply) => {
-    const tid = tenantHeader(req);
+    const tid = getTenantId(req);
     if (!tid)
       return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -358,3 +329,4 @@ export async function workflowRoutes(app: FastifyInstance) {
     return reply.status(200).send(rows);
   });
 }
+

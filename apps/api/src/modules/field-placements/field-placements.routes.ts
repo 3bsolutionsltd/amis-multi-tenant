@@ -1,21 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
-import { requireRole } from "../../middleware/devIdentity.js";
+import { requireRole } from "../../middleware/requireRole.js";
+import { getTenantId } from "../../lib/tenantId.js";
 import {
   CreateFieldPlacementSchema,
   UpdateFieldPlacementSchema,
   FieldPlacementsQuerySchema,
 } from "./field-placements.schema.js";
-
-function getTenantId(req: {
-  user?: { tenantId?: string };
-  headers: Record<string, string | string[] | undefined>;
-}): string | null {
-  const fromUser = req.user?.tenantId;
-  if (fromUser) return fromUser;
-  const h = req.headers["x-tenant-id"];
-  return typeof h === "string" && h.length > 0 ? h : null;
-}
 
 export async function fieldPlacementsRoutes(app: FastifyInstance) {
   // ---------- GET /field-placements
@@ -230,3 +221,4 @@ export async function fieldPlacementsRoutes(app: FastifyInstance) {
     },
   );
 }
+

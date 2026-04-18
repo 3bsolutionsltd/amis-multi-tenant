@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
-import { requireRole } from "../../middleware/devIdentity.js";
+import { requireRole } from "../../middleware/requireRole.js";
+import { getTenantId } from "../../lib/tenantId.js";
+import { loadWorkflowDef } from "../../lib/workflowDef.js";
 import type { WorkflowDefinition } from "../config/config.schema.js";
 import {
   CreateTermRegistrationSchema,
@@ -11,36 +13,6 @@ import {
 
 const ENTITY_TYPE = "term_registration";
 const WORKFLOW_KEY = "term_registration";
-
-// ------------------------------------------------------------------ helpers
-
-function getTenantId(req: {
-  user?: { tenantId?: string };
-  headers: Record<string, string | string[] | undefined>;
-}): string | null {
-  const fromUser = req.user?.tenantId;
-  if (fromUser) return fromUser;
-  const h = req.headers["x-tenant-id"];
-  return typeof h === "string" && h.length > 0 ? h : null;
-}
-
-async function loadWorkflowDef(
-  tid: string,
-  key: string,
-  client: import("pg").PoolClient,
-): Promise<WorkflowDefinition | null> {
-  const { rows } = await client.query<{
-    payload: { workflows?: Record<string, WorkflowDefinition> };
-  }>(
-    `SELECT payload FROM platform.config_versions
-     WHERE tenant_id = $1 AND status = 'published'
-     LIMIT 1`,
-    [tid],
-  );
-  const config = rows[0];
-  if (!config) return null;
-  return config.payload?.workflows?.[key] ?? null;
-}
 
 const REG_SELECT = `
   r.id, r.tenant_id, r.student_id, r.academic_year, r.term,
@@ -249,3 +221,4 @@ export async function termRegistrationsRoutes(app: FastifyInstance) {
     },
   );
 }
+

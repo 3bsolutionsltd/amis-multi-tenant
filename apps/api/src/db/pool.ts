@@ -7,7 +7,13 @@ const { Pool } = pg;
 let _pool: pg.Pool | null = null;
 
 function getPool(): pg.Pool {
-  if (!_pool) _pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  if (!_pool)
+    _pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      max: parseInt(process.env.PG_POOL_MAX ?? "20", 10),
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 5_000,
+    });
   return _pool;
 }
 
