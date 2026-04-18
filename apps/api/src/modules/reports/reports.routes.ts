@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
 import { requireRole } from "../../middleware/requireRole.js";
+import { getTenantId } from "../../lib/tenantId.js";
 import {
   CreateITReportSchema,
   ITReportQuerySchema,
@@ -446,6 +447,165 @@ export async function reportsRoutes(app: FastifyInstance) {
       if (row.rows.length === 0)
         return reply.status(404).send({ error: "Instructor report not found" });
       return row.rows[0];
+    },
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // CAT Export CSV (SR-F-005) — GET /reports/cat-export
+  // ─────────────────────────────────────────────────────────────────────────────
+  app.get(
+    "/reports/cat-export",
+    { preHandler: requireRole(...MANAGEMENT_ROLES) },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const rows = await withTenant(tid, async (client) => {
+        const { rows } = await client.query(
+          `SELECT
+             s.id AS student_id,
+             s.admission_number,
+             s.first_name,
+             s.last_name,
+             s.programme,
+             ms.course_id,
+             ms.term,
+             ms.intake,
+             me.score,
+             wi.current_state AS submission_state
+           FROM app.students s
+           LEFT JOIN app.mark_entries me ON me.tenant_id = $1
+             AND me.student_id = s.id
+           LEFT JOIN app.mark_submissions ms ON ms.id = me.submission_id
+           LEFT JOIN app.workflow_instances wi
+             ON wi.entity_type = 'marks' AND wi.entity_id = ms.id
+           WHERE s.tenant_id = $1 AND s.is_active = true
+           ORDER BY s.last_name, s.first_name, ms.term, ms.course_id`,
+          [tid],
+        );
+        return rows;
+      });
+
+      const CSV_COLS = [
+        "student_id",
+        "admission_number",
+        "first_name",
+        "last_name",
+        "programme",
+        "course_id",
+        "term",
+        "intake",
+        "score",
+        "submission_state",
+      ];
+
+      const escapeCsv = (v: unknown): string => {
+        if (v == null) return "";
+        const s = String(v);
+        return s.includes(",") || s.includes('"') || s.includes("\n")
+          ? `"${s.replace(/"/g, '""')}"`
+          : s;
+      };
+
+      const header = CSV_COLS.join(",");
+      const body = rows
+        .map((r: Record<string, unknown>) =>
+          CSV_COLS.map((c) => escapeCsv(r[c])).join(","),
+        )
+        .join("\n");
+
+      const csv = `${header}\n${body}`;
+
+      return reply
+        .header("Content-Type", "text/csv; charset=utf-8")
+        .header(
+          "Content-Disposition",
+          'attachment; filename="cat-export.csv"',
+        )
+        .send(csv);
+    },
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Dropout Cohort Progression Report (SR-F-003) — GET /reports/dropout-cohort
+  // ─────────────────────────────────────────────────────────────────────────────
+  app.get(
+    "/reports/dropout-cohort",
+    { preHandler: requireRole(...MANAGEMENT_ROLES) },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const result = await withTenant(tid, async (client) => {
+        // Dropout counts by programme
+        const { rows: byProgramme } = await client.query(
+          `SELECT programme, COUNT(*) AS count
+           FROM app.students
+           WHERE tenant_id = $1 AND is_active = false AND dropout_reason IS NOT NULL
+           GROUP BY programme
+           ORDER BY count DESC`,
+          [tid],
+        );
+
+        // Dropout counts by reason
+        const { rows: byReason } = await client.query(
+          `SELECT dropout_reason AS reason, COUNT(*) AS count
+           FROM app.students
+           WHERE tenant_id = $1 AND is_active = false AND dropout_reason IS NOT NULL
+           GROUP BY dropout_reason
+           ORDER BY count DESC`,
+          [tid],
+        );
+
+        // Dropout counts by period (month)
+        const { rows: byPeriod } = await client.query(
+          `SELECT
+             to_char(dropout_date, 'YYYY-MM') AS period,
+             COUNT(*) AS count
+           FROM app.students
+           WHERE tenant_id = $1 AND is_active = false AND dropout_date IS NOT NULL
+           GROUP BY period
+           ORDER BY period DESC`,
+          [tid],
+        );
+
+        // Cohort progression summary
+        const { rows: cohort } = await client.query(
+          `SELECT
+             COUNT(*) AS total_students,
+             COUNT(*) FILTER (WHERE is_active = true)  AS active,
+             COUNT(*) FILTER (WHERE is_active = false AND dropout_reason IS NOT NULL) AS dropped,
+             COUNT(*) FILTER (WHERE is_active = false AND dropout_reason IS NULL) AS deactivated
+           FROM app.students
+           WHERE tenant_id = $1`,
+          [tid],
+        );
+
+        return {
+          by_programme: byProgramme.map((r) => ({
+            programme: r.programme ?? "unspecified",
+            count: Number(r.count),
+          })),
+          by_reason: byReason.map((r) => ({
+            reason: r.reason,
+            count: Number(r.count),
+          })),
+          by_period: byPeriod.map((r) => ({
+            period: r.period ?? "unknown",
+            count: Number(r.count),
+          })),
+          cohort: {
+            total: Number(cohort[0]?.total_students ?? 0),
+            active: Number(cohort[0]?.active ?? 0),
+            dropped: Number(cohort[0]?.dropped ?? 0),
+            deactivated: Number(cohort[0]?.deactivated ?? 0),
+          },
+        };
+      });
+
+      return result;
     },
   );
 }

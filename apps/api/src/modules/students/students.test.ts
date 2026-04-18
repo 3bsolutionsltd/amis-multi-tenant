@@ -151,7 +151,7 @@ describe("GET /students/:id", () => {
   });
 
   it("returns 404 when student is not found", async () => {
-    mockWithTenant.mockResolvedValueOnce({ rows: [] } as never);
+    mockWithTenant.mockResolvedValueOnce(null as never);
     const app = buildApp();
     const res = await app.inject({
       method: "GET",
@@ -162,8 +162,8 @@ describe("GET /students/:id", () => {
     expect(res.json()).toHaveProperty("error", "student not found");
   });
 
-  it("returns 200 with student when found", async () => {
-    const fakeStudent = {
+  it("returns 200 with 360° student view when found", async () => {
+    const fakeStudent360 = {
       id: TID,
       first_name: "Alice",
       last_name: "Smith",
@@ -171,8 +171,14 @@ describe("GET /students/:id", () => {
       extension: {},
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      marks: [],
+      admissions: [],
+      term_registrations: [],
+      industrial_training: [],
+      field_placements: [],
+      fees: { total_paid: 0, last_payment: null },
     };
-    mockWithTenant.mockResolvedValueOnce({ rows: [fakeStudent] } as never);
+    mockWithTenant.mockResolvedValueOnce(fakeStudent360 as never);
     const app = buildApp();
     const res = await app.inject({
       method: "GET",
@@ -180,7 +186,14 @@ describe("GET /students/:id", () => {
       headers: { "x-tenant-id": TID },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual(fakeStudent);
+    const body = res.json();
+    expect(body.first_name).toBe("Alice");
+    expect(body).toHaveProperty("marks");
+    expect(body).toHaveProperty("admissions");
+    expect(body).toHaveProperty("term_registrations");
+    expect(body).toHaveProperty("industrial_training");
+    expect(body).toHaveProperty("field_placements");
+    expect(body).toHaveProperty("fees");
   });
 });
 
@@ -339,5 +352,52 @@ describe("PATCH /students/:id/reactivate", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ is_active: true });
+  });
+});
+
+// ──────────────────────── GET /students/export/csv
+describe("GET /students/export/csv", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("returns 400 when x-tenant-id header is missing", async () => {
+    const app = buildApp();
+    const res = await app.inject({ method: "GET", url: "/students/export/csv" });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("returns 403 for an instructor role", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/students/export/csv",
+      headers: { "x-tenant-id": TID, "x-dev-role": "instructor" },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns CSV with correct content-type", async () => {
+    const fakeRows = [
+      {
+        id: "uuid-1", admission_number: "ADM001",
+        first_name: "Alice", last_name: "Smith", other_names: null,
+        gender: "F", date_of_birth: "2000-01-01", email: null, phone: null,
+        programme: "NCBC", intake: "2025-Jan",
+        nationality: "UG", district: "Kampala", county: "Central",
+        guardian_name: "John", guardian_phone: "07001",
+        is_active: true, created_at: "2026-01-01",
+      },
+    ];
+    mockWithTenant.mockResolvedValueOnce({ rows: fakeRows } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/students/export/csv",
+      headers: { "x-tenant-id": TID, "x-dev-role": "admin" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/csv");
+    expect(res.headers["content-disposition"]).toContain("students-export");
+    expect(res.body).toContain("first_name");
+    expect(res.body).toContain("Alice");
   });
 });

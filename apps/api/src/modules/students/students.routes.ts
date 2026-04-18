@@ -77,7 +77,7 @@ export async function studentsRoutes(app: FastifyInstance) {
     },
   );
 
-  // GET /students/:id — fetch one student
+  // GET /students/:id — 360° student view (SR-F-008)
   app.get<{ Params: { id: string } }>(
     "/students/:id",
     { preHandler: requireRole(...WIDE_ROLES) },
@@ -87,17 +87,99 @@ export async function studentsRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: "x-tenant-id header required" });
       }
 
-      const row = await withTenant(tenantId, (client) =>
-        client.query(`SELECT ${SELECT_COLS} FROM app.students WHERE id = $1`, [
-          req.params.id,
-        ]),
-      );
+      const result = await withTenant(tenantId, async (client) => {
+        // Core student record
+        const { rows: stuRows } = await client.query(
+          `SELECT ${SELECT_COLS} FROM app.students WHERE id = $1`,
+          [req.params.id],
+        );
+        if (stuRows.length === 0) return null;
 
-      if (row.rows.length === 0) {
+        const student = stuRows[0];
+        const sid = req.params.id;
+
+        // Marks summary — latest marks per submission
+        const { rows: marks } = await client.query(
+          `SELECT ms.course_id, ms.term, ms.intake, me.score,
+                  wi.current_state AS submission_state
+           FROM app.mark_entries me
+           JOIN app.mark_submissions ms ON ms.id = me.submission_id
+           LEFT JOIN app.workflow_instances wi
+             ON wi.entity_type = 'marks' AND wi.entity_id = ms.id
+           WHERE me.student_id = $1
+           ORDER BY ms.term DESC, ms.course_id`,
+          [sid],
+        );
+
+        // Admissions history
+        const { rows: admissions } = await client.query(
+          `SELECT a.id, a.programme, a.intake,
+                  wi.current_state
+           FROM app.admission_applications a
+           LEFT JOIN app.workflow_instances wi
+             ON wi.entity_type = 'admissions' AND wi.entity_id = a.id
+           WHERE a.tenant_id = $1
+             AND a.first_name = $2 AND a.last_name = $3
+           ORDER BY a.created_at DESC`,
+          [tenantId, student.first_name, student.last_name],
+        );
+
+        // Term registrations
+        const { rows: termRegs } = await client.query(
+          `SELECT r.id, r.academic_year, r.term, r.created_at,
+                  wi.current_state
+           FROM app.term_registrations r
+           LEFT JOIN app.workflow_instances wi
+             ON wi.entity_type = 'term_registration' AND wi.entity_id = r.id
+           WHERE r.student_id = $1
+           ORDER BY r.created_at DESC`,
+          [sid],
+        );
+
+        // Industrial training
+        const { rows: itRecords } = await client.query(
+          `SELECT id, company, status, start_date, end_date
+           FROM app.industrial_training
+           WHERE student_id = $1
+           ORDER BY start_date DESC`,
+          [sid],
+        );
+
+        // Field placements
+        const { rows: fpRecords } = await client.query(
+          `SELECT id, school_name, status, start_date, end_date
+           FROM app.field_placements
+           WHERE student_id = $1
+           ORDER BY start_date DESC`,
+          [sid],
+        );
+
+        // Fee summary
+        const { rows: feeRows } = await client.query(
+          `SELECT COALESCE(SUM(amount), 0) AS total_paid, MAX(paid_at) AS last_payment
+           FROM app.payments WHERE student_id = $1`,
+          [sid],
+        );
+
+        return {
+          ...student,
+          marks,
+          admissions,
+          term_registrations: termRegs,
+          industrial_training: itRecords,
+          field_placements: fpRecords,
+          fees: {
+            total_paid: Number(feeRows[0]?.total_paid ?? 0),
+            last_payment: feeRows[0]?.last_payment ?? null,
+          },
+        };
+      });
+
+      if (!result) {
         return reply.status(404).send({ error: "student not found" });
       }
 
-      return row.rows[0];
+      return result;
     },
   );
 
@@ -309,6 +391,74 @@ export async function studentsRoutes(app: FastifyInstance) {
       }
 
       return row.rows[0];
+    },
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // GET /students/export/csv — SR-F-005 CSV export
+  // ─────────────────────────────────────────────────────────────────────────────
+  app.get(
+    "/students/export/csv",
+    { preHandler: requireRole("admin", "registrar") },
+    async (req, reply) => {
+      const { tenantId } = req.user;
+      if (!tenantId) {
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+      }
+
+      const rows = await withTenant(tenantId, (client) =>
+        client.query(
+          `SELECT ${SELECT_COLS} FROM app.students
+           WHERE tenant_id = $1
+           ORDER BY last_name, first_name`,
+          [tenantId],
+        ),
+      );
+
+      const CSV_COLS = [
+        "id",
+        "first_name",
+        "last_name",
+        "date_of_birth",
+        "admission_number",
+        "sponsorship_type",
+        "programme",
+        "email",
+        "phone",
+        "guardian_name",
+        "guardian_phone",
+        "guardian_email",
+        "guardian_relationship",
+        "is_active",
+        "dropout_reason",
+        "dropout_date",
+        "created_at",
+      ];
+
+      const escapeCsv = (v: unknown): string => {
+        if (v == null) return "";
+        const s = String(v);
+        return s.includes(",") || s.includes('"') || s.includes("\n")
+          ? `"${s.replace(/"/g, '""')}"`
+          : s;
+      };
+
+      const header = CSV_COLS.join(",");
+      const body = rows.rows
+        .map((r: Record<string, unknown>) =>
+          CSV_COLS.map((c) => escapeCsv(r[c])).join(","),
+        )
+        .join("\n");
+
+      const csv = `${header}\n${body}`;
+
+      return reply
+        .header("Content-Type", "text/csv; charset=utf-8")
+        .header(
+          "Content-Disposition",
+          'attachment; filename="students-export.csv"',
+        )
+        .send(csv);
     },
   );
 }
