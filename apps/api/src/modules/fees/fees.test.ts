@@ -5,8 +5,14 @@ vi.mock("../../db/tenant.js", () => ({
   withTenant: vi.fn(),
 }));
 
+vi.mock("../../db/pool.js", () => ({
+  pool: { query: vi.fn() },
+}));
+
 import { withTenant } from "../../db/tenant.js";
+import { pool } from "../../db/pool.js";
 const mockWithTenant = vi.mocked(withTenant);
+const mockPoolQuery = vi.mocked(pool.query);
 
 const TID = "00000000-0000-0000-0000-000000000030";
 const STUDENT_ID = "ab000000-0000-0000-0000-000000000001";
@@ -293,16 +299,184 @@ describe("POST /fees/import", () => {
   });
 });
 
+// ------------------------------------------------------------------ helpers
+
+function stubSlugLookup(found: boolean) {
+  mockPoolQuery.mockResolvedValueOnce({
+    rows: found ? [{ id: TID }] : [],
+    command: "SELECT",
+    rowCount: found ? 1 : 0,
+    oid: 0,
+    fields: [],
+  } as never);
+}
+
 // ------------------------------------------------------------------ POST /webhooks/schoolpay
 
 describe("POST /webhooks/schoolpay", () => {
-  it("returns 501 Not Implemented", async () => {
+  const validWebhook = {
+    tenant_slug: "demo-school",
+    reference: "SP-2026-001",
+    student_name: "Alice Nakamya",
+    amount: 5000,
+    currency: "UGX",
+    paid_at: "2026-04-01T10:00:00Z",
+  };
+
+  it("returns 422 for invalid body", async () => {
     const app = buildApp();
     const res = await app.inject({
       method: "POST",
       url: "/webhooks/schoolpay",
-      payload: {},
+      payload: { reference: "SP-001" }, // missing required fields
     });
-    expect(res.statusCode).toBe(501);
+    expect(res.statusCode).toBe(422);
+  });
+
+  it("returns 404 if tenant slug not found", async () => {
+    stubSlugLookup(false);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/schoolpay",
+      payload: validWebhook,
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("returns 201 on success", async () => {
+    stubSlugLookup(true);
+    mockWithTenant.mockImplementation(async (_tid, cb) => {
+      const mockClient = {
+        query: vi
+          .fn()
+          .mockResolvedValueOnce({ rows: [] }) // idempotency check
+          .mockResolvedValueOnce({ rows: [{ id: "sp-txn-1", status: "unmatched" }] }),
+      };
+      return cb(mockClient as never);
+    });
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/schoolpay",
+      payload: validWebhook,
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().transaction.status).toBe("unmatched");
+  });
+
+  it("returns 200 for duplicate reference (idempotent)", async () => {
+    stubSlugLookup(true);
+    mockWithTenant.mockImplementation(async (_tid, cb) => {
+      const mockClient = {
+        query: vi
+          .fn()
+          .mockResolvedValueOnce({ rows: [{ id: "existing-id" }] }), // idempotency hit
+      };
+      return cb(mockClient as never);
+    });
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/webhooks/schoolpay",
+      payload: validWebhook,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().message).toMatch(/already/i);
+  });
+});
+
+// ------------------------------------------------------------------ GET /fees/reconciliation
+
+describe("GET /fees/reconciliation", () => {
+  it("returns 400 when x-tenant-id header is missing", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/fees/reconciliation",
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("returns 403 when role is registrar", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/fees/reconciliation",
+      headers: registrarHeaders,
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns 200 with transactions", async () => {
+    const fakeTxns = [
+      { id: "sp-1", schoolpay_ref: "SP-001", status: "unmatched", amount: "5000" },
+    ];
+    mockWithTenant.mockResolvedValueOnce(fakeTxns as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/fees/reconciliation",
+      headers: financeHeaders,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(fakeTxns);
+  });
+});
+
+// ------------------------------------------------------------------ POST /fees/reconciliation/:id/match
+
+describe("POST /fees/reconciliation/:id/match", () => {
+  const matchBody = { student_id: STUDENT_ID };
+
+  it("returns 400 when x-tenant-id header is missing", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/fees/reconciliation/11111111-1111-1111-1111-111111111111/match",
+      payload: matchBody,
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("returns 403 when role is registrar", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/fees/reconciliation/11111111-1111-1111-1111-111111111111/match",
+      headers: registrarHeaders,
+      payload: matchBody,
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns 404 when transaction not found", async () => {
+    mockWithTenant.mockResolvedValueOnce({ notFound: true } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/fees/reconciliation/22222222-2222-2222-2222-222222222222/match",
+      headers: financeHeaders,
+      payload: matchBody,
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("returns 200 on successful match", async () => {
+    mockWithTenant.mockResolvedValueOnce({
+      matched: true,
+      payment_id: "pay-001",
+    } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/fees/reconciliation/33333333-3333-3333-3333-333333333333/match",
+      headers: financeHeaders,
+      payload: matchBody,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ matched: true, payment_id: "pay-001" });
   });
 });

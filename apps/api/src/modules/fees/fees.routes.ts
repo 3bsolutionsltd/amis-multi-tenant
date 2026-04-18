@@ -6,7 +6,11 @@ import {
   FeeEntrySchema,
   FeeImportSchema,
   FeeTransactionsQuerySchema,
+  SchoolPayWebhookSchema,
+  ReconciliationQuerySchema,
+  ReconciliationMatchSchema,
 } from "./fees.schema.js";
+import { pool } from "../../db/pool.js";
 
 // ------------------------------------------------------------------ constants
 
@@ -206,9 +210,155 @@ export async function feesRoutes(app: FastifyInstance) {
     },
   );
 
-  // ---------- POST /webhooks/schoolpay — stub only
-  app.post("/webhooks/schoolpay", async (_req, reply) => {
-    return reply.status(501).send({ error: "Not Implemented" });
+  // ---------- POST /webhooks/schoolpay — SchoolPay integration (SR-F-014)
+  // No auth — webhook from external SchoolPay system
+  app.post("/webhooks/schoolpay", async (req, reply) => {
+    const parsed = SchoolPayWebhookSchema.safeParse(req.body);
+    if (!parsed.success)
+      return reply.status(422).send({ error: "validation failed", issues: parsed.error.issues });
+
+    const d = parsed.data;
+
+    // Resolve tenant slug → ID (no auth context for webhooks)
+    const { rows: tRows } = await pool.query<{ id: string }>(
+      `SELECT id FROM platform.tenants WHERE slug = $1 AND is_active = true`,
+      [d.tenant_slug],
+    );
+    if (tRows.length === 0)
+      return reply.status(404).send({ error: "tenant not found" });
+
+    const tenantId = tRows[0].id;
+
+    const result = await withTenant(tenantId, async (client) => {
+      // Idempotency: skip if reference already exists for this tenant
+      const { rows: existing } = await client.query(
+        `SELECT id FROM app.schoolpay_transactions WHERE schoolpay_ref = $1`,
+        [d.reference],
+      );
+      if (existing.length > 0) return { duplicate: true, id: existing[0].id };
+
+      const { rows } = await client.query(
+        `INSERT INTO app.schoolpay_transactions
+           (tenant_id, schoolpay_ref, student_name, amount, currency, paid_at, raw_payload)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, status`,
+        [
+          tenantId,
+          d.reference,
+          d.student_name ?? null,
+          d.amount,
+          d.currency,
+          d.paid_at,
+          JSON.stringify(d.payload ?? {}),
+        ],
+      );
+      return rows[0];
+    });
+
+    if ("duplicate" in result)
+      return reply.status(200).send({ message: "already processed", id: result.id });
+
+    return reply.status(201).send({ transaction: result });
   });
+
+  // ---------- GET /fees/reconciliation
+  app.get(
+    "/fees/reconciliation",
+    { preHandler: requireRole(...FINANCE_ROLES) },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const qParsed = ReconciliationQuerySchema.safeParse(req.query);
+      const { status, page, limit } = qParsed.success
+        ? qParsed.data
+        : { status: undefined, page: 1, limit: 20 };
+      const offset = (page - 1) * limit;
+
+      const result = await withTenant(tid, async (client) => {
+        const conditions = ["1=1"];
+        const params: unknown[] = [limit, offset];
+        if (status) {
+          conditions.push(`status = $${params.length + 1}`);
+          params.push(status);
+        }
+
+        const { rows } = await client.query(
+          `SELECT * FROM app.schoolpay_transactions
+           WHERE ${conditions.join(" AND ")}
+           ORDER BY created_at DESC
+           LIMIT $1 OFFSET $2`,
+          params,
+        );
+        return rows;
+      });
+
+      return reply.status(200).send(result);
+    },
+  );
+
+  // ---------- POST /fees/reconciliation/:id/match
+  app.post<{ Params: { id: string } }>(
+    "/fees/reconciliation/:id/match",
+    { preHandler: requireRole(...FINANCE_ROLES) },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const parsed = ReconciliationMatchSchema.safeParse(req.body);
+      if (!parsed.success)
+        return reply.status(422).send({ error: parsed.error.flatten() });
+
+      const { id } = req.params;
+      const { student_id } = parsed.data;
+      const actorUserId = req.user?.userId ?? null;
+
+      const result = await withTenant(tid, async (client) => {
+        // Verify transaction exists and is unmatched
+        const { rows: txnRows } = await client.query(
+          `SELECT id, amount, currency FROM app.schoolpay_transactions WHERE id = $1`,
+          [id],
+        );
+        if (txnRows.length === 0) return { notFound: true } as const;
+
+        const txn = txnRows[0];
+
+        // Create a payment record linked to the student
+        const { rows: payRows } = await client.query(
+          `INSERT INTO app.payments
+             (tenant_id, student_id, amount, currency, reference, paid_at, source)
+           VALUES ($1, $2, $3, $4, $5, now(), 'schoolpay')
+           RETURNING id`,
+          [tid, student_id, txn.amount, txn.currency, `schoolpay:${txn.id}`],
+        );
+
+        // Mark the SchoolPay transaction as matched
+        await client.query(
+          `UPDATE app.schoolpay_transactions
+           SET status = 'matched', student_id_match = $1, payment_id_match = $2,
+               matched_at = now(), matched_by = $3
+           WHERE id = $4`,
+          [student_id, payRows[0].id, actorUserId, id],
+        );
+
+        // Audit log
+        await client.query(
+          `INSERT INTO app.fee_audit_log
+             (tenant_id, payment_id, action, actor_user_id)
+           VALUES ($1, $2, 'schoolpay_match', $3)`,
+          [tid, payRows[0].id, actorUserId],
+        );
+
+        return { matched: true, payment_id: payRows[0].id };
+      });
+
+      if ("notFound" in result)
+        return reply.status(404).send({ error: "transaction not found" });
+
+      return reply.status(200).send(result);
+    },
+  );
 }
 

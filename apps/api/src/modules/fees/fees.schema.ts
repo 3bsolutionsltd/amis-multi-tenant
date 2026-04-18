@@ -27,3 +27,28 @@ export const FeeTransactionsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
+
+// SchoolPay webhook payload
+export const SchoolPayWebhookSchema = z.object({
+  tenant_slug: z.string().min(1),
+  reference: z.string().min(1),
+  student_name: z.string().optional(),
+  amount: z.coerce.number().positive(),
+  currency: z.string().min(1).default("UGX"),
+  paid_at: z.string().min(1),
+  payload: z.record(z.unknown()).optional(),
+});
+
+// SchoolPay reconciliation query
+export const ReconciliationQuerySchema = z.object({
+  status: z
+    .enum(["unmatched", "matched", "disputed"])
+    .optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+// SchoolPay match body
+export const ReconciliationMatchSchema = z.object({
+  student_id: z.string().uuid(),
+});

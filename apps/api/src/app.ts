@@ -19,6 +19,8 @@ import { fieldPlacementsRoutes } from "./modules/field-placements/field-placemen
 import { analyticsRoutes } from "./modules/analytics/analytics.routes.js";
 import { reportsRoutes } from "./modules/reports/reports.routes.js";
 import { tenantsRoutes } from "./modules/tenants/tenants.routes.js";
+import { alumniRoutes } from "./modules/alumni/alumni.routes.js";
+import { publicRoutes } from "./modules/public/public.routes.js";
 import { registerDevIdentity } from "./middleware/devIdentity.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 import { isUUID } from "./lib/uuid.js";
@@ -103,6 +105,8 @@ export function buildApp() {
   app.register(analyticsRoutes);
   app.register(reportsRoutes);
   app.register(tenantsRoutes);
+  app.register(alumniRoutes);
+  app.register(publicRoutes);
 
   // Global error handler — structured errors, no stack traces in production
   app.setErrorHandler((error, _req, reply) => {

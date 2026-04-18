@@ -43,11 +43,19 @@ import { StaffDetailPage } from "./modules/staff/StaffDetailPage";
 import { ITReportsPage } from "./modules/reports/ITReportsPage";
 import { TeacherEvaluationsPage } from "./modules/reports/TeacherEvaluationsPage";
 import { InstructorReportsPage } from "./modules/reports/InstructorReportsPage";
+import { AlumniListPage } from "./modules/alumni/AlumniListPage";
+import { AlumniDetailPage } from "./modules/alumni/AlumniDetailPage";
+import { SchoolPayReconciliationPage } from "./modules/fees/SchoolPayReconciliationPage";
+import { PublicApplicationPage } from "./modules/public/PublicApplicationPage";
 
 export const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginPage />,
+  },
+  {
+    path: "/apply/:tenantSlug",
+    element: <PublicApplicationPage />,
   },
   {
     path: "/",
@@ -93,6 +101,9 @@ export const router = createBrowserRouter([
       { path: "reports/it", element: <ITReportsPage /> },
       { path: "reports/evaluations", element: <TeacherEvaluationsPage /> },
       { path: "reports/instructor", element: <InstructorReportsPage /> },
+      { path: "alumni", element: <AlumniListPage /> },
+      { path: "alumni/:id", element: <AlumniDetailPage /> },
+      { path: "finance/reconciliation", element: <SchoolPayReconciliationPage /> },
     ],
   },
   {
