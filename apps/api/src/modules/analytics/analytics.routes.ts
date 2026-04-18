@@ -7,6 +7,8 @@ import { z } from "zod";
 const TermAnalyticsQuerySchema = z.object({
   academic_year: z.string().optional(),
   term: z.string().optional(),
+  from: z.string().date().optional(),
+  to: z.string().date().optional(),
 });
 
 export async function analyticsRoutes(app: FastifyInstance) {
@@ -23,7 +25,7 @@ export async function analyticsRoutes(app: FastifyInstance) {
       if (!parsed.success)
         return reply.status(422).send({ error: parsed.error.flatten() });
 
-      const { academic_year, term } = parsed.data;
+      const { academic_year, term, from, to } = parsed.data;
 
       const result = await withTenant(tid, async (client) => {
         // 1. Total active students
@@ -106,7 +108,19 @@ export async function analyticsRoutes(app: FastifyInstance) {
           [tid],
         );
 
-        // 8. Fees summary (SR-F-007 — management financial summary)
+        // 8. Fees summary (SR-F-007 — management financial summary, with optional date-range)
+        const feeConditions: string[] = ["p.tenant_id = $1"];
+        const feeParams: unknown[] = [tid];
+        if (from) {
+          feeParams.push(from);
+          feeConditions.push(`p.paid_at >= $${feeParams.length}::date`);
+        }
+        if (to) {
+          feeParams.push(to);
+          feeConditions.push(`p.paid_at <= ($${feeParams.length}::date + interval '1 day')`);
+        }
+        const feeWhere = feeConditions.join(" AND ");
+
         const { rows: feeRows } = await client.query(
           `SELECT
              COALESCE(SUM(amount_due), 0)    AS total_due,
@@ -119,10 +133,38 @@ export async function analyticsRoutes(app: FastifyInstance) {
                COALESCE(SUM(p.amount), 0) AS amount_paid,
                MAX(p.amount_due)          AS amount_due
              FROM app.payments p
-             WHERE p.tenant_id = $1
+             WHERE ${feeWhere}
              GROUP BY p.student_id
            ) sub`,
-          [tid],
+          feeParams,
+        );
+
+        // 9. Payment trends — monthly totals (last 12 months or within date range)
+        const trendConditions: string[] = ["tenant_id = $1"];
+        const trendParams: unknown[] = [tid];
+        if (from) {
+          trendParams.push(from);
+          trendConditions.push(`paid_at >= $${trendParams.length}::date`);
+        }
+        if (to) {
+          trendParams.push(to);
+          trendConditions.push(`paid_at <= ($${trendParams.length}::date + interval '1 day')`);
+        }
+        if (!from && !to) {
+          trendConditions.push(`paid_at >= now() - interval '12 months'`);
+        }
+        const trendWhere = trendConditions.join(" AND ");
+
+        const { rows: trendRows } = await client.query(
+          `SELECT
+             to_char(paid_at, 'YYYY-MM') AS month,
+             COALESCE(SUM(amount), 0) AS total,
+             COUNT(*) AS transaction_count
+           FROM app.payments
+           WHERE ${trendWhere}
+           GROUP BY month
+           ORDER BY month`,
+          trendParams,
         );
 
         return {
@@ -159,7 +201,13 @@ export async function analyticsRoutes(app: FastifyInstance) {
             total_collected:        Number(feeRows[0]?.total_collected ?? 0),
             total_outstanding:      Number(feeRows[0]?.total_outstanding ?? 0),
             students_with_arrears:  Number(feeRows[0]?.students_with_arrears ?? 0),
+            filters: { from: from ?? null, to: to ?? null },
           },
+          payment_trends: trendRows.map((r) => ({
+            month: r.month,
+            total: Number(r.total),
+            transaction_count: Number(r.transaction_count),
+          })),
         };
       });
 

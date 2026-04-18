@@ -326,3 +326,80 @@ describe("PATCH /reports/instructor/:id", () => {
   });
 });
 
+// ════════════════════════════════ GET /reports/cat-export
+describe("GET /reports/cat-export", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("returns 400 when x-tenant-id header is missing", async () => {
+    const app = buildApp();
+    const res = await app.inject({ method: "GET", url: "/reports/cat-export" });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toHaveProperty("error", "x-tenant-id header required");
+  });
+
+  it("returns CSV with correct content-type for admin", async () => {
+    const catRows = [
+      {
+        student_id: "s1", admission_number: "ADM01",
+        first_name: "Alice", last_name: "Smith",
+        programme: "NCBC", course_id: "CIT101", term: "1", intake: "2025-Jan",
+        score: 85, submission_state: "PUBLISHED",
+      },
+    ];
+    mockWithTenant.mockResolvedValueOnce(catRows as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/reports/cat-export",
+      headers: { "x-tenant-id": TENANT, "x-dev-role": "admin" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/csv");
+    expect(res.body).toContain("student_id");
+    expect(res.body).toContain("Alice");
+  });
+});
+
+// ════════════════════════════════ GET /reports/dropout-cohort
+describe("GET /reports/dropout-cohort", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("returns 400 when x-tenant-id header is missing", async () => {
+    const app = buildApp();
+    const res = await app.inject({ method: "GET", url: "/reports/dropout-cohort" });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toHaveProperty("error", "x-tenant-id header required");
+  });
+
+  it("returns 403 for instructor role", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/reports/dropout-cohort",
+      headers: { "x-tenant-id": TENANT, "x-dev-role": "instructor" },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns dropout cohort data for admin", async () => {
+    const cohortData = {
+      by_programme: [{ programme: "NCBC", dropped_count: 3 }],
+      by_reason: [{ reason: "academic", count: 2 }],
+      by_period: [{ month: "2026-01", count: 1 }],
+      cohort: { total: 50, active: 45, dropped: 3, deactivated: 2 },
+    };
+    mockWithTenant.mockResolvedValueOnce(cohortData as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/reports/dropout-cohort",
+      headers: { "x-tenant-id": TENANT, "x-dev-role": "admin" },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body).toHaveProperty("by_programme");
+    expect(body).toHaveProperty("by_reason");
+    expect(body).toHaveProperty("by_period");
+    expect(body).toHaveProperty("cohort");
+  });
+});
