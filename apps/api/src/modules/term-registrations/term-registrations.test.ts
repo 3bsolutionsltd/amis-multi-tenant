@@ -24,7 +24,7 @@ const fakeStudent = {
 };
 
 const fakeRegistration = {
-  id: "reg00000-0000-0000-0000-000000000001",
+  id: "ee000000-0000-0000-0000-000000000001",
   tenant_id: TID,
   student_id: fakeStudent.id,
   academic_year: "2026/2027",

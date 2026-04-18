@@ -156,7 +156,7 @@ describe("GET /admissions/applications/:id", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "GET",
-      url: "/admissions/applications/some-id",
+      url: "/admissions/applications/11111111-1111-1111-1111-111111111111",
     });
     expect(res.statusCode).toBe(400);
     expect(res.json()).toHaveProperty("error", "x-tenant-id header required");
@@ -167,7 +167,7 @@ describe("GET /admissions/applications/:id", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "GET",
-      url: "/admissions/applications/nonexistent-id",
+      url: "/admissions/applications/00000000-0000-0000-0000-ffffffffffff",
       headers,
     });
     expect(res.statusCode).toBe(404);
@@ -217,7 +217,7 @@ describe("POST /admissions/import", () => {
 
   it("returns 200 with preview: valid + invalid rows", async () => {
     const fakeBatch = {
-      id: "batch-uuid-1",
+      id: "bb000000-0000-0000-0000-000000000001",
       filename: "test.csv",
       status: "preview",
       row_count: 1,
@@ -252,7 +252,7 @@ describe("POST /admissions/import/:batchId/confirm", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "POST",
-      url: "/admissions/import/batch-uuid-1/confirm",
+      url: "/admissions/import/bb000000-0000-0000-0000-000000000001/confirm",
     });
     expect(res.statusCode).toBe(400);
     expect(res.json()).toHaveProperty("error", "x-tenant-id header required");
@@ -262,7 +262,7 @@ describe("POST /admissions/import/:batchId/confirm", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "POST",
-      url: "/admissions/import/batch-uuid-1/confirm",
+      url: "/admissions/import/bb000000-0000-0000-0000-000000000001/confirm",
       headers: hodHeaders,
     });
     expect(res.statusCode).toBe(403);
@@ -273,7 +273,7 @@ describe("POST /admissions/import/:batchId/confirm", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "POST",
-      url: "/admissions/import/nonexistent-batch/confirm",
+      url: "/admissions/import/00000000-0000-0000-0000-ffffffffffff/confirm",
       headers: registrarHeaders,
     });
     expect(res.statusCode).toBe(404);
@@ -285,7 +285,7 @@ describe("POST /admissions/import/:batchId/confirm", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "POST",
-      url: "/admissions/import/batch-uuid-1/confirm",
+      url: "/admissions/import/bb000000-0000-0000-0000-000000000001/confirm",
       headers: registrarHeaders,
     });
     expect(res.statusCode).toBe(200);

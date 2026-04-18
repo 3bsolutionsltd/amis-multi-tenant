@@ -183,7 +183,7 @@ describe("workflow transition — actor_user_id stored from request.user", () =>
     const app = buildApp();
     const res = await app.inject({
       method: "POST",
-      url: "/workflow/admission/ent-1/transition",
+      url: "/workflow/admission/eeee0000-0000-0000-0000-000000000099/transition",
       headers: {
         "x-tenant-id": TID,
         "x-dev-role": "registrar",

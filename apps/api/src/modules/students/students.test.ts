@@ -139,14 +139,16 @@ describe("POST /students", () => {
   });
 });
 
-const TID = "tenant-uuid-1";
+const TID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+const SOME_ID = "11111111-1111-1111-1111-111111111111";
+const MISSING_ID = "00000000-0000-0000-0000-000000000000";
 
 describe("GET /students/:id", () => {
   beforeEach(() => vi.resetAllMocks());
 
   it("returns 400 when x-tenant-id header is missing", async () => {
     const app = buildApp();
-    const res = await app.inject({ method: "GET", url: "/students/some-id" });
+    const res = await app.inject({ method: "GET", url: `/students/${SOME_ID}` });
     expect(res.statusCode).toBe(400);
   });
 
@@ -155,7 +157,7 @@ describe("GET /students/:id", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "GET",
-      url: "/students/nonexistent",
+      url: `/students/${MISSING_ID}`,
       headers: { "x-tenant-id": TID },
     });
     expect(res.statusCode).toBe(404);
@@ -204,7 +206,7 @@ describe("PUT /students/:id", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "PUT",
-      url: "/students/some-id",
+      url: `/students/${SOME_ID}`,
       payload: { first_name: "Alice" },
     });
     expect(res.statusCode).toBe(400);
@@ -214,7 +216,7 @@ describe("PUT /students/:id", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "PUT",
-      url: "/students/some-id",
+      url: `/students/${SOME_ID}`,
       headers: { "x-tenant-id": TID, "x-dev-role": "hod" },
       payload: { first_name: "Alice" },
     });
@@ -226,7 +228,7 @@ describe("PUT /students/:id", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "PUT",
-      url: "/students/nonexistent",
+      url: `/students/${MISSING_ID}`,
       headers: { "x-tenant-id": TID },
       payload: { first_name: "Alice" },
     });
@@ -264,7 +266,7 @@ describe("PATCH /students/:id/deactivate", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "PATCH",
-      url: "/students/some-id/deactivate",
+      url: `/students/${SOME_ID}/deactivate`,
     });
     expect(res.statusCode).toBe(400);
   });
@@ -273,7 +275,7 @@ describe("PATCH /students/:id/deactivate", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "PATCH",
-      url: "/students/some-id/deactivate",
+      url: `/students/${SOME_ID}/deactivate`,
       headers: { "x-tenant-id": TID, "x-dev-role": "hod" },
     });
     expect(res.statusCode).toBe(403);
@@ -284,7 +286,7 @@ describe("PATCH /students/:id/deactivate", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "PATCH",
-      url: "/students/nonexistent/deactivate",
+      url: `/students/${MISSING_ID}/deactivate`,
       headers: { "x-tenant-id": TID },
     });
     expect(res.statusCode).toBe(404);
@@ -319,7 +321,7 @@ describe("PATCH /students/:id/reactivate", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "PATCH",
-      url: "/students/some-id/reactivate",
+      url: `/students/${SOME_ID}/reactivate`,
     });
     expect(res.statusCode).toBe(400);
   });
@@ -328,7 +330,7 @@ describe("PATCH /students/:id/reactivate", () => {
     const app = buildApp();
     const res = await app.inject({
       method: "PATCH",
-      url: "/students/some-id/reactivate",
+      url: `/students/${SOME_ID}/reactivate`,
       headers: { "x-tenant-id": TID, "x-dev-role": "instructor" },
     });
     expect(res.statusCode).toBe(403);
