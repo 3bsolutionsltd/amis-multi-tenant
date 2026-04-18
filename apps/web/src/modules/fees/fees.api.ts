@@ -68,3 +68,52 @@ export function importFees(rows: FeeImportRow[]): Promise<FeeImportResult> {
     body: JSON.stringify({ rows }),
   });
 }
+
+// ------------------------------------------------------------------ SchoolPay reconciliation
+
+export interface SchoolPayTransaction {
+  id: string;
+  schoolpay_ref: string;
+  student_name: string | null;
+  student_id_match: string | null;
+  payment_id_match: string | null;
+  amount: number;
+  currency: string;
+  paid_at: string;
+  status: "unmatched" | "matched" | "disputed";
+  matched_at: string | null;
+  matched_by: string | null;
+  created_at: string;
+}
+
+export interface ReconciliationParams {
+  status?: "unmatched" | "matched" | "disputed";
+  page?: number;
+  limit?: number;
+}
+
+export function listReconciliation(
+  params?: ReconciliationParams,
+): Promise<SchoolPayTransaction[]> {
+  const q = new URLSearchParams();
+  if (params?.status) q.set("status", params.status);
+  if (params?.page != null) q.set("page", String(params.page));
+  if (params?.limit != null) q.set("limit", String(params.limit));
+  const qs = q.toString();
+  return apiFetch<SchoolPayTransaction[]>(
+    `/fees/reconciliation${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export function matchSchoolPayTransaction(
+  id: string,
+  studentId: string,
+): Promise<{ matched: boolean; payment_id: string }> {
+  return apiFetch<{ matched: boolean; payment_id: string }>(
+    `/fees/reconciliation/${id}/match`,
+    {
+      method: "POST",
+      body: JSON.stringify({ student_id: studentId }),
+    },
+  );
+}

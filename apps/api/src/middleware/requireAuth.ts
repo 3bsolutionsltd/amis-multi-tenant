@@ -25,6 +25,9 @@ const PUBLIC_PATHS = new Set([
   "GET /health",
 ]);
 
+/** Route prefixes that never require authentication. */
+const PUBLIC_PREFIXES = ["/public/", "/webhooks/"];
+
 export async function requireAuth(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -36,6 +39,7 @@ export async function requireAuth(
   const path = req.url.split("?")[0];
   const routeKey = `${req.method} ${path}`;
   if (PUBLIC_PATHS.has(routeKey)) return;
+  if (PUBLIC_PREFIXES.some((p) => path.startsWith(p))) return;
 
   // 3. Require Authorization: Bearer <token>
   const authHeader = req.headers.authorization;
