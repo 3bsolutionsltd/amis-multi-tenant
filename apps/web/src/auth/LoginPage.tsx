@@ -1,9 +1,17 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { ApiError } from "../lib/apiFetch";
 
 const APP_NAME = "AMIS";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+
+interface TenantOption {
+  id: string;
+  slug: string;
+  name: string;
+  logoUrl: string | null;
+}
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -15,8 +23,26 @@ export function LoginPage() {
   const [tenantId, setTenantId] = useState(
     () => localStorage.getItem("amis_tenant_id") ?? "",
   );
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [tenantsLoading, setTenantsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_URL}/auth/tenants`)
+      .then((r) => r.json())
+      .then((data: TenantOption[]) => {
+        setTenants(data);
+        // Auto-select if stored tenantId matches, otherwise select first
+        if (data.length > 0 && !data.some((t) => t.id === tenantId)) {
+          setTenantId(data[0].id);
+        }
+      })
+      .catch(() => {
+        /* fallback: user can type UUID manually */
+      })
+      .finally(() => setTenantsLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -117,23 +143,47 @@ export function LoginPage() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label htmlFor="tenantId" style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>
-              Tenant ID
+              Institution
             </label>
-            <input
-              id="tenantId"
-              type="text"
-              required
-              value={tenantId}
-              onChange={(e) => setTenantId(e.target.value)}
-              style={{
-                padding: "8px 12px",
-                border: "1px solid #d1d5db",
-                borderRadius: 6,
-                fontSize: 14,
-                outline: "none",
-              }}
-              autoComplete="off"
-            />
+            {tenants.length > 0 ? (
+              <select
+                id="tenantId"
+                required
+                value={tenantId}
+                onChange={(e) => setTenantId(e.target.value)}
+                style={{
+                  padding: "8px 12px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  outline: "none",
+                  background: "#fff",
+                }}
+              >
+                {tenants.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                id="tenantId"
+                type="text"
+                required
+                value={tenantId}
+                onChange={(e) => setTenantId(e.target.value)}
+                placeholder={tenantsLoading ? "Loading..." : "Tenant ID"}
+                style={{
+                  padding: "8px 12px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  outline: "none",
+                }}
+                autoComplete="off"
+              />
+            )}
           </div>
 
           {error && (

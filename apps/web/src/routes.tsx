@@ -23,6 +23,9 @@ import { ConfigDashboard } from "./admin-studio/ConfigDashboard";
 import { ConfigEditor } from "./admin-studio/ConfigEditor";
 import { WorkflowViewer } from "./admin-studio/WorkflowViewer";
 import { NavigationEditor } from "./admin-studio/NavigationEditor";
+import { TenantManager } from "./admin-studio/TenantManager";
+import { BrandingEditor } from "./admin-studio/BrandingEditor";
+import { ModuleToggles } from "./admin-studio/ModuleToggles";
 import { DashboardPage } from "./modules/dashboard/DashboardPage";
 import { LoginPage } from "./auth/LoginPage";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
@@ -101,7 +104,10 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <ConfigDashboard /> },
+      { path: "tenants", element: <TenantManager /> },
       { path: "editor", element: <ConfigEditor /> },
+      { path: "branding", element: <BrandingEditor /> },
+      { path: "modules", element: <ModuleToggles /> },
       { path: "workflows", element: <WorkflowViewer /> },
       { path: "navigation", element: <NavigationEditor /> },
     ],

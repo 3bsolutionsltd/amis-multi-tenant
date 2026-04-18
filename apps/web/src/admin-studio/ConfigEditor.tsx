@@ -54,6 +54,164 @@ interface ValidateResult {
   errors?: unknown;
 }
 
+/* ---------- Structured View sub-component ---------- */
+
+const sectionTitle: React.CSSProperties = {
+  fontSize: 14,
+  fontWeight: 700,
+  color: "#0f172a",
+  marginBottom: 10,
+  marginTop: 0,
+};
+
+const fieldLabel: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 500,
+  color: "#374151",
+  marginBottom: 4,
+  display: "block",
+};
+
+const fieldInput: React.CSSProperties = {
+  padding: "7px 10px",
+  border: "1px solid #d1d5db",
+  borderRadius: 4,
+  fontSize: 13,
+  width: "100%",
+  boxSizing: "border-box" as const,
+};
+
+function StructuredView({
+  json,
+  onChange,
+}: {
+  json: string;
+  onChange: (updated: string) => void;
+}) {
+  let payload: Record<string, unknown>;
+  try {
+    payload = JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return (
+      <p style={{ color: "#b91c1c", fontSize: 13 }}>
+        Cannot parse JSON. Switch to Raw JSON to fix syntax errors.
+      </p>
+    );
+  }
+
+  const branding = (payload.branding ?? {}) as Record<string, string>;
+  const theme = (payload.theme ?? {}) as Record<string, string>;
+  const modules = (payload.modules ?? {}) as Record<string, boolean>;
+  const fees = (payload.fees ?? {}) as Record<string, number>;
+
+  function update(section: string, key: string, value: unknown) {
+    const next = {
+      ...payload,
+      [section]: { ...((payload[section] ?? {}) as Record<string, unknown>), [key]: value },
+    };
+    onChange(JSON.stringify(next, null, 2));
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Branding */}
+      <div>
+        <h4 style={sectionTitle}>Branding</h4>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <label style={fieldLabel}>App Name</label>
+            <input
+              style={fieldInput}
+              value={branding.appName ?? "AMIS"}
+              onChange={(e) => update("branding", "appName", e.target.value)}
+            />
+          </div>
+          <div>
+            <label style={fieldLabel}>Logo URL</label>
+            <input
+              style={fieldInput}
+              value={branding.logoUrl ?? ""}
+              onChange={(e) => update("branding", "logoUrl", e.target.value || undefined)}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Theme */}
+      <div>
+        <h4 style={sectionTitle}>Theme</h4>
+        <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
+          <div>
+            <label style={fieldLabel}>Primary Color</label>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                type="color"
+                value={theme.primaryColor ?? "#2563EB"}
+                onChange={(e) => update("theme", "primaryColor", e.target.value)}
+                style={{ width: 36, height: 30, border: "none", cursor: "pointer" }}
+              />
+              <input
+                style={{ ...fieldInput, width: 110 }}
+                value={theme.primaryColor ?? "#2563EB"}
+                onChange={(e) => update("theme", "primaryColor", e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modules */}
+      <div>
+        <h4 style={sectionTitle}>Modules</h4>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          {["students", "admissions", "finance"].map((key) => (
+            <label
+              key={key}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={modules[key] !== false}
+                onChange={(e) => update("modules", key, e.target.checked)}
+              />
+              {key.charAt(0).toUpperCase() + key.slice(1)}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Fees */}
+      <div>
+        <h4 style={sectionTitle}>Fees</h4>
+        <div style={{ maxWidth: 200 }}>
+          <label style={fieldLabel}>Default Total Due</label>
+          <input
+            type="number"
+            min={0}
+            step={0.01}
+            style={fieldInput}
+            value={fees.defaultTotalDue ?? ""}
+            onChange={(e) =>
+              update("fees", "defaultTotalDue", e.target.value ? Number(e.target.value) : undefined)
+            }
+          />
+        </div>
+      </div>
+
+      <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>
+        For navigation, dashboards, forms, and workflows use the dedicated editors
+        or switch to Raw JSON for full control.
+      </p>
+    </div>
+  );
+}
+
 export function ConfigEditor() {
   const qc = useQueryClient();
   const role = localStorage.getItem("amis_dev_role") ?? "admin";
@@ -87,6 +245,7 @@ export function ConfigEditor() {
   );
   const [confirmPublish, setConfirmPublish] = useState(false);
   const [confirmRollback, setConfirmRollback] = useState(false);
+  const [viewMode, setViewMode] = useState<"json" | "structured">("structured");
 
   const hasDraft = !!status?.draft;
   const hasPublished = !!status?.published;
@@ -202,38 +361,85 @@ export function ConfigEditor() {
       </div>
 
       <div style={cardStyle}>
-        <label
-          style={{
-            display: "block",
-            fontWeight: 600,
-            marginBottom: 8,
-            color: "#374151",
-            fontSize: 14,
-          }}
-        >
-          JSON Payload
-        </label>
-        <textarea
-          value={json}
-          onChange={(e) => {
-            setJson(e.target.value);
-            setJsonError(null);
-            setValidateResult(null);
-          }}
-          spellCheck={false}
-          style={{
-            width: "100%",
-            height: 440,
-            fontFamily: "monospace",
-            fontSize: 13,
-            padding: 10,
-            border: `1px solid ${jsonError ? "#dc2626" : "#d1d5db"}`,
-            borderRadius: 4,
-            resize: "vertical",
-            boxSizing: "border-box",
-            color: "#0f172a",
-          }}
-        />
+        {/* View mode tabs */}
+        <div style={{ display: "flex", gap: 0, marginBottom: 16 }}>
+          {(["structured", "json"] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => {
+                if (mode === "json" && viewMode === "structured") {
+                  // sync structured edits back into JSON string
+                  try {
+                    const parsed = JSON.parse(json) as Record<string, unknown>;
+                    setJson(JSON.stringify(parsed, null, 2));
+                  } catch {
+                    /* keep existing json */
+                  }
+                }
+                setViewMode(mode);
+              }}
+              style={{
+                padding: "8px 20px",
+                fontSize: 13,
+                fontWeight: 600,
+                border: "1px solid #d1d5db",
+                borderBottom: viewMode === mode ? "2px solid #2563eb" : "1px solid #d1d5db",
+                background: viewMode === mode ? "#fff" : "#f8fafc",
+                color: viewMode === mode ? "#2563eb" : "#64748b",
+                cursor: "pointer",
+                borderRadius: mode === "structured" ? "6px 0 0 0" : "0 6px 0 0",
+              }}
+            >
+              {mode === "structured" ? "Structured" : "Raw JSON"}
+            </button>
+          ))}
+        </div>
+
+        {viewMode === "structured" ? (
+          <StructuredView
+            json={json}
+            onChange={(updated) => {
+              setJson(updated);
+              setJsonError(null);
+              setValidateResult(null);
+            }}
+          />
+        ) : (
+          <>
+            <label
+              style={{
+                display: "block",
+                fontWeight: 600,
+                marginBottom: 8,
+                color: "#374151",
+                fontSize: 14,
+              }}
+            >
+              JSON Payload
+            </label>
+            <textarea
+              value={json}
+              onChange={(e) => {
+                setJson(e.target.value);
+                setJsonError(null);
+                setValidateResult(null);
+              }}
+              spellCheck={false}
+              style={{
+                width: "100%",
+                height: 440,
+                fontFamily: "monospace",
+                fontSize: 13,
+                padding: 10,
+                border: `1px solid ${jsonError ? "#dc2626" : "#d1d5db"}`,
+                borderRadius: 4,
+                resize: "vertical",
+                boxSizing: "border-box",
+                color: "#0f172a",
+              }}
+            />
+          </>
+        )}
         {jsonError && (
           <p style={{ color: "#dc2626", margin: "6px 0 0", fontSize: 13 }}>
             {jsonError}

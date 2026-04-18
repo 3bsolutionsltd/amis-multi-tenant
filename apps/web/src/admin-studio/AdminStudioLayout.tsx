@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 
 const NAV_STYLE_BASE: React.CSSProperties = {
   display: "block",
@@ -8,6 +9,15 @@ const NAV_STYLE_BASE: React.CSSProperties = {
   fontSize: 14,
   fontWeight: 500,
   borderLeft: "3px solid transparent",
+};
+
+const NAV_SECTION: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  color: "#64748b",
+  textTransform: "uppercase",
+  letterSpacing: 1,
+  padding: "16px 20px 6px",
 };
 
 function studioNavStyle({
@@ -24,7 +34,8 @@ function studioNavStyle({
 }
 
 export function AdminStudioLayout() {
-  const role = localStorage.getItem("amis_dev_role") ?? "admin";
+  const { user } = useAuth();
+  const role = user?.role ?? "none";
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -66,21 +77,44 @@ export function AdminStudioLayout() {
           style={{
             width: 210,
             background: "#0f172a",
-            paddingTop: 16,
+            paddingTop: 8,
             flexShrink: 0,
           }}
         >
           <NavLink to="/admin-studio" end style={studioNavStyle}>
-            Config Dashboard
+            Overview
           </NavLink>
+
+          <div style={NAV_SECTION}>Platform</div>
+          <NavLink to="/admin-studio/tenants" style={studioNavStyle}>
+            Tenants
+          </NavLink>
+
+          <div style={NAV_SECTION}>Configuration</div>
           <NavLink to="/admin-studio/editor" style={studioNavStyle}>
             Config Editor
           </NavLink>
-          <NavLink to="/admin-studio/workflows" style={studioNavStyle}>
-            Workflow Viewer
+          <NavLink to="/admin-studio/branding" style={studioNavStyle}>
+            Branding &amp; Theme
+          </NavLink>
+          <NavLink to="/admin-studio/modules" style={studioNavStyle}>
+            Module Toggles
           </NavLink>
           <NavLink to="/admin-studio/navigation" style={studioNavStyle}>
-            Navigation Editor
+            Navigation
+          </NavLink>
+          <NavLink to="/admin-studio/workflows" style={studioNavStyle}>
+            Workflows-studio/branding" style={studioNavStyle}>
+            Branding &amp; Theme
+          </NavLink>
+          <NavLink to="/admin-studio/modules" style={studioNavStyle}>
+            Module Toggles
+          </NavLink>
+          <NavLink to="/admin-studio/navigation" style={studioNavStyle}>
+            Navigation
+          </NavLink>
+          <NavLink to="/admin-studio/workflows" style={studioNavStyle}>
+            Workflows
           </NavLink>
         </nav>
 
