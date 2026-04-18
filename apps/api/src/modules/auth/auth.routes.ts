@@ -59,8 +59,12 @@ async function revokeAllRefreshTokens(userId: string): Promise<void> {
 const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
-  tenantId: z.string().uuid(),
-});
+  tenantId: z.string().uuid().optional(),
+  tenantSlug: z.string().min(1).optional(),
+}).refine(
+  (d) => d.tenantId !== undefined || d.tenantSlug !== undefined,
+  { message: "Either tenantId or tenantSlug must be provided" },
+);
 
 const RefreshSchema = z.object({
   refreshToken: z.string().min(1),
@@ -120,7 +124,22 @@ export async function authRoutes(app: FastifyInstance) {
       });
     }
 
-    const { email, password, tenantId } = parsed.data;
+    const { email, password, tenantId: rawTenantId, tenantSlug } = parsed.data;
+
+    // Resolve tenant: prefer tenantId if given, otherwise look up by slug
+    let tenantId = rawTenantId;
+    if (!tenantId && tenantSlug) {
+      const { rows: tenantRows } = await pool.query<{ id: string }>(
+        `SELECT id FROM platform.tenants WHERE slug = $1 AND is_active = true`,
+        [tenantSlug],
+      );
+      if (tenantRows.length === 0) {
+        return reply
+          .status(401)
+          .send({ statusCode: 401, message: INVALID_CREDS });
+      }
+      tenantId = tenantRows[0].id;
+    }
 
     const { rows } = await pool.query<UserRow>(
       `SELECT id, tenant_id, email, role, password_hash, is_active
@@ -447,5 +466,31 @@ export async function authRoutes(app: FastifyInstance) {
     await revokeAllRefreshTokens(userId);
 
     return reply.status(200).send({ message: "Password changed successfully" });
+  });
+
+  /**
+   * GET /auth/tenants
+   * Public — no auth required.
+   * Returns active tenants (id, slug, name, logoUrl) for the login dropdown.
+   */
+  app.get("/auth/tenants", async (_req, _reply) => {
+    const { rows } = await pool.query<{
+      id: string;
+      slug: string;
+      name: string;
+      logo_url: string | null;
+    }>(
+      `SELECT id, slug, name, logo_url
+       FROM platform.tenants
+       WHERE is_active = true
+       ORDER BY name`,
+    );
+
+    return rows.map((r) => ({
+      id: r.id,
+      slug: r.slug,
+      name: r.name,
+      logoUrl: r.logo_url,
+    }));
   });
 }

@@ -1,23 +1,33 @@
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-const TENANTS = [
-  { id: "10e575a2-2e59-437b-b251-c5b906a482d8", name: "Greenfield VTI" },
-  {
-    id: "b6c79654-fa01-4598-90ad-5467760e57e2",
-    name: "Riverside Tech College",
-  },
-];
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+
+interface TenantOption {
+  id: string;
+  slug: string;
+  name: string;
+}
 
 export function TenantSwitcher() {
   const qc = useQueryClient();
-  const current = localStorage.getItem("amis_tenant_id") ?? TENANTS[0].id;
+  const current = localStorage.getItem("amis_tenant_id") ?? "";
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
+
+  useEffect(() => {
+    fetch(`${API_URL}/auth/tenants`)
+      .then((r) => r.json())
+      .then((data: TenantOption[]) => setTenants(data))
+      .catch(() => {});
+  }, []);
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     localStorage.setItem("amis_tenant_id", e.target.value);
     qc.clear();
-    // Force a page reload so ConfigProvider re-fetches with the new tenant
     window.location.href = "/";
   }
+
+  if (tenants.length === 0) return null;
 
   return (
     <label
@@ -40,7 +50,7 @@ export function TenantSwitcher() {
           border: "none",
         }}
       >
-        {TENANTS.map((t) => (
+        {tenants.map((t) => (
           <option key={t.id} value={t.id}>
             {t.name}
           </option>

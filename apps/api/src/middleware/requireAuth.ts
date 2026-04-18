@@ -21,6 +21,7 @@ const PUBLIC_PATHS = new Set([
   "POST /auth/logout",
   "POST /auth/forgot-password",
   "POST /auth/reset-password",
+  "GET /auth/tenants",
   "GET /health",
 ]);
 

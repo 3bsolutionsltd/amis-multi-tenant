@@ -17,6 +17,7 @@ import { industrialTrainingRoutes } from "./modules/industrial-training/industri
 import { fieldPlacementsRoutes } from "./modules/field-placements/field-placements.routes.js";
 import { analyticsRoutes } from "./modules/analytics/analytics.routes.js";
 import { reportsRoutes } from "./modules/reports/reports.routes.js";
+import { tenantsRoutes } from "./modules/tenants/tenants.routes.js";
 import { registerDevIdentity } from "./middleware/devIdentity.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 
@@ -67,6 +68,7 @@ export function buildApp() {
   app.register(fieldPlacementsRoutes);
   app.register(analyticsRoutes);
   app.register(reportsRoutes);
+  app.register(tenantsRoutes);
 
   return app;
 }

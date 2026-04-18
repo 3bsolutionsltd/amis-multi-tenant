@@ -41,12 +41,118 @@ export function ConfigDashboard() {
 
   const pub = status?.published ?? null;
   const draft = status?.draft ?? null;
+  const payload =
+    (pub?.payload ?? draft?.payload ?? {}) as Record<string, unknown>;
+  const branding = (payload.branding ?? {}) as Record<string, string>;
+  const theme = (payload.theme ?? {}) as Record<string, string>;
+  const modules = (payload.modules ?? {}) as Record<string, boolean>;
 
   return (
     <div style={{ maxWidth: 760 }}>
       <h2 style={{ marginTop: 0, marginBottom: 24, color: "#0f172a" }}>
-        Config Dashboard
+        Overview
       </h2>
+
+      {/* Quick links */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+          gap: 12,
+          marginBottom: 24,
+        }}
+      >
+        {[
+          { label: "Tenants", href: "/admin-studio/tenants" },
+          { label: "Config Editor", href: "/admin-studio/editor" },
+          { label: "Branding & Theme", href: "/admin-studio/branding" },
+          { label: "Module Toggles", href: "/admin-studio/modules" },
+          { label: "Navigation", href: "/admin-studio/navigation" },
+          { label: "Workflows", href: "/admin-studio/workflows" },
+        ].map((l) => (
+          <a
+            key={l.href}
+            href={l.href}
+            style={{
+              display: "block",
+              padding: "14px 16px",
+              background: "#fff",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              textDecoration: "none",
+              color: "#2563eb",
+              fontWeight: 600,
+              fontSize: 14,
+              transition: "border-color 0.15s",
+            }}
+          >
+            {l.label}
+          </a>
+        ))}
+      </div>
+
+      {/* Branding & modules summary */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 16,
+          marginBottom: 24,
+        }}
+      >
+        <div style={cardStyle}>
+          <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 14 }}>
+            Branding
+          </h3>
+          <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.8 }}>
+            <div>
+              <strong>App Name:</strong> {branding.appName ?? "AMIS"}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <strong>Theme:</strong>
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 16,
+                  height: 16,
+                  borderRadius: 4,
+                  background: theme.primaryColor ?? "#2563EB",
+                  verticalAlign: "middle",
+                }}
+              />
+              <code style={{ fontSize: 12 }}>
+                {theme.primaryColor ?? "#2563EB"}
+              </code>
+            </div>
+          </div>
+        </div>
+        <div style={cardStyle}>
+          <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 14 }}>
+            Modules
+          </h3>
+          <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.8 }}>
+            {Object.entries(modules).length === 0 ? (
+              <span style={{ color: "#94a3b8" }}>No module config</span>
+            ) : (
+              Object.entries(modules).map(([k, v]) => (
+                <div key={k}>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: v ? "#22c55e" : "#d1d5db",
+                      marginRight: 8,
+                    }}
+                  />
+                  {k}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Published version */}
       <div style={cardStyle}>
