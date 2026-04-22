@@ -43,6 +43,7 @@ export function FeeEntryPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const { data: searchResults } = useQuery({
     queryKey: ["students-search-fee", search],
@@ -72,7 +73,7 @@ export function FeeEntryPage() {
         reference: form.reference,
         paid_at: form.paid_at,
       });
-      navigate(`/students/${selectedStudent.id}`);
+      setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to record payment");
     } finally {
@@ -202,6 +203,39 @@ export function FeeEntryPage() {
           </Field>
 
           {error && <ErrorBanner message={error} />}
+
+          {success && (
+            <div
+              style={{
+                padding: "10px 14px",
+                background: "#d1fae5",
+                borderRadius: 6,
+                color: "#065f46",
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+            >
+              Payment recorded successfully.{" "}
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(`/students/${selectedStudent!.id}`)
+                }
+                style={{
+                  color: "#065f46",
+                  fontWeight: 700,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  padding: 0,
+                  fontSize: 13,
+                }}
+              >
+                View student →
+              </button>
+            </div>
+          )}
 
           <div style={{ marginTop: 4 }}>
             <PrimaryBtn type="submit" disabled={saving}>
