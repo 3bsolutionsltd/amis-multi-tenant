@@ -4,6 +4,7 @@ import { listStudents } from "../students/students.api";
 import { listApplications } from "../admissions/admissions.api";
 import { listTermRegistrations } from "../term-registrations/term-registrations.api";
 import { listSubmissions } from "../marks/marks.api";
+import { getFeeOverview } from "../fees/fees.api";
 import { useAuth } from "../../auth/AuthContext";
 import {
   ensureGlobalCss,
@@ -668,10 +669,15 @@ export function DashboardPage() {
         queryFn: () => listSubmissions({ limit: 100 }),
         enabled: !!user,
       },
+      {
+        queryKey: ["dash-fee-overview"],
+        queryFn: () => getFeeOverview(),
+        enabled: !!user,
+      },
     ],
   });
 
-  const [stuQ, appQ, tregQ, markQ] = results;
+  const [stuQ, appQ, tregQ, markQ, feeOverviewQ] = results;
 
   const students = stuQ.data ?? [];
   const applications = appQ.data ?? [];
@@ -745,6 +751,23 @@ export function DashboardPage() {
           accentColor="#d97706"
           loading={markQ.isLoading}
           onClick={() => navigate("/marks")}
+        />
+        <StatTile
+          icon="💰"
+          label="Fee Collection"
+          value={
+            feeOverviewQ.data
+              ? `${feeOverviewQ.data.collectionRate}%`
+              : "—"
+          }
+          sub={
+            feeOverviewQ.data
+              ? `UGX ${Number(feeOverviewQ.data.totalCollected).toLocaleString()} collected`
+              : undefined
+          }
+          accentColor="#16a34a"
+          loading={feeOverviewQ.isLoading}
+          onClick={() => navigate("/finance/overview")}
         />
       </div>
 

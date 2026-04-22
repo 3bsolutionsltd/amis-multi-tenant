@@ -12,6 +12,7 @@ import {
   Badge,
   Pagination,
   PrimaryBtn,
+  SecondaryBtn,
   ErrorBanner,
 } from "../../lib/ui";
 
@@ -22,6 +23,8 @@ export function StudentsListPage() {
   const search = params.get("search") ?? "";
   const page = Number(params.get("page") ?? "1");
   const showInactive = params.get("inactive") === "true";
+  const yearFilter = params.get("year") ? Number(params.get("year")) : undefined;
+  const programmeFilter = params.get("programme") ?? "";
 
   function setSearch(v: string) {
     setParams((p) => {
@@ -39,6 +42,22 @@ export function StudentsListPage() {
       return n;
     });
   }
+  function setYearFilter(v: string) {
+    setParams((p) => {
+      const n = new URLSearchParams(p);
+      if (v) n.set("year", v); else n.delete("year");
+      n.set("page", "1");
+      return n;
+    });
+  }
+  function setProgrammeFilter(v: string) {
+    setParams((p) => {
+      const n = new URLSearchParams(p);
+      if (v) n.set("programme", v); else n.delete("programme");
+      n.set("page", "1");
+      return n;
+    });
+  }
   function setPage(v: number) {
     setParams((p) => {
       const n = new URLSearchParams(p);
@@ -52,12 +71,14 @@ export function StudentsListPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["students", { search, page, showInactive }],
+    queryKey: ["students", { search, page, showInactive, yearFilter, programmeFilter }],
     queryFn: () =>
       listStudents({
         search: search || undefined,
         page,
         include_inactive: showInactive || undefined,
+        year_of_study: yearFilter,
+        programme: programmeFilter || undefined,
       }),
   });
 
@@ -68,9 +89,14 @@ export function StudentsListPage() {
       <PageHeader
         title="Students"
         action={
-          <PrimaryBtn onClick={() => navigate("/students/new")}>
-            + New Student
-          </PrimaryBtn>
+          <div style={{ display: "flex", gap: 8 }}>
+            <SecondaryBtn onClick={() => navigate("/students/import")}>
+              ⬆ Import CSV
+            </SecondaryBtn>
+            <PrimaryBtn onClick={() => navigate("/students/new")}>
+              + New Student
+            </PrimaryBtn>
+          </div>
         }
       />
 
@@ -82,7 +108,37 @@ export function StudentsListPage() {
         <SearchInput
           value={search}
           onChange={(v) => setSearch(v)}
-          placeholder="Search by name…"
+          placeholder="Search by name or admission no…"
+        />
+        <select
+          value={yearFilter ?? ""}
+          onChange={(e) => setYearFilter(e.target.value)}
+          style={{
+            padding: "7px 10px",
+            border: "1px solid #d1d5db",
+            borderRadius: 6,
+            fontSize: 13,
+            background: "white",
+            cursor: "pointer",
+            minWidth: 120,
+          }}
+        >
+          <option value="">All Years</option>
+          {[1, 2, 3, 4, 5, 6].map((y) => (
+            <option key={y} value={y}>Year {y}</option>
+          ))}
+        </select>
+        <input
+          value={programmeFilter}
+          onChange={(e) => setProgrammeFilter(e.target.value)}
+          placeholder="Filter by programme…"
+          style={{
+            padding: "7px 10px",
+            border: "1px solid #d1d5db",
+            borderRadius: 6,
+            fontSize: 13,
+            minWidth: 160,
+          }}
         />
         <button
           onClick={toggleInactive}
@@ -101,7 +157,7 @@ export function StudentsListPage() {
       </FilterBar>
 
       <DataTable
-        headers={["Student", "Date of Birth", "Status", "Enrolled"]}
+        headers={["Adm No.", "Student", "Programme", "Year", "Section", "Status"]}
         isLoading={isLoading}
         isEmpty={isEmpty}
         emptyIcon="👨‍🎓"
@@ -113,23 +169,25 @@ export function StudentsListPage() {
             ? "Try a different search term."
             : 'Click "+ New Student" to add the first one.'
         }
-        colCount={4}
+        colCount={6}
       >
         {students?.map((s) => (
           <TR key={s.id} onClick={() => navigate(`/students/${s.id}`)}>
+            <TD muted>{s.admission_number ?? "—"}</TD>
             <TD>
               <span style={{ fontWeight: 600, color: "#111827" }}>
                 {s.first_name} {s.last_name}
               </span>
             </TD>
-            <TD muted>{s.date_of_birth ?? "—"}</TD>
+            <TD muted>{s.programme ?? "—"}</TD>
+            <TD muted>{s.year_of_study != null ? `Year ${s.year_of_study}` : "—"}</TD>
+            <TD muted>{s.class_section ?? "—"}</TD>
             <TD>
               <Badge
                 label={s.is_active ? "Active" : "Inactive"}
                 color={s.is_active ? "green" : "gray"}
               />
             </TD>
-            <TD muted>{new Date(s.created_at).toLocaleDateString()}</TD>
           </TR>
         ))}
       </DataTable>

@@ -359,6 +359,21 @@ async function seed() {
                   { action: "publish", from: "APPROVED", to: "PUBLISHED" },
                 ],
               },
+              term_registration: {
+                key: "term_registration",
+                initial_state: "REGISTRATION_STARTED",
+                states: [
+                  "REGISTRATION_STARTED",
+                  "FEE_PAID",
+                  "CLEARED",
+                  "COMPLETED",
+                ],
+                transitions: [
+                  { action: "pay_fees", from: "REGISTRATION_STARTED", to: "FEE_PAID" },
+                  { action: "clear", from: "FEE_PAID", to: "CLEARED" },
+                  { action: "complete", from: "CLEARED", to: "COMPLETED" },
+                ],
+              },
             },
             fees: {
               defaultTotalDue: 15000,
@@ -544,6 +559,21 @@ async function seed() {
                   { action: "approve", from: "HOD_REVIEW", to: "APPROVED" },
                   { action: "return", from: "HOD_REVIEW", to: "DRAFT" },
                   { action: "publish", from: "APPROVED", to: "PUBLISHED" },
+                ],
+              },
+              term_registration: {
+                key: "term_registration",
+                initial_state: "REGISTRATION_STARTED",
+                states: [
+                  "REGISTRATION_STARTED",
+                  "FEE_PAID",
+                  "CLEARED",
+                  "COMPLETED",
+                ],
+                transitions: [
+                  { action: "pay_fees", from: "REGISTRATION_STARTED", to: "FEE_PAID" },
+                  { action: "clear", from: "FEE_PAID", to: "CLEARED" },
+                  { action: "complete", from: "CLEARED", to: "COMPLETED" },
                 ],
               },
             },

@@ -14,6 +14,7 @@ export const CreateApplicationSchema = z.object({
 });
 
 export const ApplicationsQuerySchema = z.object({
+  search: z.string().optional(),
   intake: z.string().optional(),
   programme: z.string().optional(),
   current_state: z.string().optional(),

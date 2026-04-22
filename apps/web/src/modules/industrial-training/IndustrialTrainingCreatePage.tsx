@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { createIndustrialTraining } from "./industrial-training.api";
 import type { TrainingStatus } from "./industrial-training.api";
+import { StudentPickerInput } from "../../lib/StudentPickerInput";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -28,6 +29,7 @@ export function IndustrialTrainingCreatePage() {
 
   const [form, setForm] = useState({
     student_id: "",
+    student_name: "",
     company: "",
     supervisor: "",
     department: "",
@@ -91,12 +93,15 @@ export function IndustrialTrainingCreatePage() {
         <SectionLabel>Training Details</SectionLabel>
         {errors._ && <ErrorBanner message={errors._} />}
 
-        <Field label="Student ID" required error={errors.student_id}>
-          <input
-            style={inputCss}
-            placeholder="UUID of student"
+        <Field label="Student" required error={errors.student_id}>
+          <StudentPickerInput
             value={form.student_id}
-            onChange={(e) => f("student_id", e.target.value)}
+            displayName={form.student_name}
+            onChange={(id, name) => {
+              setForm((prev) => ({ ...prev, student_id: id, student_name: name }));
+              if (errors.student_id) setErrors((e) => ({ ...e, student_id: "" }));
+            }}
+            error={errors.student_id}
           />
         </Field>
         <Field label="Company / Employer" required error={errors.company}>

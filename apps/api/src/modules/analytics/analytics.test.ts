@@ -23,7 +23,7 @@ const ANALYTICS_RESULT = {
   students_by_programme: [{ code: "NCBC", title: "Biz Computing", student_count: 15 }],
   industrial_training_by_status: [{ status: "active", count: 8 }],
   field_placements_by_status: [{ status: "active", count: 6 }],
-  fees_summary: { total_due: 5000000, total_collected: 3000000, total_outstanding: 2000000, students_with_arrears: 7, filters: { from: null, to: null } },
+  fees_summary: { total_collected: 3000000, students_with_payments: 7, filters: { from: null, to: null } },
   payment_trends: [{ month: "2026-03", total: 1500000, transaction_count: 12 }],
 };
 

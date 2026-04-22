@@ -149,9 +149,7 @@ export function ProgrammeDetailPage() {
           <DetailRow label="Duration">{programme.duration_months != null ? `${programme.duration_months} months` : "—"}</DetailRow>
           <DetailRow label="Level">{programme.level ?? "—"}</DetailRow>
           <DetailRow label="Status">
-            <Badge variant={programme.is_active ? "green" : "gray"}>
-              {programme.is_active ? "Active" : "Inactive"}
-            </Badge>
+            <Badge label={programme.is_active ? "Active" : "Inactive"} color={programme.is_active ? "green" : "gray"} />
           </DetailRow>
           <DetailRow label="Created">{new Date(programme.created_at).toLocaleDateString()}</DetailRow>
         </Card>

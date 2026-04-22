@@ -292,3 +292,99 @@ describe("POST /admissions/import/:batchId/confirm", () => {
     expect(res.json()).toMatchObject({ imported: 2, skipped: 0 });
   });
 });
+
+// ------------------------------------------------------------------ POST /admissions/applications/:id/enroll
+
+const APP_ID = "aaaaaaaa-0000-0000-0000-000000000001";
+const STUDENT_ID = "cc000000-0000-0000-0000-000000000001";
+
+describe("POST /admissions/applications/:id/enroll", () => {
+  it("returns 400 when x-tenant-id header is missing", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: `/admissions/applications/${APP_ID}/enroll`,
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toHaveProperty("error", "x-tenant-id header required");
+  });
+
+  it("returns 403 when role is not registrar or admin", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: `/admissions/applications/${APP_ID}/enroll`,
+      headers: hodHeaders,
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns 404 when application does not exist", async () => {
+    mockWithTenant.mockResolvedValueOnce({ notFound: true } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: `/admissions/applications/${APP_ID}/enroll`,
+      headers: registrarHeaders,
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toHaveProperty("error", "application not found");
+  });
+
+  it("returns 409 when already enrolled", async () => {
+    mockWithTenant.mockResolvedValueOnce({
+      alreadyEnrolled: true,
+      studentId: STUDENT_ID,
+    } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: `/admissions/applications/${APP_ID}/enroll`,
+      headers: registrarHeaders,
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toMatchObject({
+      error: "already enrolled",
+      studentId: STUDENT_ID,
+    });
+  });
+
+  it("returns 422 when workflow state does not allow enrollment", async () => {
+    mockWithTenant.mockResolvedValueOnce({
+      invalidState: true,
+      message: 'Cannot enroll: application is in "submitted" state',
+    } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: `/admissions/applications/${APP_ID}/enroll`,
+      headers: registrarHeaders,
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error).toMatch(/submitted/);
+  });
+
+  it("returns 201 with student and admissionNumber on success", async () => {
+    const fakeStudent = {
+      id: STUDENT_ID,
+      first_name: "Jane",
+      last_name: "Doe",
+      admission_number: "ADM-2026-0001",
+      programme: "Computer Science",
+    };
+    mockWithTenant.mockResolvedValueOnce({
+      student: fakeStudent,
+      admissionNumber: "ADM-2026-0001",
+    } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: `/admissions/applications/${APP_ID}/enroll`,
+      headers: registrarHeaders,
+    });
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.student).toMatchObject({ first_name: "Jane", last_name: "Doe" });
+    expect(body.admissionNumber).toBe("ADM-2026-0001");
+  });
+});

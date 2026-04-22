@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { ApiError } from "../lib/apiFetch";
 
@@ -220,6 +220,11 @@ export function LoginPage() {
             {isSubmitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
+        <p style={{ marginTop: 20, textAlign: "center", fontSize: 13, color: "#6b7280" }}>
+          <Link to="/forgot-password" style={{ color: "#2563eb" }}>
+            Forgot password?
+          </Link>
+        </p>
       </div>
     </div>
   );

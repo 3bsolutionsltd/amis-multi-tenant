@@ -176,10 +176,10 @@ export function InstructorReportsPage() {
   );
 
   return (
-    <C>
+    <div>
       <PageHeader
         title="Instructor Reports"
-        subtitle="Weekly and monthly reports submitted by teaching staff"
+        description="Weekly and monthly reports submitted by teaching staff"
         action={<PrimaryBtn onClick={() => setShowModal(true)}>+ New Report</PrimaryBtn>}
       />
       {showModal && (
@@ -224,14 +224,10 @@ export function InstructorReportsPage() {
             <TR key={r.id}>
               <TD>{r.period}</TD>
               <TD>
-                <Badge color={r.report_type === "weekly" ? "blue" : "purple"}>
-                  {r.report_type === "weekly" ? "Weekly" : "Monthly"}
-                </Badge>
+                <Badge label={r.report_type === "weekly" ? "Weekly" : "Monthly"} color={r.report_type === "weekly" ? "blue" : "purple"} />
               </TD>
               <TD>
-                <Badge color={r.status === "submitted" ? "green" : "gray"}>
-                  {r.status === "submitted" ? "Submitted" : "Draft"}
-                </Badge>
+                <Badge label={r.status === "submitted" ? "Submitted" : "Draft"} color={r.status === "submitted" ? "green" : "gray"} />
               </TD>
               <TD>{r.due_date ? new Date(r.due_date).toLocaleDateString() : "—"}</TD>
               <TD>
@@ -248,6 +244,6 @@ export function InstructorReportsPage() {
           ))}
         </DataTable>
       </Card>
-    </C>
+    </div>
   );
 }

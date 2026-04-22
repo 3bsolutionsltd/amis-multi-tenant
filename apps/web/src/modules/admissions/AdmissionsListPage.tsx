@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listApplications } from "./admissions.api";
+import { listProgrammes } from "../programmes/programmes.api";
 import {
   ensureGlobalCss,
   PageHeader,
   FilterBar,
+  SearchInput,
   DataTable,
   TR,
   TD,
@@ -15,7 +17,6 @@ import {
   ErrorBanner,
 } from "../../lib/ui";
 
-const PROGRAMMES = ["NCBC", "NCES", "NCAM", "NCP", "NCWF"];
 const ADMISSION_STATES = [
   "DRAFT",
   "SUBMITTED",
@@ -50,6 +51,7 @@ export function AdmissionsListPage() {
   ensureGlobalCss();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const search = params.get("search") ?? "";
   const intake = params.get("intake") ?? "";
   const programme = params.get("programme") ?? "";
   const currentState = params.get("state") ?? "";
@@ -71,10 +73,16 @@ export function AdmissionsListPage() {
     });
   }
 
+  const { data: programmesData } = useQuery({
+    queryKey: ["programmes-filter"],
+    queryFn: () => listProgrammes({ include_inactive: false }),
+  });
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["applications", { intake, programme, currentState, page }],
+    queryKey: ["applications", { search, intake, programme, currentState, page }],
     queryFn: () =>
       listApplications({
+        search: search || undefined,
         intake: intake || undefined,
         programme: programme || undefined,
         current_state: currentState || undefined,
@@ -90,6 +98,9 @@ export function AdmissionsListPage() {
         title="Admissions"
         action={
           <div style={{ display: "flex", gap: 8 }}>
+            <SecondaryBtn onClick={() => window.print()}>
+              🖨 Print List
+            </SecondaryBtn>
             <SecondaryBtn onClick={() => navigate("/admissions/import")}>
               ⬆ Import CSV
             </SecondaryBtn>
@@ -105,6 +116,11 @@ export function AdmissionsListPage() {
       )}
 
       <FilterBar>
+        <SearchInput
+          value={search}
+          onChange={(v) => set("search", v)}
+          placeholder="Search by name or email…"
+        />
         <input
           placeholder="Intake (e.g. 2026/2027)"
           value={intake}
@@ -128,9 +144,9 @@ export function AdmissionsListPage() {
           }}
         >
           <option value="">All Programmes</option>
-          {PROGRAMMES.map((p) => (
-            <option key={p} value={p}>
-              {p}
+          {(programmesData ?? []).map((p) => (
+            <option key={p.id} value={p.code}>
+              {p.code} — {p.title}
             </option>
           ))}
         </select>

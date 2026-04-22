@@ -383,6 +383,16 @@ describeIf("Prompt 19 — password reset + user management (integration)", () =>
   // ================================================================ POST /users
 
   describe("POST /users", () => {
+    it("non-admin (registrar) → 403", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: "/users",
+        headers: { "x-dev-role": "registrar", "x-tenant-id": TENANT_A },
+        payload: { email: "blocked@test.local", password: "Test1234!", role: "hod" },
+      });
+      expect(res.statusCode).toBe(403);
+    });
+
     it("admin creates a new user → 201 with user data (no password_hash)", async () => {
       const res = await app.inject({
         method: "POST",
@@ -530,6 +540,16 @@ describeIf("Prompt 19 — password reset + user management (integration)", () =>
   // ================================================================ PUT /users/:id/password
 
   describe("PUT /users/:id/password", () => {
+    it("non-admin (finance) → 403", async () => {
+      const res = await app.inject({
+        method: "PUT",
+        url: `/users/${targetUserId}/password`,
+        headers: { "x-dev-role": "finance", "x-tenant-id": TENANT_A },
+        payload: { newPassword: "NewAdmin1!" },
+      });
+      expect(res.statusCode).toBe(403);
+    });
+
     it("admin resets user password → 200", async () => {
       const res = await app.inject({
         method: "PUT",

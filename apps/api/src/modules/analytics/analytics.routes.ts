@@ -123,15 +123,12 @@ export async function analyticsRoutes(app: FastifyInstance) {
 
         const { rows: feeRows } = await client.query(
           `SELECT
-             COALESCE(SUM(amount_due), 0)    AS total_due,
              COALESCE(SUM(amount_paid), 0)   AS total_collected,
-             COALESCE(SUM(GREATEST(amount_due - amount_paid, 0)), 0) AS total_outstanding,
-             COUNT(*) FILTER (WHERE amount_due > amount_paid) AS students_with_arrears
+             COUNT(DISTINCT student_id)       AS students_with_payments
            FROM (
              SELECT
                p.student_id,
-               COALESCE(SUM(p.amount), 0) AS amount_paid,
-               MAX(p.amount_due)          AS amount_due
+               COALESCE(SUM(p.amount), 0) AS amount_paid
              FROM app.payments p
              WHERE ${feeWhere}
              GROUP BY p.student_id
@@ -197,10 +194,8 @@ export async function analyticsRoutes(app: FastifyInstance) {
             count: Number(r.count),
           })),
           fees_summary: {
-            total_due:              Number(feeRows[0]?.total_due ?? 0),
-            total_collected:        Number(feeRows[0]?.total_collected ?? 0),
-            total_outstanding:      Number(feeRows[0]?.total_outstanding ?? 0),
-            students_with_arrears:  Number(feeRows[0]?.students_with_arrears ?? 0),
+            total_collected:          Number(feeRows[0]?.total_collected ?? 0),
+            students_with_payments:   Number(feeRows[0]?.students_with_payments ?? 0),
             filters: { from: from ?? null, to: to ?? null },
           },
           payment_trends: trendRows.map((r) => ({

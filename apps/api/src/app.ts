@@ -21,6 +21,16 @@ import { reportsRoutes } from "./modules/reports/reports.routes.js";
 import { tenantsRoutes } from "./modules/tenants/tenants.routes.js";
 import { alumniRoutes } from "./modules/alumni/alumni.routes.js";
 import { publicRoutes } from "./modules/public/public.routes.js";
+import { academicCalendarRoutes } from "./modules/academic-calendar/academic-calendar.routes.js";
+import { coursesRoutes } from "./modules/courses/courses.routes.js";
+import { gradingScalesRoutes } from "./modules/grading-scales/grading-scales.routes.js";
+import { feeStructuresRoutes } from "./modules/fee-structures/fee-structures.routes.js";
+import { resultsRoutes } from "./modules/results/results.routes.js";
+import { clearanceRoutes } from "./modules/clearance/clearance.routes.js";
+import { timetableRoutes } from "./modules/timetable/timetable.routes.js";
+import { studentDocumentsRoutes } from "./modules/student-documents/student-documents.routes.js";
+import { attendanceRoutes } from "./modules/attendance/attendance.routes.js";
+import { onboardingRoutes } from "./modules/onboarding/onboarding.routes.js";
 import { registerDevIdentity } from "./middleware/devIdentity.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 import { isUUID } from "./lib/uuid.js";
@@ -107,6 +117,16 @@ export function buildApp() {
   app.register(tenantsRoutes);
   app.register(alumniRoutes);
   app.register(publicRoutes);
+  app.register(academicCalendarRoutes);
+  app.register(coursesRoutes);
+  app.register(gradingScalesRoutes);
+  app.register(feeStructuresRoutes);
+  app.register(resultsRoutes);
+  app.register(clearanceRoutes);
+  app.register(timetableRoutes);
+  app.register(studentDocumentsRoutes);
+  app.register(attendanceRoutes);
+  app.register(onboardingRoutes);
 
   // Global error handler — structured errors, no stack traces in production
   app.setErrorHandler((error, _req, reply) => {

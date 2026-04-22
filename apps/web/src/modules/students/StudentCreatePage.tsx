@@ -76,6 +76,8 @@ export function StudentCreatePage() {
     guardian_email: "",
     guardian_relationship: "",
   });
+  const [yearOfStudy, setYearOfStudy] = useState<string>("");
+  const [classSection, setClassSection] = useState<string>("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
   const mutation = useMutation({
@@ -102,6 +104,8 @@ export function StudentCreatePage() {
       last_name: form.last_name ?? "",
     };
     if (form.date_of_birth) payload.date_of_birth = form.date_of_birth;
+    if (yearOfStudy) payload.year_of_study = Number(yearOfStudy);
+    if (classSection) payload.class_section = classSection;
     if (extFields.length > 0) {
       const ext: Record<string, unknown> = {};
       for (const f of extFields) {
@@ -226,6 +230,29 @@ export function StudentCreatePage() {
           )}
 
           {apiError && <ErrorBanner message={apiError} />}
+
+          {/* Academic placement */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 8 }}>Academic Placement</div>
+          <Field label="Year of Study">
+            <select
+              style={selectCss}
+              value={yearOfStudy}
+              onChange={(e) => setYearOfStudy(e.target.value)}
+            >
+              <option value="">— Select Year —</option>
+              {[1, 2, 3, 4, 5, 6].map((y) => (
+                <option key={y} value={y}>Year {y}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Class Section">
+            <input
+              style={inputCss}
+              placeholder="e.g. A, B"
+              value={classSection}
+              onChange={(e) => setClassSection(e.target.value)}
+            />
+          </Field>
 
           {/* Guardian / Next-of-Kin section (SR-F-002) */}
           <div style={{ fontSize: 11, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 8 }}>Guardian / Next of Kin (optional)</div>

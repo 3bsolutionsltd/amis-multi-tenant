@@ -171,10 +171,10 @@ export function TeacherEvaluationsPage() {
   );
 
   return (
-    <C>
+    <div>
       <PageHeader
         title="Teacher Evaluations"
-        subtitle="Student evaluations of teaching staff by academic period"
+        description="Student evaluations of teaching staff by academic period"
         action={<PrimaryBtn onClick={() => setShowModal(true)}>+ Submit Evaluation</PrimaryBtn>}
       />
       {showModal && (
@@ -208,6 +208,6 @@ export function TeacherEvaluationsPage() {
           ))}
         </DataTable>
       </Card>
-    </C>
+    </div>
   );
 }

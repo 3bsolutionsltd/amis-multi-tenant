@@ -5,8 +5,8 @@ import {
   getApplication,
   getWorkflowDef,
   fireTransition,
+  enrollApplication,
 } from "./admissions.api";
-import { createStudent } from "../students/students.api";
 import {
   ensureGlobalCss,
   Spinner,
@@ -112,19 +112,10 @@ export function ApplicationDetailPage() {
   });
 
   const enrolMut = useMutation({
-    mutationFn: () =>
-      createStudent({
-        first_name: app!.first_name,
-        last_name: app!.last_name,
-        date_of_birth: app!.dob ?? undefined,
-        programme: app!.programme ?? undefined,
-        sponsorship_type: app!.sponsorship_type ?? undefined,
-        email: app!.email ?? undefined,
-        phone: app!.phone ?? undefined,
-        extension: app!.extension,
-      }),
-    onSuccess: (student) => {
-      navigate(`/students/${student.id}`);
+    mutationFn: () => enrollApplication(id!),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["application", id] });
+      navigate(`/students/${result.student.id}`);
     },
     onError: (err) => {
       setEnrolError(err instanceof Error ? err.message : "Enrolment failed");
@@ -220,7 +211,7 @@ export function ApplicationDetailPage() {
           <SectionLabel>Student Record</SectionLabel>
           {enrolError && <ErrorBanner message={enrolError} />}
           <p style={{ fontSize: 14, color: "#6b7280", margin: "0 0 16px" }}>
-            Create a student record pre-filled with this applicant's details.
+            Enrol this applicant as a student with auto-generated admission number.
           </p>
           <PrimaryBtn
             disabled={enrolMut.isPending}

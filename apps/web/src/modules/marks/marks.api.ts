@@ -29,6 +29,8 @@ export interface CreateSubmissionBody {
   programme: string;
   intake: string;
   term: string;
+  assessment_type?: string;
+  weight?: number;
   correction_of_submission_id?: string;
 }
 

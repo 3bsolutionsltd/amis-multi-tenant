@@ -120,6 +120,9 @@ export function FeesPage() {
         title="Fees"
         action={
           <div style={{ display: "flex", gap: 10 }}>
+            <SecondaryBtn onClick={() => navigate("/finance/overview")}>
+              📊 Overview
+            </SecondaryBtn>
             <SecondaryBtn onClick={() => navigate("/finance/import")}>
               ⬆ Import CSV
             </SecondaryBtn>
@@ -275,6 +278,20 @@ export function FeesPage() {
               </TR>
             ))}
           </DataTable>
+
+          {transactions.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <SecondaryBtn
+                onClick={() =>
+                  navigate(
+                    `/finance/receipt?student_id=${selectedStudentId}`,
+                  )
+                }
+              >
+                🧾 Print Receipt
+              </SecondaryBtn>
+            </div>
+          )}
         </div>
       )}
     </div>

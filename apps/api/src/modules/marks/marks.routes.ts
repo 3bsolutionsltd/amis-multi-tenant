@@ -18,6 +18,7 @@ const WORKFLOW_KEY = "marks";
 
 const SUBMISSION_SELECT = `
   s.id, s.tenant_id, s.course_id, s.programme, s.intake, s.term,
+  s.assessment_type, s.weight,
   s.created_by, s.created_at, s.correction_of_submission_id,
   wi.current_state
 `;
@@ -43,6 +44,8 @@ export async function marksRoutes(app: FastifyInstance) {
         programme,
         intake,
         term,
+        assessment_type,
+        weight,
         correction_of_submission_id,
       } = parsed.data;
       const actorUserId = req.user?.userId ?? null;
@@ -58,8 +61,8 @@ export async function marksRoutes(app: FastifyInstance) {
 
         const { rows: subRows } = await client.query(
           `INSERT INTO app.mark_submissions
-             (tenant_id, course_id, programme, intake, term, created_by, correction_of_submission_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
+             (tenant_id, course_id, programme, intake, term, assessment_type, weight, created_by, correction_of_submission_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING *`,
           [
             tid,
@@ -67,6 +70,8 @@ export async function marksRoutes(app: FastifyInstance) {
             programme,
             intake,
             term,
+            assessment_type ?? "end_of_term",
+            weight ?? null,
             actorUserId,
             correction_of_submission_id ?? null,
           ],
@@ -205,7 +210,7 @@ export async function marksRoutes(app: FastifyInstance) {
       if (!parsed.success)
         return reply.status(422).send({ error: parsed.error.flatten() });
 
-      const { course_id, programme, intake, term, current_state, page, limit } =
+      const { course_id, programme, intake, term, assessment_type, current_state, page, limit } =
         parsed.data;
       const offset = (page - 1) * limit;
 
@@ -228,6 +233,10 @@ export async function marksRoutes(app: FastifyInstance) {
         if (term) {
           params.push(term);
           conditions.push(`s.term = $${params.length}`);
+        }
+        if (assessment_type) {
+          params.push(assessment_type);
+          conditions.push(`s.assessment_type = $${params.length}`);
         }
         if (current_state) {
           params.push(current_state);

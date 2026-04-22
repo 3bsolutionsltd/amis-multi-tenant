@@ -67,9 +67,24 @@ export function AdminStudioLayout() {
         >
           ← App
         </Link>
-        <strong style={{ fontSize: 17, letterSpacing: 0.5 }}>
-          Admin Studio
-        </strong>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 18 }}>⚙️</span>
+          <strong style={{ fontSize: 17, letterSpacing: 0.5 }}>
+            Admin Studio
+          </strong>
+        </div>
+        <div
+          style={{
+            marginLeft: "auto",
+            fontSize: 12,
+            color: "#60a5fa",
+            background: "rgba(96,165,250,0.12)",
+            padding: "3px 10px",
+            borderRadius: 20,
+          }}
+        >
+          {user?.tenantId?.slice(0, 8) ?? "ADMIN"}
+        </div>
       </header>
 
       <div style={{ display: "flex", flex: 1 }}>
@@ -85,9 +100,12 @@ export function AdminStudioLayout() {
             Overview
           </NavLink>
 
-          <div style={NAV_SECTION}>Platform</div>
-          <NavLink to="/admin-studio/tenants" style={studioNavStyle}>
-            Tenants
+          <div style={NAV_SECTION}>Institute</div>
+          <NavLink to="/admin-studio/profile" style={studioNavStyle}>
+            Institute Profile
+          </NavLink>
+          <NavLink to="/admin-studio/users" style={studioNavStyle}>
+            Users &amp; Roles
           </NavLink>
 
           <div style={NAV_SECTION}>Configuration</div>
@@ -103,6 +121,8 @@ export function AdminStudioLayout() {
           <NavLink to="/admin-studio/navigation" style={studioNavStyle}>
             Navigation
           </NavLink>
+
+          <div style={NAV_SECTION}>Academic</div>
           <NavLink to="/admin-studio/workflows" style={studioNavStyle}>
             Workflows
           </NavLink>

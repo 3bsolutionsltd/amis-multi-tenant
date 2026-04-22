@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { getTenantId } from "../../lib/tenantId.js";
+import { sendSms, buildPaymentConfirmationSms } from "../../lib/sms.js";
 import {
   FeeEntrySchema,
   FeeImportSchema,
@@ -145,10 +146,29 @@ export async function feesRoutes(app: FastifyInstance) {
           [tid, payment.id, actorUserId],
         );
 
-        return { payment };
+        // Fetch student phone for SMS
+        const { rows: stuRows } = await client.query<{ first_name: string; last_name: string; phone: string | null }>(
+          `SELECT first_name, last_name, phone FROM app.students WHERE id = $1`,
+          [student_id],
+        );
+
+        return { payment, student: stuRows[0] ?? null };
       });
 
-      return reply.status(201).send(result);
+      // Fire-and-forget SMS (don't fail the response on SMS error)
+      if (result.student?.phone) {
+        const msg = buildPaymentConfirmationSms({
+          studentName: `${result.student.first_name} ${result.student.last_name}`,
+          amount: result.payment.amount,
+          currency: result.payment.currency ?? "UGX",
+          reference: result.payment.reference ?? result.payment.id,
+        });
+        sendSms(result.student.phone, msg).catch((err) =>
+          console.error("[SMS] Fee entry notification failed:", err),
+        );
+      }
+
+      return reply.status(201).send({ payment: result.payment });
     },
   );
 
@@ -360,5 +380,181 @@ export async function feesRoutes(app: FastifyInstance) {
       return reply.status(200).send(result);
     },
   );
-}
 
+  // ---------- GET /fees/overview
+  // Aggregated fee stats across all students for a tenant
+  app.get(
+    "/fees/overview",
+    { preHandler: requireRole(...SUMMARY_ROLES) },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const result = await withTenant(tid, async (client) => {
+        // Get defaultTotalDue from published config
+        const { rows: cfgRows } = await client.query<{
+          payload: { fees?: { defaultTotalDue?: number } };
+        }>(
+          `SELECT payload FROM platform.config_versions
+           WHERE tenant_id = $1 AND status = 'published'
+           LIMIT 1`,
+          [tid],
+        );
+        const defaultTotalDue: number =
+          cfgRows[0]?.payload?.fees?.defaultTotalDue ?? 0;
+
+        // Total students
+        const { rows: countRows } = await client.query(
+          `SELECT COUNT(*)::int AS total FROM app.students WHERE is_active = true`,
+        );
+        const totalStudents = countRows[0].total;
+
+        // Total collected
+        const { rows: sumRows } = await client.query(
+          `SELECT COALESCE(SUM(amount), 0) AS total_collected FROM app.payments`,
+        );
+        const totalCollected = Number(sumRows[0].total_collected);
+
+        // Total expected
+        const totalExpected = totalStudents * defaultTotalDue;
+
+        // Collection rate
+        const collectionRate =
+          totalExpected > 0
+            ? Math.round((totalCollected / totalExpected) * 10000) / 100
+            : 0;
+
+        // Students who have paid in full
+        const { rows: paidRows } = await client.query(
+          `SELECT COUNT(DISTINCT p.student_id)::int AS paid_count
+           FROM app.payments p
+           JOIN app.students s ON s.id = p.student_id AND s.is_active = true
+           GROUP BY p.student_id
+           HAVING SUM(p.amount) >= $1`,
+          [defaultTotalDue],
+        );
+        const fullyPaid = paidRows.length;
+
+        return {
+          totalStudents,
+          totalExpected,
+          totalCollected,
+          collectionRate,
+          fullyPaid,
+          defaulters: totalStudents - fullyPaid,
+          defaultTotalDue,
+        };
+      });
+
+      return reply.status(200).send(result);
+    },
+  );
+
+  // ---------- GET /fees/defaulters
+  // Students with outstanding balances
+  app.get(
+    "/fees/defaulters",
+    { preHandler: requireRole(...SUMMARY_ROLES) },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const result = await withTenant(tid, async (client) => {
+        // Get defaultTotalDue from published config
+        const { rows: cfgRows } = await client.query<{
+          payload: { fees?: { defaultTotalDue?: number } };
+        }>(
+          `SELECT payload FROM platform.config_versions
+           WHERE tenant_id = $1 AND status = 'published'
+           LIMIT 1`,
+          [tid],
+        );
+        const defaultTotalDue: number =
+          cfgRows[0]?.payload?.fees?.defaultTotalDue ?? 0;
+
+        const { rows } = await client.query(
+          `SELECT s.id, s.first_name, s.last_name, s.admission_number, s.programme,
+                  COALESCE(p.total_paid, 0) AS total_paid,
+                  ($1 - COALESCE(p.total_paid, 0)) AS balance
+           FROM app.students s
+           LEFT JOIN (
+             SELECT student_id, SUM(amount) AS total_paid
+             FROM app.payments
+             GROUP BY student_id
+           ) p ON p.student_id = s.id
+           WHERE s.is_active = true
+             AND COALESCE(p.total_paid, 0) < $1
+           ORDER BY balance DESC`,
+          [defaultTotalDue],
+        );
+
+        return rows;
+      });
+
+      return reply.status(200).send(result);
+    },
+  );
+
+  // ---------- GET /fees/students/:studentId/clearance
+  // Check if a student has met the fee clearance threshold
+  app.get<{ Params: { studentId: string } }>(
+    "/fees/students/:studentId/clearance",
+    { preHandler: requireRole(...SUMMARY_ROLES) },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const { studentId } = req.params;
+
+      const result = await withTenant(tid, async (client) => {
+        // Get clearance threshold from published config (percentage 0-100)
+        const { rows: cfgRows } = await client.query<{
+          payload: { fees?: { clearanceThreshold?: number; defaultTotalDue?: number } };
+        }>(
+          `SELECT payload FROM platform.config_versions
+           WHERE tenant_id = $1 AND status = 'published'
+           LIMIT 1`,
+          [tid],
+        );
+        const threshold: number =
+          cfgRows[0]?.payload?.fees?.clearanceThreshold ?? 100;
+        const totalDue: number =
+          cfgRows[0]?.payload?.fees?.defaultTotalDue ?? 0;
+
+        // Verify student exists
+        const { rows: stuRows } = await client.query(
+          `SELECT id, first_name, last_name, admission_number FROM app.students WHERE id = $1`,
+          [studentId],
+        );
+        if (stuRows.length === 0) return { notFound: true } as const;
+
+        // Sum payments
+        const { rows: payRows } = await client.query(
+          `SELECT COALESCE(SUM(amount), 0) AS total_paid FROM app.payments WHERE student_id = $1`,
+          [studentId],
+        );
+        const totalPaid = Number(payRows[0].total_paid);
+        const requiredAmount = (threshold / 100) * totalDue;
+        const cleared = totalPaid >= requiredAmount;
+
+        return {
+          student: stuRows[0],
+          totalDue,
+          totalPaid,
+          threshold,
+          requiredAmount,
+          cleared,
+          balance: totalDue - totalPaid,
+        };
+      });
+
+      if ("notFound" in result)
+        return reply.status(404).send({ error: "student not found" });
+
+      return reply.status(200).send(result);
+    },
+  );
+}
