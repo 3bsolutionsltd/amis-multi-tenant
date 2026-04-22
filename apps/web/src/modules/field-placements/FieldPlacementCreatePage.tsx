@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { createFieldPlacement } from "./field-placements.api";
 import type { PlacementStatus, PlacementType } from "./field-placements.api";
+import { StudentPickerInput } from "../../lib/StudentPickerInput";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -25,6 +26,7 @@ const TYPES: PlacementType[] = ["field", "clinical", "community", "industry"];
 
 interface FormState {
   student_id: string;
+  student_name: string;
   host_organisation: string;
   supervisor: string;
   placement_type: PlacementType;
@@ -40,6 +42,7 @@ export function FieldPlacementCreatePage() {
 
   const [form, setForm] = useState<FormState>({
     student_id: "",
+    student_name: "",
     host_organisation: "",
     supervisor: "",
     placement_type: "field",
@@ -95,13 +98,12 @@ export function FieldPlacementCreatePage() {
         {formError && <ErrorBanner message={formError} />}
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          <Field label="Student ID" required>
-            <input
-              style={inputCss}
-              placeholder="e.g. STU-001"
+          <Field label="Student" required>
+            <StudentPickerInput
               value={form.student_id}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, student_id: e.target.value }))
+              displayName={form.student_name}
+              onChange={(id, name) =>
+                setForm((f) => ({ ...f, student_id: id, student_name: name }))
               }
             />
           </Field>

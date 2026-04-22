@@ -69,6 +69,19 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
           >
             Try again
           </button>
+          <a
+            href="/"
+            style={{
+              display: "inline-block",
+              marginLeft: 12,
+              color: "#2563eb",
+              fontSize: 14,
+              fontWeight: 500,
+              textDecoration: "underline",
+            }}
+          >
+            Go Home
+          </a>
         </div>
       );
     }
@@ -86,13 +99,19 @@ const FALLBACK_NAV = [
   { label: "Admissions", route: "/admissions" },
   { label: "Programmes", route: "/programmes" },
   { label: "Term Registrations", route: "/term-registrations" },
+  { label: "Bulk Registration", route: "/term-registrations/bulk" },
   { label: "Marks", route: "/marks" },
   { label: "Finance", route: "/finance" },
+  { label: "Clearance", route: "/clearance" },
+  { label: "Results", route: "/results" },
   { label: "Industrial Training", route: "/industrial-training" },
   { label: "Field Placements", route: "/field-placements" },
   { label: "Analytics", route: "/analytics" },
   { label: "Staff", route: "/staff" },
   { label: "Reports", route: "/reports/it" },
+  { label: "Marks Analysis", route: "/reports/marks-analysis" },
+  { label: "Timetable", route: "/timetable" },
+  { label: "Attendance", route: "/attendance" },
   { label: "Users", route: "/users" },
 ];
 
@@ -102,14 +121,20 @@ const NAV_ICONS: Record<string, string> = {
   "/admissions": "📋",
   "/programmes": "🎓",
   "/term-registrations": "📅",
+  "/term-registrations/bulk": "📦",
   "/marks": "📊",
   "/finance": "💰",
+  "/clearance": "🔐",
+  "/results": "📄",
   "/industrial-training": "🏗️",
   "/field-placements": "📍",
   "/analytics": "📈",
   "/users": "👥",
   "/staff": "👔",
   "/reports/it": "📋",
+  "/reports/marks-analysis": "📊",
+  "/timetable": "🗓️",
+  "/attendance": "✅",
 };
 
 function Header() {
@@ -226,6 +251,7 @@ function Sidebar() {
   const { navigation } = useConfig();
   const navLinks = navigation.length > 0 ? navigation : FALLBACK_NAV;
   const { pathname } = useLocation();
+  const { user } = useAuth();
 
   return (
     <aside
@@ -253,6 +279,7 @@ function Sidebar() {
               <li key={route}>
                 <Link
                   to={route}
+                  className={active ? undefined : "amis-nav-link"}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -319,6 +346,23 @@ function Sidebar() {
         >
           <span>⚙️</span> Admin Studio
         </Link>
+        {user?.role === "platform_admin" && (
+          <Link
+            to="/platform-admin"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              color: "#7c3aed",
+              textDecoration: "none",
+              padding: "6px 0",
+              fontWeight: 600,
+            }}
+          >
+            <span>🏛️</span> Platform Admin
+          </Link>
+        )}
       </div>
     </aside>
   );
@@ -374,7 +418,7 @@ function MainContent() {
       }}
     >
       {pathname === "/" && <DashboardCards />}
-      <ErrorBoundary>
+      <ErrorBoundary key={pathname}>
         <Outlet />
       </ErrorBoundary>
     </main>

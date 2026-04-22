@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { getTenantId } from "../../lib/tenantId.js";
+import { sendSms, buildAdmissionEnrolledSms } from "../../lib/sms.js";
 import { loadWorkflowDef } from "../../lib/workflowDef.js";
 import type { WorkflowDefinition } from "../config/config.schema.js";
 import {
@@ -13,7 +14,7 @@ import {
 
 const APP_SELECT = `
   a.id, a.tenant_id, a.first_name, a.last_name, a.programme, a.intake,
-  a.dob, a.gender, a.email, a.phone, a.sponsorship_type, a.extension, a.created_at,
+  a.dob, a.gender, a.email, a.phone, a.sponsorship_type, a.student_id, a.extension, a.created_at,
   wi.current_state
 `;
 
@@ -120,13 +121,19 @@ export async function admissionsRoutes(app: FastifyInstance) {
       if (!parsed.success)
         return reply.status(422).send({ error: parsed.error.flatten() });
 
-      const { intake, programme, current_state, page, limit } = parsed.data;
+      const { search, intake, programme, current_state, page, limit } = parsed.data;
       const offset = (page - 1) * limit;
 
       const rows = await withTenant(tid, async (client) => {
         const conditions: string[] = [];
         const params: unknown[] = [tid];
 
+        if (search) {
+          params.push(`%${search}%`);
+          conditions.push(
+            `(a.first_name ILIKE $${params.length} OR a.last_name ILIKE $${params.length} OR a.email ILIKE $${params.length})`,
+          );
+        }
         if (intake) {
           params.push(intake);
           conditions.push(`a.intake = $${params.length}`);
@@ -359,6 +366,111 @@ export async function admissionsRoutes(app: FastifyInstance) {
         return reply.status(422).send({ error: result.message });
 
       return reply.status(200).send(result);
+    },
+  );
+
+  // ---------- POST /admissions/applications/:id/enroll
+  app.post<{ Params: { id: string } }>(
+    "/admissions/applications/:id/enroll",
+    { preHandler: requireRole("registrar", "admin") },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const { id } = req.params;
+
+      const result = await withTenant(tid, async (client) => {
+        // Load application with workflow state
+        const { rows: appRows } = await client.query(
+          `SELECT ${APP_SELECT}
+           FROM app.admission_applications a
+           LEFT JOIN app.workflow_instances wi
+             ON wi.entity_type = 'admissions' AND wi.entity_id = a.id
+           WHERE a.id = $1`,
+          [id],
+        );
+        const application = appRows[0];
+        if (!application) return { notFound: true } as const;
+
+        // Already enrolled?
+        if (application.student_id) {
+          return { alreadyEnrolled: true, studentId: application.student_id } as const;
+        }
+
+        // Check workflow state allows enrollment
+        const state = application.current_state;
+        if (state !== "enrolled" && state !== "admitted") {
+          return {
+            invalidState: true,
+            message: `Cannot enroll: application is in "${state}" state`,
+          } as const;
+        }
+
+        // Generate admission number: ADM-<year>-<seq>
+        const year = new Date().getFullYear();
+        const { rows: seqRows } = await client.query(
+          `SELECT COUNT(*)::int + 1 AS seq
+           FROM app.students WHERE admission_number LIKE $1`,
+          [`ADM-${year}-%`],
+        );
+        const seq = String(seqRows[0].seq).padStart(4, "0");
+        const admissionNumber = `ADM-${year}-${seq}`;
+
+        // Create student from application data
+        const { rows: stuRows } = await client.query(
+          `INSERT INTO app.students
+             (tenant_id, first_name, last_name, date_of_birth, admission_number,
+              sponsorship_type, programme, email, phone, extension)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           RETURNING *`,
+          [
+            tid,
+            application.first_name,
+            application.last_name,
+            application.dob ?? null,
+            admissionNumber,
+            application.sponsorship_type ?? null,
+            application.programme ?? null,
+            application.email ?? null,
+            application.phone ?? null,
+            JSON.stringify(application.extension ?? {}),
+          ],
+        );
+        const student = stuRows[0];
+
+        // Link application to student
+        await client.query(
+          `UPDATE app.admission_applications SET student_id = $1 WHERE id = $2`,
+          [student.id, id],
+        );
+
+        return { student, admissionNumber };
+      });
+
+      if ("notFound" in result)
+        return reply.status(404).send({ error: "application not found" });
+      if ("alreadyEnrolled" in result)
+        return reply
+          .status(409)
+          .send({ error: "already enrolled", studentId: result.studentId });
+      if ("invalidState" in result)
+        return reply.status(422).send({ error: result.message });
+
+      // Fire-and-forget SMS to enrolled student's phone
+      const enrolledPhone = result.student?.phone ?? null;
+      if (enrolledPhone) {
+        const msg = buildAdmissionEnrolledSms({
+          studentName: `${result.student.first_name} ${result.student.last_name}`,
+          admissionNumber: result.admissionNumber,
+          programme: result.student.programme ?? null,
+        });
+        sendSms(enrolledPhone, msg).catch((err) =>
+          console.error("[SMS] Enrolment notification failed:", err),
+        );
+      }
+
+      return reply.status(201).send(result);
     },
   );
 }

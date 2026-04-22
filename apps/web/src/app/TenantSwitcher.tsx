@@ -17,7 +17,7 @@ export function TenantSwitcher() {
   useEffect(() => {
     fetch(`${API_URL}/auth/tenants`)
       .then((r) => r.json())
-      .then((data: TenantOption[]) => setTenants(data))
+      .then((data) => { if (Array.isArray(data)) setTenants(data); })
       .catch(() => {});
   }, []);
 

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listSubmissions } from "./marks.api";
+import { listProgrammes } from "../programmes/programmes.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -14,7 +15,6 @@ import {
   ErrorBanner,
 } from "../../lib/ui";
 
-const PROGRAMMES = ["NCBC", "NCES", "NCAM", "NCP", "NCWF"];
 const MARK_STATES = [
   "DRAFT",
   "SUBMITTED",
@@ -57,6 +57,11 @@ export function MarksListPage() {
     });
   }
 
+  const { data: programmesData } = useQuery({
+    queryKey: ["programmes-filter"],
+    queryFn: () => listProgrammes({ include_inactive: false }),
+  });
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["submissions", { programme, intake, term, page }],
     queryFn: () =>
@@ -95,9 +100,9 @@ export function MarksListPage() {
           }}
         >
           <option value="">All Programmes</option>
-          {PROGRAMMES.map((p) => (
-            <option key={p} value={p}>
-              {p}
+          {(programmesData ?? []).map((p) => (
+            <option key={p.id} value={p.code}>
+              {p.code} — {p.title}
             </option>
           ))}
         </select>

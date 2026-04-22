@@ -6,6 +6,8 @@ import { loadWorkflowDef } from "../../lib/workflowDef.js";
 import type { WorkflowDefinition } from "../config/config.schema.js";
 import {
   CreateTermRegistrationSchema,
+  BulkTermRegistrationSchema,
+  PromoteTermRegistrationSchema,
   TermRegistrationsQuerySchema,
 } from "./term-registrations.schema.js";
 
@@ -218,6 +220,169 @@ export async function termRegistrationsRoutes(app: FastifyInstance) {
 
       if (!row) return reply.status(404).send({ error: "not found" });
       return row;
+    },
+  );
+
+  // ---------- POST /term-registrations/bulk — register multiple students at once (#59)
+  app.post(
+    "/term-registrations/bulk",
+    { preHandler: requireRole("registrar", "admin") },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const parsed = BulkTermRegistrationSchema.safeParse(req.body);
+      if (!parsed.success)
+        return reply.status(422).send({ error: parsed.error.flatten() });
+
+      const { academic_year, term, student_ids } = parsed.data;
+      const actorUserId = req.user?.userId ?? null;
+
+      const result = await withTenant(tid, async (client) => {
+        const wf = await loadWorkflowDef(tid, WORKFLOW_KEY, client);
+        if (!wf) {
+          return {
+            configError: true,
+            message: `workflow "${WORKFLOW_KEY}" not found in published config`,
+          } as const;
+        }
+
+        let created = 0;
+        let skipped = 0;
+        const errors: { student_id: string; error: string }[] = [];
+
+        for (const student_id of student_ids) {
+          // Check student exists
+          const { rows: stuRows } = await client.query<{ id: string }>(
+            `SELECT id FROM app.students WHERE id = $1 AND is_active = true`,
+            [student_id],
+          );
+          if (!stuRows[0]) {
+            errors.push({ student_id, error: "student not found or inactive" });
+            continue;
+          }
+
+          // Skip if already registered for this term
+          const { rows: existing } = await client.query(
+            `SELECT id FROM app.term_registrations
+             WHERE student_id = $1 AND academic_year = $2 AND term = $3`,
+            [student_id, academic_year, term],
+          );
+          if (existing.length > 0) {
+            skipped++;
+            continue;
+          }
+
+          // Insert registration
+          const { rows: regRows } = await client.query(
+            `INSERT INTO app.term_registrations
+               (tenant_id, student_id, academic_year, term, extension, created_by)
+             VALUES ($1, $2, $3, $4, '{}', $5)
+             RETURNING id`,
+            [tid, student_id, academic_year, term, actorUserId],
+          );
+          const regId = regRows[0].id;
+
+          // Init workflow
+          await client.query(
+            `INSERT INTO app.workflow_instances
+               (tenant_id, entity_type, entity_id, workflow_key, current_state)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [tid, ENTITY_TYPE, regId, WORKFLOW_KEY, wf.initial_state],
+          );
+
+          await client.query(
+            `INSERT INTO app.workflow_events
+               (tenant_id, entity_type, entity_id, workflow_key, from_state, to_state, action_key, actor_user_id)
+             VALUES ($1, $2, $3, $4, NULL, $5, '__init__', $6)`,
+            [tid, ENTITY_TYPE, regId, WORKFLOW_KEY, wf.initial_state, actorUserId],
+          );
+
+          created++;
+        }
+
+        return { created, skipped, errors };
+      });
+
+      if ("configError" in result)
+        return reply.status(422).send({ error: result.message });
+
+      return reply.status(201).send(result);
+    },
+  );
+
+  // ---------- POST /term-registrations/promote — auto-register all active students (#59)
+  app.post(
+    "/term-registrations/promote",
+    { preHandler: requireRole("registrar", "admin") },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const parsed = PromoteTermRegistrationSchema.safeParse(req.body);
+      if (!parsed.success)
+        return reply.status(422).send({ error: parsed.error.flatten() });
+
+      const { academic_year, term } = parsed.data;
+      const actorUserId = req.user?.userId ?? null;
+
+      const result = await withTenant(tid, async (client) => {
+        const wf = await loadWorkflowDef(tid, WORKFLOW_KEY, client);
+        if (!wf) {
+          return {
+            configError: true,
+            message: `workflow "${WORKFLOW_KEY}" not found in published config`,
+          } as const;
+        }
+
+        // Find all active students not yet registered for this term
+        const { rows: students } = await client.query<{ id: string }>(
+          `SELECT s.id FROM app.students s
+           WHERE s.is_active = true
+             AND NOT EXISTS (
+               SELECT 1 FROM app.term_registrations tr
+               WHERE tr.student_id = s.id AND tr.academic_year = $1 AND tr.term = $2
+             )`,
+          [academic_year, term],
+        );
+
+        let created = 0;
+        for (const { id: student_id } of students) {
+          const { rows: regRows } = await client.query(
+            `INSERT INTO app.term_registrations
+               (tenant_id, student_id, academic_year, term, extension, created_by)
+             VALUES ($1, $2, $3, $4, '{}', $5)
+             RETURNING id`,
+            [tid, student_id, academic_year, term, actorUserId],
+          );
+          const regId = regRows[0].id;
+
+          await client.query(
+            `INSERT INTO app.workflow_instances
+               (tenant_id, entity_type, entity_id, workflow_key, current_state)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [tid, ENTITY_TYPE, regId, WORKFLOW_KEY, wf.initial_state],
+          );
+
+          await client.query(
+            `INSERT INTO app.workflow_events
+               (tenant_id, entity_type, entity_id, workflow_key, from_state, to_state, action_key, actor_user_id)
+             VALUES ($1, $2, $3, $4, NULL, $5, '__init__', $6)`,
+            [tid, ENTITY_TYPE, regId, WORKFLOW_KEY, wf.initial_state, actorUserId],
+          );
+
+          created++;
+        }
+
+        return { created, total_active_students: students.length };
+      });
+
+      if ("configError" in result)
+        return reply.status(422).send({ error: result.message });
+
+      return reply.status(201).send(result);
     },
   );
 }

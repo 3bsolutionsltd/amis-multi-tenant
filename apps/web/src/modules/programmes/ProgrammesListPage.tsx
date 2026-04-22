@@ -193,7 +193,7 @@ export function ProgrammesListPage() {
             <TD>{p.department ?? "—"}</TD>
             <TD>{p.duration_months != null ? `${p.duration_months} mo` : "—"}</TD>
             <TD>{p.level ?? "—"}</TD>
-            <TD><Badge variant={p.is_active ? "green" : "gray"}>{p.is_active ? "Active" : "Inactive"}</Badge></TD>
+            <TD><Badge label={p.is_active ? "Active" : "Inactive"} color={p.is_active ? "green" : "gray"} /></TD>
             <TD>
               <div style={{ display: "flex", gap: 8 }} onClick={(e) => e.stopPropagation()}>
                 <SecondaryBtn onClick={() => setModalProg(p)} style={{ padding: "4px 10px", fontSize: 12 }}>Edit</SecondaryBtn>

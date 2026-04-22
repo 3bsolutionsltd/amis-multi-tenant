@@ -10,6 +10,8 @@ export interface Student {
   programme: string | null;
   email: string | null;
   phone: string | null;
+  year_of_study: number | null;
+  class_section: string | null;
   extension: Record<string, unknown>;
   // Guardian / Next-of-Kin (SR-F-002)
   guardian_name: string | null;
@@ -32,6 +34,8 @@ export interface CreateStudentBody {
   admission_number?: string;
   sponsorship_type?: string;
   programme?: string;
+  year_of_study?: number;
+  class_section?: string;
   email?: string;
   phone?: string;
   extension?: Record<string, unknown>;
@@ -46,7 +50,13 @@ export interface UpdateStudentBody {
   last_name?: string;
   date_of_birth?: string | null;
   admission_number?: string;
+  sponsorship_type?: string;
   programme?: string;
+  programme_id?: string;
+  year_of_study?: number;
+  class_section?: string;
+  email?: string;
+  phone?: string;
   extension?: Record<string, unknown>;
   guardian_name?: string;
   guardian_phone?: string;
@@ -65,6 +75,9 @@ export interface ListStudentsParams {
   page?: number;
   limit?: number;
   include_inactive?: boolean;
+  year_of_study?: number;
+  class_section?: string;
+  programme?: string;
 }
 
 export function listStudents(params?: ListStudentsParams): Promise<Student[]> {
@@ -73,6 +86,9 @@ export function listStudents(params?: ListStudentsParams): Promise<Student[]> {
   if (params?.page != null) q.set("page", String(params.page));
   if (params?.limit != null) q.set("limit", String(params.limit));
   if (params?.include_inactive) q.set("include_inactive", "true");
+  if (params?.year_of_study != null) q.set("year_of_study", String(params.year_of_study));
+  if (params?.class_section) q.set("class_section", params.class_section);
+  if (params?.programme) q.set("programme", params.programme);
   const qs = q.toString();
   return apiFetch<Student[]>(`/students${qs ? `?${qs}` : ""}`);
 }
@@ -107,4 +123,38 @@ export function deactivateStudent(id: string, body?: DeactivateStudentBody): Pro
 
 export function reactivateStudent(id: string): Promise<Student> {
   return apiFetch<Student>(`/students/${id}/reactivate`, { method: "PATCH" });
+}
+
+export interface PromotionBody {
+  programme?: string;
+  from_year?: number;
+  class_section?: string;
+}
+
+export function promoteStudents(body: PromotionBody): Promise<{ promoted: number }> {
+  return apiFetch<{ promoted: number }>("/students/promote", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function demoteStudents(body: PromotionBody): Promise<{ demoted: number }> {
+  return apiFetch<{ demoted: number }>("/students/demote", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+  errors: { row: number; error: string }[];
+  warnings: { row: number; student_id: string; student_name: string; raw_programme: string }[];
+}
+
+export function importStudents(rows: Record<string, unknown>[]): Promise<ImportResult> {
+  return apiFetch<ImportResult>("/students/import", {
+    method: "POST",
+    body: JSON.stringify({ rows }),
+  });
 }

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { withTenant } from "../../db/tenant.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import {
@@ -12,7 +13,8 @@ import {
 } from "./students.schema.js";
 
 const SELECT_COLS =
-  "id, first_name, last_name, date_of_birth, admission_number, sponsorship_type, programme, email, phone, extension, " +
+  "id, first_name, last_name, date_of_birth, admission_number, sponsorship_type, programme, email, phone, " +
+  "year_of_study, class_section, extension, " +
   "guardian_name, guardian_phone, guardian_email, guardian_relationship, " +
   "dropout_reason, dropout_date, dropout_notes, " +
   "is_active, created_at, updated_at";
@@ -43,7 +45,7 @@ export async function studentsRoutes(app: FastifyInstance) {
         return reply.status(422).send({ error: parsed.error.flatten() });
       }
 
-      const { search, include_inactive, page, limit } = parsed.data;
+      const { search, include_inactive, year_of_study, class_section, programme, page, limit } = parsed.data;
       const offset = (page - 1) * limit;
 
       const rows = await withTenant(tenantId, (client) => {
@@ -57,8 +59,23 @@ export async function studentsRoutes(app: FastifyInstance) {
         if (search) {
           params.push(`%${search}%`);
           conditions.push(
-            `(first_name ILIKE $${params.length} OR last_name ILIKE $${params.length})`,
+            `(first_name ILIKE $${params.length} OR last_name ILIKE $${params.length} OR admission_number ILIKE $${params.length})`,
           );
+        }
+
+        if (year_of_study) {
+          params.push(year_of_study);
+          conditions.push(`year_of_study = $${params.length}`);
+        }
+
+        if (class_section) {
+          params.push(class_section);
+          conditions.push(`class_section = $${params.length}`);
+        }
+
+        if (programme) {
+          params.push(programme);
+          conditions.push(`programme = $${params.length}`);
         }
 
         const where =
@@ -147,7 +164,7 @@ export async function studentsRoutes(app: FastifyInstance) {
 
         // Field placements
         const { rows: fpRecords } = await client.query(
-          `SELECT id, school_name, status, start_date, end_date
+          `SELECT id, host_organisation, status, start_date, end_date
            FROM app.field_placements
            WHERE student_id = $1
            ORDER BY start_date DESC`,
@@ -207,6 +224,8 @@ export async function studentsRoutes(app: FastifyInstance) {
         programme,
         email,
         phone,
+        year_of_study,
+        class_section,
         extension,
         guardian_name,
         guardian_phone,
@@ -217,9 +236,10 @@ export async function studentsRoutes(app: FastifyInstance) {
       const row = await withTenant(tenantId, (client) =>
         client.query(
           `INSERT INTO app.students
-             (tenant_id, first_name, last_name, date_of_birth, admission_number, sponsorship_type, programme, email, phone, extension,
+             (tenant_id, first_name, last_name, date_of_birth, admission_number, sponsorship_type, programme, email, phone,
+              year_of_study, class_section, extension,
               guardian_name, guardian_phone, guardian_email, guardian_relationship)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
            RETURNING ${SELECT_COLS}`,
           [
             tenantId,
@@ -231,6 +251,8 @@ export async function studentsRoutes(app: FastifyInstance) {
             programme ?? null,
             email ?? null,
             phone ?? null,
+            year_of_study ?? null,
+            class_section ?? null,
             JSON.stringify(extension ?? {}),
             guardian_name ?? null,
             guardian_phone ?? null,
@@ -266,8 +288,11 @@ export async function studentsRoutes(app: FastifyInstance) {
         admission_number,
         sponsorship_type,
         programme,
+        programme_id,
         email,
         phone,
+        year_of_study,
+        class_section,
         extension,
         guardian_name,
         guardian_phone,
@@ -285,13 +310,16 @@ export async function studentsRoutes(app: FastifyInstance) {
              admission_number      = COALESCE($5, admission_number),
              sponsorship_type      = COALESCE($6, sponsorship_type),
              programme             = COALESCE($7, programme),
-             email                 = COALESCE($8, email),
-             phone                 = COALESCE($9, phone),
-             extension             = COALESCE($10::jsonb, extension),
-             guardian_name         = COALESCE($11, guardian_name),
-             guardian_phone        = COALESCE($12, guardian_phone),
-             guardian_email        = COALESCE($13, guardian_email),
-             guardian_relationship = COALESCE($14, guardian_relationship),
+             programme_id          = COALESCE($8::uuid, programme_id),
+             email                 = COALESCE($9, email),
+             phone                 = COALESCE($10, phone),
+             year_of_study         = COALESCE($11::smallint, year_of_study),
+             class_section         = COALESCE($12, class_section),
+             extension             = COALESCE($13::jsonb, extension),
+             guardian_name         = COALESCE($14, guardian_name),
+             guardian_phone        = COALESCE($15, guardian_phone),
+             guardian_email        = COALESCE($16, guardian_email),
+             guardian_relationship = COALESCE($17, guardian_relationship),
              updated_at            = now()
            WHERE id = $1
            RETURNING ${SELECT_COLS}`,
@@ -303,8 +331,11 @@ export async function studentsRoutes(app: FastifyInstance) {
             admission_number ?? null,
             sponsorship_type ?? null,
             programme ?? null,
+            programme_id ?? null,
             email ?? null,
             phone ?? null,
+            year_of_study ?? null,
+            class_section ?? null,
             extension !== undefined ? JSON.stringify(extension) : null,
             guardian_name ?? null,
             guardian_phone ?? null,
@@ -459,6 +490,283 @@ export async function studentsRoutes(app: FastifyInstance) {
           'attachment; filename="students-export.csv"',
         )
         .send(csv);
+    },
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // POST /students/promote — bulk increment year_of_study for a cohort (admin/registrar)
+  // Body: { programme?, from_year: number, to_year: number, class_section? }
+  //   Increments year_of_study by 1 for all active students matching the filters,
+  //   capped at 6. Returns affected count.
+  // ─────────────────────────────────────────────────────────────────────────────
+  app.post(
+    "/students/promote",
+    { preHandler: requireRole("admin", "registrar") },
+    async (req, reply) => {
+      const { tenantId } = req.user;
+      if (!tenantId) {
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+      }
+
+      const body = req.body as {
+        programme?: string;
+        from_year?: number;
+        class_section?: string;
+      };
+
+      const conditions: string[] = ["tenant_id = $1", "is_active = true", "year_of_study < 6"];
+      const params: unknown[] = [tenantId];
+
+      if (body.programme) {
+        params.push(body.programme);
+        conditions.push(`programme = $${params.length}`);
+      }
+      if (body.from_year != null) {
+        params.push(Number(body.from_year));
+        conditions.push(`year_of_study = $${params.length}`);
+      }
+      if (body.class_section) {
+        params.push(body.class_section);
+        conditions.push(`class_section = $${params.length}`);
+      }
+
+      const result = await withTenant(tenantId, (client) =>
+        client.query(
+          `UPDATE app.students
+           SET year_of_study = year_of_study + 1, updated_at = now()
+           WHERE ${conditions.join(" AND ")}`,
+          params,
+        ),
+      );
+
+      return { promoted: result.rowCount ?? 0 };
+    },
+  );
+
+  // POST /students/demote — bulk decrement year_of_study for a cohort (admin/registrar)
+  app.post(
+    "/students/demote",
+    { preHandler: requireRole("admin", "registrar") },
+    async (req, reply) => {
+      const { tenantId } = req.user;
+      if (!tenantId) {
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+      }
+
+      const body = req.body as {
+        programme?: string;
+        from_year?: number;
+        class_section?: string;
+      };
+
+      const conditions: string[] = ["tenant_id = $1", "is_active = true", "year_of_study > 1"];
+      const params: unknown[] = [tenantId];
+
+      if (body.programme) {
+        params.push(body.programme);
+        conditions.push(`programme = $${params.length}`);
+      }
+      if (body.from_year != null) {
+        params.push(Number(body.from_year));
+        conditions.push(`year_of_study = $${params.length}`);
+      }
+      if (body.class_section) {
+        params.push(body.class_section);
+        conditions.push(`class_section = $${params.length}`);
+      }
+
+      const result = await withTenant(tenantId, (client) =>
+        client.query(
+          `UPDATE app.students
+           SET year_of_study = year_of_study - 1, updated_at = now()
+           WHERE ${conditions.join(" AND ")}`,
+          params,
+        ),
+      );
+
+      return { demoted: result.rowCount ?? 0 };
+    },
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // POST /students/import — bulk create students from CSV rows (admin/registrar)
+  // Body: { rows: object[] }
+  //   Each row is a flat object with keys matching CSV headers (see mapping below).
+  //   Returns { imported, skipped, errors[] }.
+  // ─────────────────────────────────────────────────────────────────────────────
+  app.post(
+    "/students/import",
+    { preHandler: requireRole("admin", "registrar") },
+    async (req, reply) => {
+      const { tenantId } = req.user;
+      if (!tenantId) {
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+      }
+
+      const RowsSchema = z.object({
+        rows: z.array(z.record(z.string(), z.unknown())).min(1).max(2000),
+      });
+      const parsed = RowsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.status(422).send({ error: parsed.error.flatten() });
+      }
+
+      const { rows } = parsed.data;
+
+      // Column name aliases: CSV header → internal key
+      const COL = (row: Record<string, unknown>, ...keys: string[]): string => {
+        for (const k of keys) {
+          const v = row[k];
+          if (v != null && String(v).trim() !== "") return String(v).trim();
+        }
+        return "";
+      };
+
+      let imported = 0;
+      let skipped = 0;
+      const errors: { row: number; error: string }[] = [];
+      const warnings: { row: number; student_id: string; student_name: string; raw_programme: string }[] = [];
+
+      await withTenant(tenantId, async (client) => {
+        // Build a case-insensitive lookup: code/title → { id, title }
+        const { rows: progRows } = await client.query<{ id: string; code: string; title: string }>(
+          `SELECT id, code, title FROM app.programmes WHERE is_active = true`,
+        );
+        const progByKey = new Map<string, { id: string; title: string }>();
+        for (const p of progRows) {
+          progByKey.set(p.code.toLowerCase().trim(), { id: p.id, title: p.title });
+          progByKey.set(p.title.toLowerCase().trim(), { id: p.id, title: p.title });
+        }
+
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i] as Record<string, unknown>;
+
+          let firstName = COL(row, "First Name", "first_name", "FirstName");
+          let lastName  = COL(row, "Last Name", "Last name", "last_name", "LastName");
+
+          // Auto-split when all names are packed into the first-name cell
+          // e.g. firstName="John Paul Mwesigwa", lastName="" → first="John", last="Mwesigwa", other="Paul"
+          // e.g. firstName="NAKAMYA", lastName="" (single name) → first="NAKAMYA", last="NAKAMYA"
+          let autoOtherName = "";
+          if (firstName && !lastName) {
+            const parts = firstName.trim().split(/\s+/);
+            if (parts.length >= 2) {
+              firstName     = parts[0];
+              lastName      = parts[parts.length - 1];
+              autoOtherName = parts.slice(1, -1).join(" "); // middle word(s)
+            } else {
+              // Single-word name: use it as both first and last (common for single-name students)
+              lastName = firstName;
+            }
+          }
+          // Reverse case: only last name found
+          if (lastName && !firstName) {
+            firstName = lastName;
+          }
+
+          if (!firstName || !lastName) {
+            errors.push({ row: i + 2, error: "first_name and last_name are required" });
+            skipped++;
+            continue;
+          }
+
+          const admissionNumber = COL(row, "Student Reg.Number", "Student Reg. Number", "admission_number", "Reg No", "RegNo");
+          const otherName       = COL(row, "Other Name", "Other name", "other_name") || autoOtherName;
+          const gender          = COL(row, "Gender", "gender");
+          const dobRaw          = COL(row, "Date of Birth", "Date Of Birth", "date_of_birth", "DOB");
+          const nationalId      = COL(row, "National ID/NIN", "National ID", "NIN", "national_id");
+          const phone           = COL(row, "phone number", "Phone Number", "phone", "Phone");
+          const email           = COL(row, "EMAIL", "Email", "email");
+          const district        = COL(row, "District of Orign", "District of Origin", "district_of_origin");
+          const nokName         = COL(row, "Next of kin Name", "Next of Kin Name", "guardian_name");
+          const nokPhone        = COL(row, "Next of kin phone", "Next of Kin Phone", "guardian_phone");
+          const programme       = COL(row, "Programme", "programme");
+          // Resolve programme text → programme_id (case-insensitive, code or title)
+          const progMatch = programme ? progByKey.get(programme.toLowerCase().trim()) : undefined;
+          const resolvedProgrammeId   = progMatch?.id ?? null;
+          const resolvedProgrammeText = progMatch?.title ?? (programme || null);
+          const intakeYear      = COL(row, "Intake Year", "intake_year", "Intake");
+          const enrolledRaw     = COL(row, "Enrolled status", "Enrolled Status", "enrolled_status", "is_active");
+          const sponsorship     = COL(row, "sponsorship", "Sponsorship", "sponsorship_type");
+
+          // Normalise date
+          let dob: string | null = null;
+          if (dobRaw) {
+            // Accept DD/MM/YYYY, DD-MM-YYYY or YYYY-MM-DD
+            const slashMatch = dobRaw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (slashMatch) {
+              dob = `${slashMatch[3]}-${slashMatch[2].padStart(2, "0")}-${slashMatch[1].padStart(2, "0")}`;
+            } else if (/^\d{4}-\d{2}-\d{2}$/.test(dobRaw)) {
+              dob = dobRaw;
+            }
+          }
+
+          // Normalise is_active
+          const isActive =
+            enrolledRaw === "" || /^(yes|active|enrolled|true|1)$/i.test(enrolledRaw);
+
+          // Build extension JSONB for unmapped fields
+          const extension: Record<string, string> = {};
+          if (otherName)  extension["other_name"]         = otherName;
+          if (gender)     extension["gender"]              = gender;
+          if (nationalId) extension["national_id"]         = nationalId;
+          if (district)   extension["district_of_origin"]  = district;
+          if (intakeYear) extension["intake_year"]         = intakeYear;
+
+          // Use a SAVEPOINT so a failed INSERT can be rolled back without
+          // aborting the outer transaction (PostgreSQL "transaction is aborted" cascade).
+          const sp = `sp_import_${i}`;
+          try {
+            await client.query(`SAVEPOINT ${sp}`);
+            const { rows: insRows } = await client.query<{ id: string }>(
+              `INSERT INTO app.students
+                 (tenant_id, first_name, last_name, date_of_birth, admission_number,
+                  sponsorship_type, programme, programme_id, email, phone,
+                  guardian_name, guardian_phone, extension, is_active)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+               RETURNING id`,
+              [
+                tenantId,
+                firstName,
+                lastName,
+                dob,
+                admissionNumber || null,
+                sponsorship || null,
+                resolvedProgrammeText,
+                resolvedProgrammeId,
+                email || null,
+                phone || null,
+                nokName || null,
+                nokPhone || null,
+                JSON.stringify(extension),
+                isActive,
+              ],
+            );
+            await client.query(`RELEASE SAVEPOINT ${sp}`);
+            imported++;
+            if (programme && !resolvedProgrammeId) {
+              warnings.push({
+                row: i + 2,
+                student_id: insRows[0].id,
+                student_name: `${firstName} ${lastName}`,
+                raw_programme: programme,
+              });
+            }
+          } catch (err: unknown) {
+            await client.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+            const pgErr = err as { code?: string; detail?: string };
+            if (pgErr.code === "23505") {
+              skipped++;
+              errors.push({ row: i + 2, error: `Duplicate record (${pgErr.detail ?? "unique constraint"})` });
+            } else {
+              skipped++;
+              errors.push({ row: i + 2, error: pgErr.detail ?? String(err) });
+            }
+          }
+        }
+      });
+
+      return reply.status(201).send({ imported, skipped, errors, warnings });
     },
   );
 }

@@ -117,9 +117,104 @@ export async function tenantsRoutes(app: FastifyInstance) {
    * GET /tenants
    * Query: ?isActive=true&page=1&limit=20
    */
+  /**
+   * GET /tenants/me  — VTI admin reads their own tenant profile
+   */
+  app.get(
+    "/tenants/me",
+    { preHandler: requireRole("admin", "registrar", "hod", "instructor", "finance", "principal", "dean") },
+    async (req, reply) => {
+      const tenantId = req.user.tenantId;
+      if (!tenantId) {
+        return reply.status(400).send({ message: "No tenant context" });
+      }
+      const result = await pool.query(
+        `SELECT id, slug, name, is_active, contact_email, address, phone, logo_url, created_at, setup_completed
+         FROM platform.tenants WHERE id = $1`,
+        [tenantId],
+      );
+      if (result.rows.length === 0) {
+        return reply.status(404).send({ message: "Tenant not found" });
+      }
+      const row = result.rows[0];
+      return {
+        ...toPublic(row),
+        setupCompleted: row.setup_completed as boolean,
+      };
+    },
+  );
+
+  /**
+   * PUT /tenants/me  — VTI admin updates their own tenant profile
+   */
+  app.put(
+    "/tenants/me",
+    { preHandler: requireRole("admin") },
+    async (req, reply) => {
+      const tenantId = req.user.tenantId;
+      if (!tenantId) {
+        return reply.status(400).send({ message: "No tenant context" });
+      }
+
+      const MeUpdateSchema = z.object({
+        name: z.string().min(1).max(255).optional(),
+        contactEmail: z.string().email().nullable().optional(),
+        address: z.string().max(500).nullable().optional(),
+        phone: z.string().max(30).nullable().optional(),
+        logoUrl: z.string().url().max(2048).nullable().optional(),
+        setupCompleted: z.boolean().optional(),
+      });
+
+      const parsed = MeUpdateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ statusCode: 400, message: parsed.error.issues });
+      }
+
+      const fieldMap: Record<string, string> = {
+        name: "name",
+        contactEmail: "contact_email",
+        address: "address",
+        phone: "phone",
+        logoUrl: "logo_url",
+        setupCompleted: "setup_completed",
+      };
+
+      const setClauses: string[] = [];
+      const params: unknown[] = [tenantId];
+
+      for (const [jsKey, dbCol] of Object.entries(fieldMap)) {
+        const val = parsed.data[jsKey as keyof typeof parsed.data];
+        if (val !== undefined) {
+          params.push(val);
+          setClauses.push(`${dbCol} = $${params.length}`);
+        }
+      }
+
+      if (setClauses.length === 0) {
+        return reply.status(400).send({ message: "At least one field must be provided" });
+      }
+
+      if (parsed.data.setupCompleted === true) {
+        setClauses.push(`setup_completed_at = now()`);
+      }
+
+      const result = await pool.query(
+        `UPDATE platform.tenants SET ${setClauses.join(", ")}
+         WHERE id = $1
+         RETURNING id, slug, name, is_active, contact_email, address, phone, logo_url, created_at, setup_completed`,
+        params,
+      );
+
+      const row = result.rows[0];
+      return { ...toPublic(row), setupCompleted: row.setup_completed as boolean };
+    },
+  );
+
+  // ------------------------------------------------------------------ Platform-admin-only CRUD
+
   app.get(
     "/tenants",
-    { preHandler: requireRole("admin") },
+    { preHandler: requireRole("platform_admin") },
     async (req, reply) => {
       const parsed = TenantsQuerySchema.safeParse(req.query);
       if (!parsed.success) {
@@ -166,7 +261,7 @@ export async function tenantsRoutes(app: FastifyInstance) {
    */
   app.get(
     "/tenants/:id",
-    { preHandler: requireRole("admin") },
+    { preHandler: requireRole("platform_admin") },
     async (req, reply) => {
       const { id } = req.params as { id: string };
 
@@ -194,7 +289,7 @@ export async function tenantsRoutes(app: FastifyInstance) {
    */
   app.post(
     "/tenants",
-    { preHandler: requireRole("admin") },
+    { preHandler: requireRole("platform_admin") },
     async (req, reply) => {
       const parsed = CreateTenantSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -228,7 +323,7 @@ export async function tenantsRoutes(app: FastifyInstance) {
    */
   app.put(
     "/tenants/:id",
-    { preHandler: requireRole("admin") },
+    { preHandler: requireRole("platform_admin") },
     async (req, reply) => {
       const { id } = req.params as { id: string };
 

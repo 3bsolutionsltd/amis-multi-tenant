@@ -199,7 +199,7 @@ export function FeesImportPage() {
           </p>
           <p style={{ fontSize: 13, color: C.gray400, margin: "0 0 20px" }}>
             <strong>studentId</strong> — UUID of the student &nbsp;·&nbsp;
-            <strong>amount</strong> — positive number (ZAR) &nbsp;·&nbsp;
+            <strong>amount</strong> — positive number (UGX) &nbsp;·&nbsp;
             <strong>paid_at</strong> — YYYY-MM-DD
           </p>
           <input
@@ -291,7 +291,7 @@ export function FeesImportPage() {
                 </SectionLabel>
               </div>
               <DataTable
-                headers={["Student ID", "Amount (ZAR)", "Reference", "Date"]}
+                headers={["Student ID", "Amount (UGX)", "Reference", "Date"]}
                 isLoading={false}
                 isEmpty={false}
                 colCount={4}

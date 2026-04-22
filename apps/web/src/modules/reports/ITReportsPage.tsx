@@ -191,10 +191,10 @@ export function ITReportsPage() {
   );
 
   return (
-    <C>
+    <div>
       <PageHeader
         title="IT Progress Reports"
-        subtitle="Industrial training progress reports from students and supervisors"
+        description="Industrial training progress reports from students and supervisors"
         action={<PrimaryBtn onClick={() => setShowModal(true)}>+ New Report</PrimaryBtn>}
       />
       {showModal && (
@@ -230,9 +230,7 @@ export function ITReportsPage() {
             <TR key={r.id}>
               <TD>{r.period}</TD>
               <TD>
-                <Badge color={r.report_type === "student" ? "blue" : "green"}>
-                  {REPORT_TYPE_LABELS[r.report_type] ?? r.report_type}
-                </Badge>
+                <Badge label={REPORT_TYPE_LABELS[r.report_type] ?? r.report_type} color={r.report_type === "student" ? "blue" : "green"} />
               </TD>
               <TD>{r.submitted_by}</TD>
               <TD>{r.rating != null ? `${r.rating}/5` : "—"}</TD>
@@ -241,6 +239,6 @@ export function ITReportsPage() {
           ))}
         </DataTable>
       </Card>
-    </C>
+    </div>
   );
 }

@@ -222,7 +222,7 @@ function StaffModal({
                 onChange={(e) => set("join_date", e.target.value)}
               />
             </Field>
-            <Field label="Salary (ZAR)">
+            <Field label="Salary (UGX)">
               <input
                 type="number"
                 min={0}
@@ -285,12 +285,12 @@ export function StaffListPage() {
   const cols = ["Name", "Staff No.", "Department", "Designation", "Type", "Status", ""];
 
   return (
-    <div style={C.page}>
+    <div>
       <PageHeader
         title="Staff"
-        subtitle="Manage staff profiles, contracts and attendance"
-        actions={
-          <PrimaryBtn onClick={() => setShowModal(true)}>+ New Staff</PrimaryBtn>
+        description="Manage staff profiles, contracts and attendance"
+        action={
+          <PrimaryBtn onClick={() => navigate("/staff/new")}>+ New Staff</PrimaryBtn>
         }
       />
 
@@ -322,10 +322,10 @@ export function StaffListPage() {
       )}
 
       <DataTable
-        columns={cols}
+        headers={cols}
         isLoading={isLoading}
         isEmpty={!staff || staff.length === 0}
-        emptyMessage="No staff found"
+        emptyTitle="No staff found"
       >
         {(staff ?? []).map((s: StaffProfile) => (
           <TR key={s.id} onClick={() => navigate(`/staff/${s.id}`)}>
@@ -341,9 +341,7 @@ export function StaffListPage() {
                 : "—"}
             </TD>
             <TD>
-              <Badge variant={s.is_active ? "success" : "neutral"}>
-                {s.is_active ? "Active" : "Inactive"}
-              </Badge>
+              <Badge label={s.is_active ? "Active" : "Inactive"} color={s.is_active ? "green" : "gray"} />
             </TD>
             <TD>
               {s.is_active && (

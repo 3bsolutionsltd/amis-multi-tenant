@@ -176,10 +176,10 @@ export function StaffDetailPage() {
     saveMut.mutate(body);
   }
 
-  if (isLoading) return <div style={C.page}>Loading…</div>;
+  if (isLoading) return <div>Loading…</div>;
   if (error || !staff)
     return (
-      <div style={C.page}>
+      <div>
         <ErrorBanner
           message={error instanceof Error ? error.message : "Staff not found"}
         />
@@ -187,11 +187,11 @@ export function StaffDetailPage() {
     );
 
   return (
-    <div style={C.page}>
+    <div>
       <PageHeader
         title={`${staff.first_name} ${staff.last_name}`}
-        subtitle={staff.designation ?? "Staff Member"}
-        actions={
+        description={staff.designation ?? "Staff Member"}
+        action={
           <div style={{ display: "flex", gap: 8 }}>
             <SecondaryBtn onClick={() => navigate("/staff")}>← Back</SecondaryBtn>
             {!editing && <PrimaryBtn onClick={startEdit}>Edit</PrimaryBtn>}
@@ -222,13 +222,11 @@ export function StaffDetailPage() {
             <DetailRow label="Join Date">{staff.join_date ?? "—"}</DetailRow>
             <DetailRow label="Salary">
               {staff.salary != null
-                ? `ZAR ${Number(staff.salary).toLocaleString()}`
+                ? `UGX ${Number(staff.salary).toLocaleString()}`
                 : "—"}
             </DetailRow>
             <DetailRow label="Status">
-              <Badge variant={staff.is_active ? "success" : "neutral"}>
-                {staff.is_active ? "Active" : "Inactive"}
-              </Badge>
+              <Badge label={staff.is_active ? "Active" : "Inactive"} color={staff.is_active ? "green" : "gray"} />
             </DetailRow>
             <DetailRow label="Notes">{staff.notes ?? "—"}</DetailRow>
           </div>
@@ -324,7 +322,7 @@ export function StaffDetailPage() {
                   onChange={(e) => setForm((f) => ({ ...f, join_date: e.target.value }))}
                 />
               </Field>
-              <Field label="Salary (ZAR)">
+              <Field label="Salary (UGX)">
                 <input
                   type="number"
                   min={0}
@@ -426,7 +424,7 @@ export function StaffDetailPage() {
                 }
               />
             </Field>
-            <Field label="Salary (ZAR)">
+            <Field label="Salary (UGX)">
               <input
                 type="number"
                 min={0}
@@ -449,9 +447,9 @@ export function StaffDetailPage() {
         )}
 
         <DataTable
-          columns={["Type", "Start", "End", "Salary"]}
+          headers={["Type", "Start", "End", "Salary"]}
           isEmpty={!contracts || contracts.length === 0}
-          emptyMessage="No contracts recorded"
+          emptyTitle="No contracts recorded"
         >
           {(contracts ?? []).map((c) => (
             <TR key={c.id}>
@@ -460,7 +458,7 @@ export function StaffDetailPage() {
               <TD>{c.end_date ?? "Open-ended"}</TD>
               <TD>
                 {c.salary != null
-                  ? `ZAR ${Number(c.salary).toLocaleString()}`
+                  ? `UGX ${Number(c.salary).toLocaleString()}`
                   : "—"}
               </TD>
             </TR>
@@ -556,9 +554,9 @@ export function StaffDetailPage() {
         )}
 
         <DataTable
-          columns={["Date", "Session", "Status"]}
+          headers={["Date", "Session", "Status"]}
           isEmpty={!attendance || attendance.length === 0}
-          emptyMessage="No attendance records"
+          emptyTitle="No attendance records"
         >
           {(attendance ?? []).map((a) => (
             <TR key={a.id}>
@@ -677,9 +675,9 @@ export function StaffDetailPage() {
         )}
 
         <DataTable
-          columns={["Period", "Rating", "Comments", "Appraised By"]}
+          headers={["Period", "Rating", "Comments", "Appraised By"]}
           isEmpty={!appraisals || appraisals.length === 0}
-          emptyMessage="No appraisals recorded"
+          emptyTitle="No appraisals recorded"
         >
           {(appraisals ?? []).map((a) => (
             <TR key={a.id}>

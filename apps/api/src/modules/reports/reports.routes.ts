@@ -608,5 +608,254 @@ export async function reportsRoutes(app: FastifyInstance) {
       return result;
     },
   );
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Class List Report (SR-F-035) — GET /reports/class-list
+  // ─────────────────────────────────────────────────────────────────────────────
+  app.get(
+    "/reports/class-list",
+    { preHandler: requireRole(...MANAGEMENT_ROLES) },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const q = req.query as Record<string, string>;
+      const programme = q.programme ?? null;
+      const year_of_study = q.year_of_study ? Number(q.year_of_study) : null;
+      const class_section = q.class_section ?? null;
+
+      const students = await withTenant(tid, async (client) => {
+        const conditions: string[] = ["s.tenant_id = $1", "s.is_active = true"];
+        const params: unknown[] = [tid];
+
+        if (programme) {
+          params.push(programme);
+          conditions.push(`s.programme = $${params.length}`);
+        }
+        if (year_of_study != null) {
+          params.push(year_of_study);
+          conditions.push(`s.year_of_study = $${params.length}`);
+        }
+        if (class_section) {
+          params.push(class_section);
+          conditions.push(`s.class_section = $${params.length}`);
+        }
+
+        const { rows } = await client.query(
+          `SELECT
+             s.id,
+             s.admission_number,
+             s.first_name,
+             s.last_name,
+             s.gender,
+             s.date_of_birth,
+             s.programme,
+             s.year_of_study,
+             s.class_section,
+             s.phone,
+             s.email
+           FROM app.students s
+           WHERE ${conditions.join(" AND ")}
+           ORDER BY s.last_name, s.first_name`,
+          params,
+        );
+        return rows;
+      });
+
+      const male = students.filter((s: Record<string, string>) => s.gender === "male").length;
+      const female = students.filter((s: Record<string, string>) => s.gender === "female").length;
+
+      return {
+        students,
+        summary: {
+          total: students.length,
+          male,
+          female,
+          other: students.length - male - female,
+        },
+        filters: { programme, year_of_study, class_section },
+      };
+    },
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Fee Collection Summary Report (SR-F-036) — GET /reports/fee-collection
+  // ─────────────────────────────────────────────────────────────────────────────
+  app.get(
+    "/reports/fee-collection",
+    { preHandler: requireRole(...MANAGEMENT_ROLES) },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const q = req.query as Record<string, string>;
+      const term = q.term ?? null;
+      const from = q.from ?? null;
+      const to = q.to ?? null;
+      const programme = q.programme ?? null;
+
+      const result = await withTenant(tid, async (client) => {
+        const conditions: string[] = ["fp.tenant_id = $1"];
+        const params: unknown[] = [tid];
+
+        if (term) {
+          params.push(term);
+          conditions.push(`fp.term = $${params.length}`);
+        }
+        if (from) {
+          params.push(from);
+          conditions.push(`fp.payment_date >= $${params.length}`);
+        }
+        if (to) {
+          params.push(to);
+          conditions.push(`fp.payment_date <= $${params.length}`);
+        }
+        if (programme) {
+          params.push(programme);
+          conditions.push(`s.programme = $${params.length}`);
+        }
+
+        const { rows: payments } = await client.query(
+          `SELECT
+             fp.id,
+             fp.student_id,
+             s.admission_number,
+             s.first_name,
+             s.last_name,
+             s.programme,
+             fp.amount,
+             fp.payment_method,
+             fp.payment_date,
+             fp.term,
+             fp.reference_number
+           FROM app.fee_payments fp
+           LEFT JOIN app.students s ON s.id = fp.student_id
+           WHERE ${conditions.join(" AND ")}
+           ORDER BY fp.payment_date DESC`,
+          params,
+        );
+
+        const { rows: summary } = await client.query(
+          `SELECT
+             fp.term,
+             s.programme,
+             COUNT(*) AS payment_count,
+             SUM(fp.amount) AS total_collected
+           FROM app.fee_payments fp
+           LEFT JOIN app.students s ON s.id = fp.student_id
+           WHERE ${conditions.join(" AND ")}
+           GROUP BY fp.term, s.programme
+           ORDER BY fp.term, s.programme`,
+          params,
+        );
+
+        const totals = payments.reduce(
+          (acc: number, r: Record<string, string>) => acc + Number(r.amount),
+          0,
+        );
+
+        return {
+          payments,
+          by_programme_term: summary.map((r: Record<string, string>) => ({
+            term: r.term,
+            programme: r.programme,
+            payment_count: Number(r.payment_count),
+            total_collected: Number(r.total_collected),
+          })),
+          grand_total: totals,
+          filters: { term, from, to, programme },
+        };
+      });
+
+      return result;
+    },
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // NCHE/DIT Enrollment Returns — GET /reports/nche-enrollment
+  // ─────────────────────────────────────────────────────────────────────────────
+  app.get(
+    "/reports/nche-enrollment",
+    { preHandler: requireRole(...MANAGEMENT_ROLES) },
+    async (request, reply) => {
+      const tid = getTenantId(request);
+      const { academic_year, term } = request.query as {
+        academic_year?: string;
+        term?: string;
+      };
+
+      const rows = await withTenant(tid, async (client) => {
+        const conditions: string[] = ["s.is_active = true"];
+        const params: unknown[] = [];
+
+        if (academic_year) {
+          params.push(academic_year);
+          conditions.push(`tr.academic_year = $${params.length}`);
+        }
+        if (term) {
+          params.push(term);
+          conditions.push(`tr.term = $${params.length}`);
+        }
+
+        const whereClause = conditions.length > 0
+          ? `WHERE ${conditions.join(" AND ")}`
+          : "";
+
+        // If term_registrations requested, join; otherwise just use students
+        const hasTermFilter = academic_year || term;
+        let query: string;
+
+        if (hasTermFilter) {
+          query = `
+            SELECT
+              s.programme,
+              s.year_of_study,
+              s.sponsorship_type,
+              COUNT(*) AS total,
+              COUNT(*) FILTER (WHERE s.gender = 'M' OR lower(s.sex) = 'm') AS male,
+              COUNT(*) FILTER (WHERE s.gender = 'F' OR lower(s.sex) = 'f') AS female,
+              COUNT(*) FILTER (WHERE s.sponsorship_type = 'government') AS government_sponsored,
+              COUNT(*) FILTER (WHERE s.sponsorship_type = 'private' OR s.sponsorship_type IS NULL) AS self_sponsored
+            FROM app.students s
+            INNER JOIN app.term_registrations tr ON tr.student_id = s.id
+            ${whereClause}
+            GROUP BY s.programme, s.year_of_study, s.sponsorship_type
+            ORDER BY s.programme, s.year_of_study`;
+        } else {
+          query = `
+            SELECT
+              s.programme,
+              s.year_of_study,
+              s.sponsorship_type,
+              COUNT(*) AS total,
+              COUNT(*) FILTER (WHERE s.gender = 'M' OR lower(s.sex) = 'm') AS male,
+              COUNT(*) FILTER (WHERE s.gender = 'F' OR lower(s.sex) = 'f') AS female,
+              COUNT(*) FILTER (WHERE s.sponsorship_type = 'government') AS government_sponsored,
+              COUNT(*) FILTER (WHERE s.sponsorship_type = 'private' OR s.sponsorship_type IS NULL) AS self_sponsored
+            FROM app.students s
+            WHERE s.is_active = true
+            GROUP BY s.programme, s.year_of_study, s.sponsorship_type
+            ORDER BY s.programme, s.year_of_study`;
+        }
+
+        const { rows: r } = await client.query(query, params);
+        return r;
+      });
+
+      // Aggregate grand totals
+      const grandTotal = (rows as Record<string, string>[]).reduce(
+        (acc, r) => acc + Number(r.total),
+        0,
+      );
+
+      return reply.send({
+        rows,
+        grand_total: grandTotal,
+        filters: { academic_year, term },
+      });
+    },
+  );
 }
 

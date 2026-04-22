@@ -23,6 +23,7 @@ const PUBLIC_PATHS = new Set([
   "POST /auth/reset-password",
   "GET /auth/tenants",
   "GET /health",
+  "POST /onboarding", // VTI self-registration is public
 ]);
 
 /** Route prefixes that never require authentication. */

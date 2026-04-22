@@ -167,3 +167,112 @@ export async function updateInstructorReport(
     body: JSON.stringify(body),
   });
 }
+
+// ─── Class List Report ────────────────────────────────────────────────────────
+
+export interface ClassListStudent {
+  id: string;
+  admission_number: string;
+  first_name: string;
+  last_name: string;
+  gender: string | null;
+  date_of_birth: string | null;
+  programme: string | null;
+  year_of_study: number | null;
+  class_section: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
+export interface ClassListResult {
+  students: ClassListStudent[];
+  summary: { total: number; male: number; female: number; other: number };
+  filters: { programme: string | null; year_of_study: number | null; class_section: string | null };
+}
+
+export interface ClassListParams {
+  programme?: string;
+  year_of_study?: number;
+  class_section?: string;
+}
+
+export async function getClassList(params?: ClassListParams): Promise<ClassListResult> {
+  const qs = new URLSearchParams(
+    Object.entries(params ?? {})
+      .filter(([, v]) => v !== undefined && v !== "")
+      .map(([k, v]) => [k, String(v)])
+  ).toString();
+  return apiFetch(`/reports/class-list${qs ? `?${qs}` : ""}`);
+}
+
+// ─── Fee Collection Report ────────────────────────────────────────────────────
+
+export interface FeePaymentRow {
+  id: string;
+  student_id: string;
+  admission_number: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  programme: string | null;
+  amount: number;
+  payment_method: string | null;
+  payment_date: string | null;
+  term: string | null;
+  reference_number: string | null;
+}
+
+export interface FeeCollectionResult {
+  payments: FeePaymentRow[];
+  by_programme_term: { term: string; programme: string; payment_count: number; total_collected: number }[];
+  grand_total: number;
+  filters: { term: string | null; from: string | null; to: string | null; programme: string | null };
+}
+
+export interface FeeCollectionParams {
+  term?: string;
+  from?: string;
+  to?: string;
+  programme?: string;
+}
+
+export async function getFeeCollectionReport(params?: FeeCollectionParams): Promise<FeeCollectionResult> {
+  const qs = new URLSearchParams(
+    Object.entries(params ?? {})
+      .filter(([, v]) => v !== undefined && v !== "")
+      .map(([k, v]) => [k, String(v)])
+  ).toString();
+  return apiFetch(`/reports/fee-collection${qs ? `?${qs}` : ""}`);
+}
+
+// ─── NCHE/DIT Enrollment Returns ──────────────────────────────────────────────
+
+export interface NcheEnrollmentRow {
+  programme: string | null;
+  year_of_study: number | null;
+  sponsorship_type: string | null;
+  total: number;
+  male: number;
+  female: number;
+  government_sponsored: number;
+  self_sponsored: number;
+}
+
+export interface NcheEnrollmentResult {
+  rows: NcheEnrollmentRow[];
+  grand_total: number;
+  filters: { academic_year?: string; term?: string };
+}
+
+export interface NcheEnrollmentParams {
+  academic_year?: string;
+  term?: string;
+}
+
+export async function getNcheEnrollment(params?: NcheEnrollmentParams): Promise<NcheEnrollmentResult> {
+  const qs = new URLSearchParams(
+    Object.entries(params ?? {})
+      .filter(([, v]) => v !== undefined && v !== "")
+      .map(([k, v]) => [k, String(v)])
+  ).toString();
+  return apiFetch(`/reports/nche-enrollment${qs ? `?${qs}` : ""}`);
+}

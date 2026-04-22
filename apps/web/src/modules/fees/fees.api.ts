@@ -57,6 +57,50 @@ export interface FeeImportRow {
   paid_at: string;
 }
 
+// ---- Fee overview & defaulters (tenant-wide) ----
+
+export interface FeeOverview {
+  totalStudents: number;
+  totalExpected: number;
+  totalCollected: number;
+  collectionRate: number;
+  fullyPaid: number;
+  defaulters: number;
+  defaultTotalDue: number;
+}
+
+export interface Defaulter {
+  id: string;
+  first_name: string;
+  last_name: string;
+  admission_number: string | null;
+  programme: string | null;
+  total_paid: number;
+  balance: number;
+}
+
+export interface FeeClearance {
+  student: { id: string; first_name: string; last_name: string; admission_number: string | null };
+  totalDue: number;
+  totalPaid: number;
+  threshold: number;
+  requiredAmount: number;
+  cleared: boolean;
+  balance: number;
+}
+
+export function getFeeOverview(): Promise<FeeOverview> {
+  return apiFetch<FeeOverview>("/fees/overview");
+}
+
+export function getFeeDefaulters(): Promise<Defaulter[]> {
+  return apiFetch<Defaulter[]>("/fees/defaulters");
+}
+
+export function getFeeClearance(studentId: string): Promise<FeeClearance> {
+  return apiFetch<FeeClearance>(`/fees/students/${studentId}/clearance`);
+}
+
 export interface FeeImportResult {
   inserted: number;
   errors: Array<{ row: number; message: string }>;

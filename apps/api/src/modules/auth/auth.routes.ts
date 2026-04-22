@@ -17,6 +17,7 @@ import { pool } from "../../db/pool.js";
 import { hashPasswordAsync, verifyPasswordAsync } from "../../lib/password.js";
 import { signToken, verifyToken } from "../../lib/jwt.js";
 import { isValidPassword } from "../../lib/passwordValidator.js";
+import { sendMail, buildPasswordResetEmail } from "../../lib/email.js";
 
 // ------------------------------------------------------------------ helpers
 
@@ -355,9 +356,15 @@ export async function authRoutes(app: FastifyInstance) {
         [userId, tokenHash, expiresAt],
       );
 
-      // No email service yet — log raw token for dev use
-      if (process.env.NODE_ENV !== "production") {
-        console.log("[DEV] Password reset token:", rawToken);
+      // Send password reset email
+      const appUrl = process.env.APP_URL ?? "http://localhost:5173";
+      const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
+      const { html, text } = buildPasswordResetEmail(resetUrl);
+      try {
+        await sendMail({ to: email, subject: "Password Reset — AMIS", html, text });
+      } catch (err) {
+        // Log but don't fail the request — no-enumeration still applies
+        console.error("[forgot-password] Email send failed:", err);
       }
     }
 

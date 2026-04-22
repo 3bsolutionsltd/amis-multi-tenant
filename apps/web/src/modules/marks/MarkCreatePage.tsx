@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { createSubmission } from "./marks.api";
+import { listProgrammes } from "../programmes/programmes.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -12,18 +14,32 @@ import {
   ErrorBanner,
 } from "../../lib/ui";
 
-const PROGRAMMES = ["NCBC", "NCES", "NCAM", "NCP", "NCWF"];
 const TERMS = ["Term 1", "Term 2", "Term 3"];
+const ASSESSMENT_TYPES = [
+  { value: "midterm", label: "Midterm" },
+  { value: "end_of_term", label: "End of Term" },
+  { value: "coursework", label: "Coursework" },
+  { value: "practical", label: "Practical" },
+];
 
 export function MarkCreatePage() {
   ensureGlobalCss();
   const navigate = useNavigate();
+
+  const programmesQ = useQuery({
+    queryKey: ["programmes"],
+    queryFn: listProgrammes,
+    staleTime: 60_000,
+  });
+  const programmes = programmesQ.data ?? [];
 
   const [form, setForm] = useState({
     course_id: "",
     programme: "",
     intake: "2026/2027",
     term: "",
+    assessment_type: "end_of_term",
+    weight: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +53,10 @@ export function MarkCreatePage() {
     setSaving(true);
     setError(null);
     try {
-      const result = await createSubmission(form);
+      const result = await createSubmission({
+        ...form,
+        weight: form.weight ? Number(form.weight) : undefined,
+      });
       navigate(`/marks/${result.submission.id}`);
     } catch (err) {
       setError(
@@ -77,9 +96,9 @@ export function MarkCreatePage() {
               onChange={(e) => set("programme", e.target.value)}
             >
               <option value="">— Select Programme —</option>
-              {PROGRAMMES.map((p) => (
-                <option key={p} value={p}>
-                  {p}
+              {programmes.map((p) => (
+                <option key={p.id} value={p.code ?? p.name}>
+                  {p.code ? `${p.code} – ${p.name}` : p.name}
                 </option>
               ))}
             </select>
@@ -108,6 +127,33 @@ export function MarkCreatePage() {
                 </option>
               ))}
             </select>
+          </Field>
+
+          <Field label="Assessment Type" required>
+            <select
+              required
+              style={selectCss}
+              value={form.assessment_type}
+              onChange={(e) => set("assessment_type", e.target.value)}
+            >
+              {ASSESSMENT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Weight (%)">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              style={inputCss}
+              value={form.weight}
+              placeholder="e.g. 30"
+              onChange={(e) => set("weight", e.target.value)}
+            />
           </Field>
 
           {error && <ErrorBanner message={error} />}

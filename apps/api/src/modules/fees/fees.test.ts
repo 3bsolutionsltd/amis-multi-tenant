@@ -480,3 +480,168 @@ describe("POST /fees/reconciliation/:id/match", () => {
     expect(res.json()).toMatchObject({ matched: true, payment_id: "pay-001" });
   });
 });
+
+// ------------------------------------------------------------------ GET /fees/overview
+
+describe("GET /fees/overview", () => {
+  it("returns 400 without tenant header", async () => {
+    const app = buildApp();
+    const res = await app.inject({ method: "GET", url: "/fees/overview" });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("returns 403 for instructor role", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/fees/overview",
+      headers: instructorHeaders,
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns 200 with overview stats", async () => {
+    mockWithTenant.mockResolvedValueOnce({
+      totalStudents: 100,
+      totalExpected: 500000,
+      totalCollected: 350000,
+      collectionRate: 70,
+      fullyPaid: 50,
+      defaulters: 50,
+      defaultTotalDue: 5000,
+    } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/fees/overview",
+      headers: adminHeaders,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.totalStudents).toBe(100);
+    expect(body.collectionRate).toBe(70);
+    expect(body.defaulters).toBe(50);
+  });
+});
+
+// ------------------------------------------------------------------ GET /fees/defaulters
+
+describe("GET /fees/defaulters", () => {
+  it("returns 400 without tenant header", async () => {
+    const app = buildApp();
+    const res = await app.inject({ method: "GET", url: "/fees/defaulters" });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("returns 403 for instructor role", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/fees/defaulters",
+      headers: instructorHeaders,
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns 200 with defaulter list", async () => {
+    const defaulters = [
+      {
+        id: STUDENT_ID,
+        first_name: "John",
+        last_name: "Doe",
+        admission_number: "ADM-2026-0001",
+        programme: "CS",
+        total_paid: 2000,
+        balance: 3000,
+      },
+    ];
+    mockWithTenant.mockResolvedValueOnce(defaulters as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/fees/defaulters",
+      headers: financeHeaders,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body).toHaveLength(1);
+    expect(body[0].balance).toBe(3000);
+  });
+});
+
+// ------------------------------------------------------------------ GET /fees/students/:studentId/clearance
+
+describe("GET /fees/students/:studentId/clearance", () => {
+  it("returns 400 without tenant header", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/fees/students/${STUDENT_ID}/clearance`,
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("returns 403 for instructor role", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/fees/students/${STUDENT_ID}/clearance`,
+      headers: instructorHeaders,
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns 404 when student not found", async () => {
+    mockWithTenant.mockResolvedValueOnce({ notFound: true } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/fees/students/${STUDENT_ID}/clearance`,
+      headers: adminHeaders,
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("returns 200 with clearance status — cleared", async () => {
+    mockWithTenant.mockResolvedValueOnce({
+      student: { id: STUDENT_ID, first_name: "John", last_name: "Doe", admission_number: "ADM-001" },
+      totalDue: 5000,
+      totalPaid: 4000,
+      threshold: 75,
+      requiredAmount: 3750,
+      cleared: true,
+      balance: 1000,
+    } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/fees/students/${STUDENT_ID}/clearance`,
+      headers: financeHeaders,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.cleared).toBe(true);
+    expect(body.threshold).toBe(75);
+    expect(body.balance).toBe(1000);
+  });
+
+  it("returns 200 with clearance status — not cleared", async () => {
+    mockWithTenant.mockResolvedValueOnce({
+      student: { id: STUDENT_ID, first_name: "Jane", last_name: "Doe", admission_number: "ADM-002" },
+      totalDue: 5000,
+      totalPaid: 1000,
+      threshold: 75,
+      requiredAmount: 3750,
+      cleared: false,
+      balance: 4000,
+    } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/fees/students/${STUDENT_ID}/clearance`,
+      headers: adminHeaders,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().cleared).toBe(false);
+  });
+});

@@ -14,10 +14,21 @@ export function ensureGlobalCss() {
   _cssInjected = true;
   const el = document.createElement("style");
   el.textContent = `
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    body { font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; }
     @keyframes amis-spin   { to { transform: rotate(360deg); } }
     @keyframes amis-pulse  { 0%,100%{opacity:1} 50%{opacity:.4} }
     @keyframes amis-fadein { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
     .amis-row-hover:hover  { background: #f8fafc !important; }
+    .amis-nav-link:hover   { background: #f3f4f6 !important; }
+    input:focus, select:focus, textarea:focus { border-color: #2563eb !important; box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important; outline: none; }
+    button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+    ::selection { background: #dbeafe; color: #1e3a5f; }
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
   `;
   document.head.appendChild(el);
 }
@@ -681,6 +692,7 @@ export const inputCss: CSSProperties = {
   color: C.gray900,
   background: C.white,
   outline: "none",
+  transition: "border-color 0.15s, box-shadow 0.15s",
 };
 
 export const selectCss: CSSProperties = {

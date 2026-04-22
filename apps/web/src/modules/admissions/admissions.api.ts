@@ -30,6 +30,7 @@ export interface CreateApplicationBody {
 }
 
 export interface ListApplicationsParams {
+  search?: string;
   intake?: string;
   programme?: string;
   current_state?: string;
@@ -55,6 +56,7 @@ export function listApplications(
   params?: ListApplicationsParams,
 ): Promise<Application[]> {
   const q = new URLSearchParams();
+  if (params?.search) q.set("search", params.search);
   if (params?.intake) q.set("intake", params.intake);
   if (params?.programme) q.set("programme", params.programme);
   if (params?.current_state) q.set("current_state", params.current_state);
@@ -130,6 +132,18 @@ export function previewImport(
 export function confirmImport(batchId: string): Promise<ImportConfirmResult> {
   return apiFetch<ImportConfirmResult>(
     `/admissions/import/${batchId}/confirm`,
+    { method: "POST" },
+  );
+}
+
+export interface EnrollResult {
+  student: { id: string; admission_number: string };
+  application: Application;
+}
+
+export function enrollApplication(applicationId: string): Promise<EnrollResult> {
+  return apiFetch<EnrollResult>(
+    `/admissions/applications/${applicationId}/enroll`,
     { method: "POST" },
   );
 }

@@ -6,16 +6,16 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import {
-  getStudent,
+import { getStudent,
   updateStudent,
   deactivateStudent,
   reactivateStudent,
   type UpdateStudentBody,
   type DeactivateStudentBody,
 } from "./students.api";
+import { StudentDocumentsSection } from "./StudentDocumentsSection";
 import { listProgrammes } from "../programmes/programmes.api";
-import { getFeeSummary } from "../fees/fees.api";
+import { getFeeSummary, getFeeClearance } from "../fees/fees.api";
 import { listTermRegistrations } from "../term-registrations/term-registrations.api";
 import { useConfig } from "../../app/ConfigProvider";
 import {
@@ -50,6 +50,8 @@ export function StudentDetailPage() {
     date_of_birth: "",
     admission_number: "",
     programme: "",
+    year_of_study: "",
+    class_section: "",
     guardian_name: "",
     guardian_phone: "",
     guardian_email: "",
@@ -111,6 +113,8 @@ export function StudentDetailPage() {
       date_of_birth: student!.date_of_birth ?? "",
       admission_number: student!.admission_number ?? "",
       programme: student!.programme ?? "",
+      year_of_study: student!.year_of_study != null ? String(student!.year_of_study) : "",
+      class_section: student!.class_section ?? "",
       guardian_name: student!.guardian_name ?? "",
       guardian_phone: student!.guardian_phone ?? "",
       guardian_email: student!.guardian_email ?? "",
@@ -130,6 +134,8 @@ export function StudentDetailPage() {
       guardian_phone: form.guardian_phone || undefined,
       guardian_email: form.guardian_email || undefined,
       guardian_relationship: form.guardian_relationship || undefined,
+      year_of_study: form.year_of_study ? Number(form.year_of_study) : undefined,
+      class_section: form.class_section || undefined,
     };
     if (form.date_of_birth) body.date_of_birth = form.date_of_birth;
     mutation.mutate(body);
@@ -149,12 +155,18 @@ export function StudentDetailPage() {
         queryFn: () => listTermRegistrations({ student_id: id!, limit: 5 }),
         enabled: !!id,
       },
+      {
+        queryKey: ["feeClearance", id],
+        queryFn: () => getFeeClearance(id!),
+        enabled: !!id,
+      },
     ],
   });
 
-  const [feeQ, tregQ] = extra;
+  const [feeQ, tregQ, clearanceQ] = extra;
   const summary = feeQ.data;
   const termRegs = tregQ.data ?? [];
+  const clearance = clearanceQ.data;
 
   if (isLoading) return <Spinner />;
   if (error || !student)
@@ -329,15 +341,22 @@ export function StudentDetailPage() {
                     )}
                   </Card>
                 </div>
-                <SecondaryBtn
-                  onClick={() =>
-                    navigate(
-                      `/finance/entry?student_id=${id}&student_name=${encodeURIComponent(`${student.first_name} ${student.last_name}`)}`,
-                    )
-                  }
-                >
-                  + Record Payment
-                </SecondaryBtn>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <SecondaryBtn
+                    onClick={() =>
+                      navigate(
+                        `/finance/entry?student_id=${id}&student_name=${encodeURIComponent(`${student.first_name} ${student.last_name}`)}`,
+                      )
+                    }
+                  >
+                    + Record Payment
+                  </SecondaryBtn>
+                  <SecondaryBtn
+                    onClick={() => navigate(`/finance/receipt?student_id=${id}`)}
+                  >
+                    🖨 Print Receipt
+                  </SecondaryBtn>
+                </div>
               </>
             ) : (
               <Card padding="16px 20px">
@@ -347,6 +366,48 @@ export function StudentDetailPage() {
               </Card>
             )}
           </div>
+
+          {/* Fee clearance badge */}
+          {clearance && (
+            <Card
+              padding="16px 24px"
+              style={{
+                marginBottom: 20,
+                borderLeft: `4px solid ${clearance.cleared ? C.green : C.red}`,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.07em",
+                      color: clearance.cleared ? C.green : C.red,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Fee Clearance
+                  </div>
+                  <div style={{ fontSize: 13, color: C.gray500 }}>
+                    Threshold: {clearance.threshold}% of total due &middot;
+                    Required: UGX {Number(clearance.requiredAmount).toLocaleString()}
+                  </div>
+                </div>
+                <Badge
+                  label={clearance.cleared ? "CLEARED" : "NOT CLEARED"}
+                  color={clearance.cleared ? "green" : "red"}
+                />
+              </div>
+            </Card>
+          )}
 
           {/* Term registrations */}
           <div>
@@ -489,6 +550,25 @@ export function StudentDetailPage() {
               </Card>
             )}
           </div>
+
+          {/* Results / Transcript */}
+          <div style={{ marginBottom: 20 }}>
+            <SectionLabel>Results</SectionLabel>
+            <Card padding="16px 20px">
+              <div style={{ display: "flex", gap: 8 }}>
+                <SecondaryBtn
+                  onClick={() =>
+                    navigate(`/results/transcript?student_id=${id}`)
+                  }
+                >
+                  📄 Academic Transcript
+                </SecondaryBtn>
+              </div>
+            </Card>
+          </div>
+
+          {/* Documents & Photos */}
+          <StudentDocumentsSection studentId={id!} />
         </>
       ) : (
         <Card padding="24px" style={{ maxWidth: 520 }}>
@@ -548,6 +628,26 @@ export function StudentDetailPage() {
                   setForm({ ...form, admission_number: e.target.value })
                 }
                 placeholder="e.g. 2024/CS/001"
+              />
+            </Field>
+            <Field label="Year of Study">
+              <select
+                style={selectCss}
+                value={form.year_of_study}
+                onChange={(e) => setForm({ ...form, year_of_study: e.target.value })}
+              >
+                <option value="">— Select Year —</option>
+                {[1, 2, 3, 4, 5, 6].map((y) => (
+                  <option key={y} value={y}>Year {y}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Class Section">
+              <input
+                style={inputCss}
+                placeholder="e.g. A, B"
+                value={form.class_section}
+                onChange={(e) => setForm({ ...form, class_section: e.target.value })}
               />
             </Field>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.07em", paddingTop: 8 }}>Guardian / Next of Kin</div>
