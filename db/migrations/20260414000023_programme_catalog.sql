@@ -17,8 +17,11 @@ CREATE TABLE IF NOT EXISTS app.programmes (
 
 ALTER TABLE app.programmes ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY programmes_tenant_isolation ON app.programmes
-  USING (tenant_id = app.current_tenant_id());
+DO $$ BEGIN
+  CREATE POLICY programmes_tenant_isolation ON app.programmes
+    USING (tenant_id = app.current_tenant_id());
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON app.programmes TO amis_app;
 
