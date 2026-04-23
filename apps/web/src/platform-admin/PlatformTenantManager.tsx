@@ -42,6 +42,7 @@ export function PlatformTenantManager() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<Tenant | null>(null);
   const [search, setSearch] = useState("");
+  const [deleteErr, setDeleteErr] = useState<string | null>(null);
 
   const { data, isLoading, error: loadErr } = useQuery<TenantsResponse>({
     queryKey: ["platform/tenants"],
@@ -58,12 +59,37 @@ export function PlatformTenantManager() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/tenants/${id}?confirm=true`, { method: "DELETE" }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["platform/tenants"] });
+    },
+  });
+
   const toggleActive = useCallback(
     (t: Tenant) => {
       if (!window.confirm(`${t.isActive ? "Deactivate" : "Activate"} "${t.name}"?`)) return;
       updateMutation.mutate({ id: t.id, body: { isActive: !t.isActive } });
     },
     [updateMutation],
+  );
+
+  const handleDelete = useCallback(
+    (t: Tenant) => {
+      if (
+        !window.confirm(
+          `Permanently delete "${t.name}"?\n\nThis cannot be undone. All tenant data will be removed.`,
+        )
+      )
+        return;
+      setDeleteErr(null);
+      deleteMutation.mutate(t.id, {
+        onError: (err) =>
+          setDeleteErr(err instanceof Error ? err.message : "Delete failed"),
+      });
+    },
+    [deleteMutation],
   );
 
   const tenants = (data?.data ?? []).filter(
@@ -146,6 +172,21 @@ export function PlatformTenantManager() {
           }}
         >
           Failed to load tenants
+        </div>
+      )}
+
+      {deleteErr && (
+        <div
+          style={{
+            background: C.redBg,
+            color: C.redText,
+            padding: "12px 16px",
+            borderRadius: 8,
+            marginBottom: 16,
+            fontSize: 14,
+          }}
+        >
+          {deleteErr}
         </div>
       )}
 
@@ -272,6 +313,22 @@ export function PlatformTenantManager() {
                         }}
                       >
                         {t.isActive ? "Deactivate" : "Activate"}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(t)}
+                        disabled={deleteMutation.isPending}
+                        style={{
+                          padding: "4px 12px",
+                          background: "transparent",
+                          border: `1px solid ${C.gray300}`,
+                          borderRadius: 6,
+                          fontSize: 12,
+                          cursor: "pointer",
+                          color: C.redText,
+                          opacity: deleteMutation.isPending ? 0.5 : 1,
+                        }}
+                      >
+                        Delete
                       </button>
                     </div>
                   </td>

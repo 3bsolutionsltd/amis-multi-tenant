@@ -480,11 +480,6 @@ export function VtiSetupPage() {
         {/* Step 2: TVET Compliance */}
         {step === 2 && (
           <form onSubmit={handleStep2Submit}>
-            <p style={{ fontSize: 14, color: C.gray500, marginTop: 0, marginBottom: 20 }}>
-              Required for TVET Act compliance and CoVE framework reporting. These details are
-              submitted to TVET Authority Uganda for accreditation and inspection purposes.
-            </p>
-
             <div style={{ marginBottom: 18 }}>
               <label style={labelStyle}>Ownership Type *</label>
               <select

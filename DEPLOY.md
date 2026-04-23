@@ -127,9 +127,17 @@ cd /opt/amis
 # Pull latest code
 git pull origin main
 
-# Rebuild images and restart (migrate runs automatically, applies any new migrations)
+# 1. Apply any new DB migrations (ALWAYS run this first — see note below)
+docker compose -f docker-compose.prod.yml run --rm migrate
+
+# 2. Rebuild images and restart services
 docker compose -f docker-compose.prod.yml up -d --build
 ```
+
+> **Important:** The `migrate` service uses `restart: "no"` and only runs automatically
+> on the very first `docker compose up`. On subsequent deploys Docker Compose considers
+> it already done and skips it. **Always run `run --rm migrate` explicitly before
+> rebuilding** to ensure new migration files are applied.
 
 No Nginx changes needed unless a new domain is added.
 
@@ -165,7 +173,8 @@ certbot renew --dry-run
 
 ## Part 5 — Running migrations manually (if needed)
 
-The `migrate` service runs automatically on every `docker compose up`. To run standalone:
+The `migrate` service runs **only on the first** `docker compose up`; on subsequent deploys
+you must run it explicitly (it's idempotent — safe to run multiple times). To run it:
 
 ```bash
 docker compose -f docker-compose.prod.yml run --rm migrate
@@ -268,12 +277,15 @@ cd /opt/amis
 # Pull latest code
 git pull origin main
 
-# Rebuild images, run any new migrations, restart api+web
-# (DB and Caddy stay up; migrate service runs and exits cleanly)
+# 1. Apply any new DB migrations first
+docker compose -f docker-compose.prod.yml run --rm migrate
+
+# 2. Rebuild images and restart
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-The `migrate` service will apply any new migrations automatically before the API comes up.
+> **Always run migrate before rebuilding.** The migrate service only auto-runs on the
+> first deployment; Docker Compose skips it on subsequent `up` calls.
 
 ---
 
@@ -301,7 +313,8 @@ docker compose -f docker-compose.prod.yml down -v
 
 ## Part 5 — Running migrations manually (if needed)
 
-The `migrate` service runs automatically on every `docker compose up`. To run it standalone (e.g. after a hotfix to migrations):
+The `migrate` service runs **only on the first** `docker compose up`; run it explicitly
+on every subsequent deploy (it's idempotent). To run it standalone:
 
 ```bash
 docker compose -f docker-compose.prod.yml run --rm migrate
