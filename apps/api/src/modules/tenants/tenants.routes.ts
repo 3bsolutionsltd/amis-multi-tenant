@@ -371,4 +371,54 @@ export async function tenantsRoutes(app: FastifyInstance) {
       return toPublic(result.rows[0]);
     },
   );
+
+  /**
+   * DELETE /tenants/:id  — hard-delete a tenant (platform_admin only)
+   *
+   * Requires the tenant to have no active users. The caller must confirm
+   * intent by passing  ?confirm=true  as a query parameter, which prevents
+   * accidental deletes triggered by a stray PUT/DELETE mismatch.
+   */
+  app.delete(
+    "/tenants/:id",
+    { preHandler: requireRole("platform_admin") },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+
+      const uuidSchema = z.string().uuid();
+      if (!uuidSchema.safeParse(id).success) {
+        return reply.status(400).send({ statusCode: 400, message: "Invalid tenant ID" });
+      }
+
+      const { confirm } = req.query as { confirm?: string };
+      if (confirm !== "true") {
+        return reply
+          .status(400)
+          .send({ statusCode: 400, message: "Pass ?confirm=true to confirm deletion" });
+      }
+
+      // Prevent deleting a tenant that still has users
+      const userCount = await pool.query(
+        `SELECT count(*)::int AS cnt FROM platform.users WHERE tenant_id = $1`,
+        [id],
+      );
+      if (userCount.rows[0].cnt > 0) {
+        return reply.status(409).send({
+          statusCode: 409,
+          message: `Cannot delete: tenant still has ${userCount.rows[0].cnt} user(s). Remove all users first.`,
+        });
+      }
+
+      const result = await pool.query(
+        `DELETE FROM platform.tenants WHERE id = $1 RETURNING id`,
+        [id],
+      );
+
+      if (result.rows.length === 0) {
+        return reply.status(404).send({ statusCode: 404, message: "Tenant not found" });
+      }
+
+      return reply.status(200).send({ message: "Tenant deleted" });
+    },
+  );
 }
