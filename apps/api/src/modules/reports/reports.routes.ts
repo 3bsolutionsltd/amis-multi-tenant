@@ -781,6 +781,9 @@ export async function reportsRoutes(app: FastifyInstance) {
     { preHandler: requireRole(...MANAGEMENT_ROLES) },
     async (request, reply) => {
       const tid = getTenantId(request);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
       const { academic_year, term } = request.query as {
         academic_year?: string;
         term?: string;
