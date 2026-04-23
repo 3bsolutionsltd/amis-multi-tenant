@@ -1,32 +1,62 @@
 import { useState, useEffect } from "react";
-import { getConfigStatus, createDraft } from "./admin-studio.api";
+import { getConfigStatus, createDraft, publishConfig } from "./admin-studio.api";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface ModuleFlags {
-  students: boolean;
-  admissions: boolean;
-  finance: boolean;
   [key: string]: boolean;
 }
 
-const MODULE_LABELS: Record<string, string> = {
-  students: "Students",
-  admissions: "Admissions",
-  finance: "Finance / Fees",
-};
+const MODULE_GROUPS: Array<{ group: string; modules: Array<{ key: string; label: string; description: string }> }> = [
+  {
+    group: "Core",
+    modules: [
+      { key: "students",    label: "Students",         description: "Student records, profiles and management" },
+      { key: "admissions",  label: "Admissions",       description: "Application intake and processing" },
+      { key: "finance",     label: "Finance / Fees",   description: "Fee structures, payments and reconciliation" },
+    ],
+  },
+  {
+    group: "Academic",
+    modules: [
+      { key: "marks",       label: "Marks & Grades",   description: "Mark entry, bulk entry and grade processing" },
+      { key: "results",     label: "Results & Transcripts", description: "Term results, slips and transcripts" },
+      { key: "timetable",   label: "Timetable",        description: "Class schedule management" },
+      { key: "attendance",  label: "Attendance",       description: "Student attendance tracking" },
+      { key: "clearance",   label: "Clearance",        description: "Student clearance and debt tracking" },
+    ],
+  },
+  {
+    group: "Staff & Training",
+    modules: [
+      { key: "staff",               label: "Staff / HR",             description: "Staff profiles, departments and HR records" },
+      { key: "industrial-training", label: "Industrial Training",    description: "Student industrial attachment records" },
+      { key: "field-placements",    label: "Field Placements",       description: "Student field placement assignments" },
+    ],
+  },
+  {
+    group: "Reports & Analytics",
+    modules: [
+      { key: "analytics",   label: "Analytics Dashboard",  description: "Key metrics and enrolment analytics" },
+      { key: "reports",     label: "Reports",              description: "IT reports, class lists, NCHE enrollment, evaluations" },
+      { key: "alumni",      label: "Alumni",               description: "Graduate tracking and alumni records" },
+    ],
+  },
+];
+
+const ALL_MODULE_KEYS = MODULE_GROUPS.flatMap((g) => g.modules.map((m) => m.key));
 
 export function ModuleToggles() {
   const qc = useQueryClient();
+  const role = localStorage.getItem("amis_dev_role") ?? "admin";
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<"draft" | "published" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fullPayload, setFullPayload] = useState<Record<string, unknown>>({});
-  const [modules, setModules] = useState<ModuleFlags>({
-    students: true,
-    admissions: true,
-    finance: true,
-  });
+  const [modules, setModules] = useState<ModuleFlags>(() =>
+    Object.fromEntries(ALL_MODULE_KEYS.map((k) => [k, true]))
+  );
 
   useEffect(() => {
     getConfigStatus()
@@ -37,11 +67,9 @@ export function ModuleToggles() {
           {};
         setFullPayload(payload);
         const m = (payload.modules ?? {}) as Record<string, unknown>;
-        setModules({
-          students: m.students !== false,
-          admissions: m.admissions !== false,
-          finance: m.finance !== false,
-        });
+        setModules(
+          Object.fromEntries(ALL_MODULE_KEYS.map((k) => [k, m[k] !== false]))
+        );
       })
       .catch(() => setError("Failed to load config"))
       .finally(() => setLoading(false));
@@ -49,18 +77,20 @@ export function ModuleToggles() {
 
   function toggle(key: string) {
     setModules((prev) => ({ ...prev, [key]: !prev[key] }));
+    setSavedMsg(null);
   }
 
   async function handleSave() {
     setSaving(true);
     setError(null);
-    setSuccess(false);
+    setSavedMsg(null);
     try {
       const updated = { ...fullPayload, modules: { ...modules } };
       await createDraft(updated);
       setFullPayload(updated);
-      setSuccess(true);
+      setSavedMsg("draft");
       qc.invalidateQueries({ queryKey: ["config"] });
+      qc.invalidateQueries({ queryKey: ["config/status"] });
     } catch {
       setError("Failed to save module settings");
     } finally {
@@ -68,102 +98,155 @@ export function ModuleToggles() {
     }
   }
 
+  async function handleSaveAndPublish() {
+    setPublishing(true);
+    setError(null);
+    setSavedMsg(null);
+    try {
+      const updated = { ...fullPayload, modules: { ...modules } };
+      await createDraft(updated);
+      await publishConfig(role);
+      setFullPayload(updated);
+      setSavedMsg("published");
+      qc.invalidateQueries({ queryKey: ["config"] });
+      qc.invalidateQueries({ queryKey: ["config/status"] });
+    } catch {
+      setError("Failed to save and publish");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   if (loading) return <p style={{ color: "#6b7280" }}>Loading...</p>;
 
-  return (
-    <div style={{ maxWidth: 520 }}>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
-        Module Toggles
-      </h2>
-      <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 24 }}>
-        Enable or disable application modules. Changes are saved as a draft —
-        publish from the Config Editor when ready.
-      </p>
+  const isBusy = saving || publishing;
+  const enabledCount = Object.values(modules).filter(Boolean).length;
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {Object.entries(modules).map(([key, enabled]) => (
-          <label
-            key={key}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "14px 16px",
-              borderRadius: 8,
-              background: enabled ? "#f0fdf4" : "#fafafa",
-              border: `1px solid ${enabled ? "#bbf7d0" : "#e5e7eb"}`,
-              cursor: "pointer",
-              transition: "background 0.15s",
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>
-                {MODULE_LABELS[key] ?? key}
-              </div>
-              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-                {enabled ? "Enabled" : "Disabled"}
-              </div>
-            </div>
-            <div
-              onClick={() => toggle(key)}
-              role="switch"
-              aria-checked={enabled}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") toggle(key);
-              }}
-              style={{
-                width: 44,
-                height: 24,
-                borderRadius: 12,
-                background: enabled ? "#22c55e" : "#d1d5db",
-                position: "relative",
-                cursor: "pointer",
-                transition: "background 0.2s",
-                flexShrink: 0,
-              }}
-            >
-              <div
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  background: "#fff",
-                  position: "absolute",
-                  top: 3,
-                  left: enabled ? 23 : 3,
-                  transition: "left 0.2s",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                }}
-              />
-            </div>
-          </label>
-        ))}
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4, color: "#0f172a" }}>
+          Module Toggles
+        </h2>
+        <p style={{ color: "#6b7280", fontSize: 14, margin: 0 }}>
+          Enable or disable application modules. Only enabled modules appear in
+          navigation and are accessible to users.
+        </p>
       </div>
 
-      <div style={{ marginTop: 24, display: "flex", gap: 12, alignItems: "center" }}>
+      {/* Summary */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
+        <span style={{ padding: "4px 12px", background: "#dcfce7", color: "#15803d", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
+          {enabledCount} enabled
+        </span>
+        <span style={{ padding: "4px 12px", background: "#f1f5f9", color: "#64748b", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
+          {ALL_MODULE_KEYS.length - enabledCount} disabled
+        </span>
+      </div>
+
+      {/* Groups */}
+      {MODULE_GROUPS.map((group) => (
+        <div key={group.group} style={{ marginBottom: 24 }}>
+          <div style={{
+            fontSize: 11, fontWeight: 700, color: "#64748b",
+            textTransform: "uppercase", letterSpacing: "0.07em",
+            marginBottom: 8,
+          }}>
+            {group.group}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {group.modules.map(({ key, label, description }) => {
+              const enabled = modules[key] ?? true;
+              return (
+                <div
+                  key={key}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "12px 16px",
+                    borderRadius: 8,
+                    background: enabled ? "#f0fdf4" : "#fafafa",
+                    border: `1px solid ${enabled ? "#bbf7d0" : "#e5e7eb"}`,
+                    transition: "background 0.15s",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "#0f172a" }}>
+                      {label}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                      {description}
+                    </div>
+                  </div>
+                  <div
+                    onClick={() => toggle(key)}
+                    role="switch"
+                    aria-checked={enabled}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") toggle(key);
+                    }}
+                    style={{
+                      width: 44, height: 24, borderRadius: 12,
+                      background: enabled ? "#22c55e" : "#d1d5db",
+                      position: "relative", cursor: "pointer",
+                      transition: "background 0.2s", flexShrink: 0, marginLeft: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 18, height: 18, borderRadius: "50%",
+                        background: "#fff", position: "absolute", top: 3,
+                        left: enabled ? 23 : 3, transition: "left 0.2s",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      {/* Error / success */}
+      {error && (
+        <div style={{ padding: "10px 16px", background: "#fee2e2", color: "#dc2626", borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
+          {error}
+        </div>
+      )}
+      {savedMsg && (
+        <div style={{ padding: "10px 16px", background: "#dcfce7", color: "#15803d", borderRadius: 8, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>
+          {savedMsg === "draft"
+            ? "✓ Saved as draft — click Save & Publish to go live."
+            : "✓ Published! Module settings are now live."}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 10 }}>
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={isBusy}
           style={{
-            padding: "10px 24px",
-            background: saving ? "#93c5fd" : "#2563eb",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: saving ? "not-allowed" : "pointer",
+            padding: "10px 22px", background: saving ? "#93c5fd" : "#2563eb",
+            color: "#fff", border: "none", borderRadius: 7,
+            fontSize: 14, fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer",
           }}
         >
-          {saving ? "Saving..." : "Save as Draft"}
+          {saving ? "Saving…" : "Save as Draft"}
         </button>
-        {success && (
-          <span style={{ color: "#16a34a", fontSize: 13 }}>
-            Saved! Publish from Config Editor to go live.
-          </span>
-        )}
-        {error && <span style={{ color: "#b91c1c", fontSize: 13 }}>{error}</span>}
+        <button
+          onClick={handleSaveAndPublish}
+          disabled={isBusy}
+          style={{
+            padding: "10px 22px", background: publishing ? "#4ade80" : "#16a34a",
+            color: "#fff", border: "none", borderRadius: 7,
+            fontSize: 14, fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer",
+          }}
+        >
+          {publishing ? "Publishing…" : "Save & Publish"}
+        </button>
       </div>
     </div>
   );

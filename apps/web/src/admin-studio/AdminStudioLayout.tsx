@@ -118,6 +118,9 @@ export function AdminStudioLayout() {
           <NavLink to="/admin-studio/modules" style={studioNavStyle}>
             Module Toggles
           </NavLink>
+          <NavLink to="/admin-studio/student-form" style={studioNavStyle}>
+            Student Form Fields
+          </NavLink>
           <NavLink to="/admin-studio/navigation" style={studioNavStyle}>
             Navigation
           </NavLink>
