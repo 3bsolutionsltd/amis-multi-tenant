@@ -7,13 +7,21 @@ const { Pool } = pg;
 let _pool: pg.Pool | null = null;
 
 function getPool(): pg.Pool {
-  if (!_pool)
+  if (!_pool) {
     _pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      max: parseInt(process.env.PG_POOL_MAX ?? "20", 10),
+      max: parseInt(process.env.PG_POOL_MAX ?? "10", 10),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 5_000,
+      // Detect dead connections (e.g. after container restarts) via TCP keepalives
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10_000,
     });
+    // Prevent unhandled 'error' events from crashing the process
+    _pool.on("error", (err) => {
+      console.error("[pg-pool] idle client error — will be discarded", err.message);
+    });
+  }
   return _pool;
 }
 
