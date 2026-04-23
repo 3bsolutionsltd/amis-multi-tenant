@@ -15,8 +15,18 @@ import {
   SectionLabel,
   Field,
   inputCss,
+  selectCss,
   C,
 } from "../../lib/ui";
+
+const PROGRAMME_LEVELS = [
+  "Certificate",
+  "National Certificate",
+  "National Diploma",
+  "Higher National Diploma",
+  "Diploma",
+  "Bachelor's Degree",
+] as const;
 
 export function ProgrammeDetailPage() {
   ensureGlobalCss();
@@ -117,7 +127,12 @@ export function ProgrammeDetailPage() {
                 <input required style={inputCss} value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} />
               </Field>
               <Field label="Level">
-                <input style={inputCss} value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))} />
+                <select style={selectCss} value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))}>
+                  <option value="">— Select level —</option>
+                  {PROGRAMME_LEVELS.map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
               </Field>
             </div>
             <Field label="Title" required>
