@@ -26,7 +26,7 @@ export async function admissionsRoutes(app: FastifyInstance) {
     "/admissions/applications",
     { preHandler: requireRole("registrar", "admin") },
     async (req, reply) => {
-      const tid = req.user?.tenantId ?? tenantHeader(req);
+      const tid = getTenantId(req);
       if (!tid)
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -113,7 +113,7 @@ export async function admissionsRoutes(app: FastifyInstance) {
       preHandler: requireRole("admin", "registrar", "hod", "principal", "dean"),
     },
     async (req, reply) => {
-      const tid = req.user?.tenantId ?? tenantHeader(req);
+      const tid = getTenantId(req);
       if (!tid)
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -177,7 +177,7 @@ export async function admissionsRoutes(app: FastifyInstance) {
       preHandler: requireRole("admin", "registrar", "hod", "principal", "dean"),
     },
     async (req, reply) => {
-      const tid = req.user?.tenantId ?? tenantHeader(req);
+      const tid = getTenantId(req);
       if (!tid)
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -205,7 +205,7 @@ export async function admissionsRoutes(app: FastifyInstance) {
     "/admissions/import",
     { preHandler: requireRole("registrar", "admin") },
     async (req, reply) => {
-      const tid = req.user?.tenantId ?? tenantHeader(req);
+      const tid = getTenantId(req);
       if (!tid)
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -259,7 +259,7 @@ export async function admissionsRoutes(app: FastifyInstance) {
     "/admissions/import/:batchId/confirm",
     { preHandler: requireRole("registrar", "admin") },
     async (req, reply) => {
-      const tid = req.user?.tenantId ?? tenantHeader(req);
+      const tid = getTenantId(req);
       if (!tid)
         return reply.status(400).send({ error: "x-tenant-id header required" });
 

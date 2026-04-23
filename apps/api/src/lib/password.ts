@@ -10,7 +10,12 @@
 import { randomBytes, scrypt, scryptSync, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
-const scryptAsync = promisify(scrypt);
+const scryptAsync = promisify(scrypt) as unknown as (
+  password: string | Buffer,
+  salt: string | Buffer,
+  keylen: number,
+  options: { N?: number; r?: number; p?: number; maxmem?: number },
+) => Promise<Buffer>;
 
 const SCRYPT_N = 16384; // cost factor
 const SCRYPT_R = 8; // block size
