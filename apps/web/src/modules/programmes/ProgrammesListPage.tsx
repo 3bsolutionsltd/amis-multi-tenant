@@ -17,8 +17,18 @@ import {
   Card,
   Field,
   inputCss,
+  selectCss,
   C,
 } from "../../lib/ui";
+
+const PROGRAMME_LEVELS = [
+  "Certificate",
+  "National Certificate",
+  "National Diploma",
+  "Higher National Diploma",
+  "Diploma",
+  "Bachelor's Degree",
+] as const;
 
 function ProgrammeModal({
   programme,
@@ -91,7 +101,12 @@ function ProgrammeModal({
               <input required style={inputCss} value={form.code} onChange={(e) => set("code", e.target.value)} placeholder="e.g. NCBC" />
             </Field>
             <Field label="Level">
-              <input style={inputCss} value={form.level} onChange={(e) => set("level", e.target.value)} placeholder="e.g. Certificate" />
+              <select style={selectCss} value={form.level} onChange={(e) => set("level", e.target.value)}>
+                <option value="">— Select level —</option>
+                {PROGRAMME_LEVELS.map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
             </Field>
           </div>
           <Field label="Title" required>
