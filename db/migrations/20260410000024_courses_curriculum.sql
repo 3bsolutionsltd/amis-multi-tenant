@@ -1,6 +1,39 @@
 -- migrate:up
 
 -- ============================================================
+-- Programme catalog (must exist before courses can reference it)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS app.programmes (
+  id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id        uuid        NOT NULL,
+  code             text        NOT NULL,
+  title            text        NOT NULL,
+  department       text,
+  duration_months  int,
+  level            text,
+  is_active        boolean     NOT NULL DEFAULT true,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, code)
+);
+
+ALTER TABLE app.programmes ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  CREATE POLICY programmes_tenant_isolation ON app.programmes
+    USING (tenant_id = app.current_tenant_id());
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON app.programmes TO amis_app;
+
+ALTER TABLE app.students
+  ADD COLUMN IF NOT EXISTS programme_id uuid REFERENCES app.programmes(id);
+
+ALTER TABLE app.admission_applications
+  ADD COLUMN IF NOT EXISTS programme_id uuid REFERENCES app.programmes(id);
+
+-- ============================================================
 -- Courses (curriculum catalogue)
 -- ============================================================
 CREATE TABLE app.courses (
