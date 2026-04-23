@@ -31,7 +31,9 @@ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
-GRANT CONNECT ON DATABASE amis_multi_tenant TO amis_app;
+DO $$ BEGIN
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO amis_app', current_database());
+END $$;
 GRANT USAGE ON SCHEMA app       TO amis_app;
 GRANT USAGE ON SCHEMA platform  TO amis_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA app      TO amis_app;
@@ -40,7 +42,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA platform TO amis_ap
 -- migrate:down
 REVOKE ALL ON ALL TABLES IN SCHEMA app      FROM amis_app;
 REVOKE ALL ON ALL TABLES IN SCHEMA platform FROM amis_app;
-REVOKE CONNECT ON DATABASE amis_multi_tenant FROM amis_app;
+DO $$ BEGIN
+  EXECUTE format('REVOKE CONNECT ON DATABASE %I FROM amis_app', current_database());
+END $$;
 DROP ROLE IF EXISTS amis_app;
 
 ALTER TABLE app.students NO FORCE ROW LEVEL SECURITY;
