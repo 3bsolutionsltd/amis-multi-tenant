@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { listStudents } from "../students/students.api";
@@ -5,14 +6,14 @@ import { listApplications } from "../admissions/admissions.api";
 import { listTermRegistrations } from "../term-registrations/term-registrations.api";
 import { listSubmissions } from "../marks/marks.api";
 import { getFeeOverview } from "../fees/fees.api";
+import { listStaff } from "../staff/staff.api";
+import { listProgrammes } from "../programmes/programmes.api";
 import { useAuth } from "../../auth/AuthContext";
 import {
   ensureGlobalCss,
   C,
   Card,
   Badge,
-  PrimaryBtn,
-  SecondaryBtn,
 } from "../../lib/ui";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -388,12 +389,7 @@ function RecentList({
 function QuickActions({ navigate }: { navigate: (to: string) => void }) {
   const actions = [
     { icon: "👨‍🎓", label: "New Student", to: "/students/new", color: C.blue },
-    {
-      icon: "📋",
-      label: "New Application",
-      to: "/admissions/new",
-      color: C.purple,
-    },
+    { icon: "📋", label: "New Application", to: "/admissions/new", color: C.purple },
     {
       icon: "📅",
       label: "Register Term",
@@ -407,7 +403,10 @@ function QuickActions({ navigate }: { navigate: (to: string) => void }) {
       color: C.green,
     },
     { icon: "📊", label: "New Mark Sheet", to: "/marks/new", color: C.yellow },
-    { icon: "👥", label: "Add User", to: "/users/new", color: "#ec4899" },
+    { icon: "�", label: "Add Staff", to: "/staff/new", color: "#ec4899" },
+    { icon: "📈", label: "Analytics", to: "/analytics", color: "#0891b2" },
+    { icon: "📑", label: "Class List", to: "/reports/class-list", color: "#64748b" },
+    { icon: "👥", label: "Add User", to: "/users/new", color: "#7c3aed" },
   ];
 
   return (
@@ -425,7 +424,7 @@ function QuickActions({ navigate }: { navigate: (to: string) => void }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: "1fr 1fr 1fr",
           gap: 1,
           background: C.gray100,
         }}
@@ -642,6 +641,91 @@ function Avatar({ name, color }: { name: string; color: string }) {
 
 // ── DashboardPage ─────────────────────────────────────────────────────────────
 
+// ── ModuleGrid ────────────────────────────────────────────────────────────────
+
+const ALL_MODULES: { icon: string; label: string; to: string; color: string; category: string }[] = [
+  // Core
+  { icon: "👨‍🎓", label: "Students", to: "/students", color: "#2563eb", category: "Academic" },
+  { icon: "📋", label: "Admissions", to: "/admissions", color: "#7c3aed", category: "Academic" },
+  { icon: "📅", label: "Term Registrations", to: "/term-registrations", color: "#0891b2", category: "Academic" },
+  { icon: "📊", label: "Marks", to: "/marks", color: "#d97706", category: "Academic" },
+  { icon: "🎓", label: "Results", to: "/results", color: "#8b5cf6", category: "Academic" },
+  { icon: "📚", label: "Programmes", to: "/programmes", color: "#0891b2", category: "Academic" },
+  { icon: "🧹", label: "Clearance", to: "/clearance", color: "#64748b", category: "Academic" },
+  // HR
+  { icon: "👤", label: "Staff", to: "/staff", color: "#ec4899", category: "HR & People" },
+  { icon: "🎓", label: "Alumni", to: "/alumni", color: "#a16207", category: "HR & People" },
+  // Finance
+  { icon: "💰", label: "Finance", to: "/finance", color: "#16a34a", category: "Finance" },
+  { icon: "📈", label: "Fee Overview", to: "/finance/overview", color: "#15803d", category: "Finance" },
+  // Field
+  { icon: "🏭", label: "Industrial Training", to: "/industrial-training", color: "#f59e0b", category: "Field" },
+  { icon: "📍", label: "Field Placements", to: "/field-placements", color: "#ca8a04", category: "Field" },
+  // Reports & Analytics
+  { icon: "📊", label: "Analytics", to: "/analytics", color: "#0891b2", category: "Reports" },
+  { icon: "📑", label: "Class List", to: "/reports/class-list", color: "#475569", category: "Reports" },
+  { icon: "💵", label: "Fee Collection", to: "/reports/fee-collection", color: "#16a34a", category: "Reports" },
+  { icon: "🏗️", label: "IT Report", to: "/reports/it", color: "#f59e0b", category: "Reports" },
+  { icon: "⭐", label: "Evaluations", to: "/reports/evaluations", color: "#7c3aed", category: "Reports" },
+  { icon: "📋", label: "NCHE Enrollment", to: "/reports/nche-enrollment", color: "#b91c1c", category: "Reports" },
+  { icon: "📉", label: "Marks Analysis", to: "/reports/marks-analysis", color: "#d97706", category: "Reports" },
+  // Other
+  { icon: "📅", label: "Timetable", to: "/timetable", color: "#2563eb", category: "Other" },
+  { icon: "✅", label: "Attendance", to: "/attendance", color: "#16a34a", category: "Other" },
+  { icon: "👥", label: "Users", to: "/users", color: "#db2777", category: "Other" },
+  { icon: "⚙️", label: "Admin Studio", to: "/admin-studio", color: "#64748b", category: "Other" },
+];
+
+const MODULE_CATEGORIES = [...new Set(ALL_MODULES.map((m) => m.category))];
+
+function ModuleGrid({ navigate }: { navigate: (to: string) => void }) {
+  const [activeCategory, setActiveCategory] = useState("Academic");
+  const filtered = ALL_MODULES.filter((m) => m.category === activeCategory);
+  return (
+    <Card>
+      <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.gray100}` }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: C.gray900 }}>🗂 All Modules</span>
+      </div>
+      {/* Category tabs */}
+      <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.gray100}`, overflowX: "auto" }}>
+        {MODULE_CATEGORIES.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            style={{
+              padding: "8px 14px", border: "none", borderBottom: activeCategory === cat ? "2px solid #2563eb" : "2px solid transparent",
+              background: "none", color: activeCategory === cat ? "#2563eb" : C.gray500,
+              fontWeight: activeCategory === cat ? 700 : 400, fontSize: 12, cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >{cat}</button>
+        ))}
+      </div>
+      {/* Module tiles */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1, background: C.gray100 }}>
+        {filtered.map(({ icon, label, to, color }) => (
+          <button
+            key={to}
+            onClick={() => navigate(to)}
+            style={{
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+              padding: "16px 8px", background: C.white, border: "none", cursor: "pointer",
+              fontSize: 12, fontWeight: 500, color: C.gray700, transition: "background 0.12s",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = C.gray50; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = C.white; }}
+          >
+            <span style={{ width: 36, height: 36, borderRadius: 10, background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{icon}</span>
+            <span style={{ textAlign: "center", lineHeight: 1.3 }}>{label}</span>
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// ── DashboardPage ─────────────────────────────────────────────────────────────
+
 export function DashboardPage() {
   ensureGlobalCss();
   const navigate = useNavigate();
@@ -674,15 +758,27 @@ export function DashboardPage() {
         queryFn: () => getFeeOverview(),
         enabled: !!user,
       },
+      {
+        queryKey: ["dash-staff"],
+        queryFn: () => listStaff({ limit: 100 }),
+        enabled: !!user,
+      },
+      {
+        queryKey: ["dash-programmes"],
+        queryFn: () => listProgrammes(),
+        enabled: !!user,
+      },
     ],
   });
 
-  const [stuQ, appQ, tregQ, markQ, feeOverviewQ] = results;
+  const [stuQ, appQ, tregQ, markQ, feeOverviewQ, staffQ, progQ] = results;
 
   const students = stuQ.data ?? [];
   const applications = appQ.data ?? [];
   const termRegs = tregQ.data ?? [];
   const submissions = markQ.data ?? [];
+  const staffList = staffQ.data ?? [];
+  const programmes = progQ.data ?? [];
 
   // Recent = first 5 (API returns newest first)
   const recentStudents = students.slice(0, 5);
@@ -768,6 +864,24 @@ export function DashboardPage() {
           accentColor="#16a34a"
           loading={feeOverviewQ.isLoading}
           onClick={() => navigate("/finance/overview")}
+        />
+        <StatTile
+          icon="👤"
+          label="Staff"
+          value={fmt(staffList.length)}
+          sub="active members"
+          accentColor="#ec4899"
+          loading={staffQ.isLoading}
+          onClick={() => navigate("/staff")}
+        />
+        <StatTile
+          icon="📚"
+          label="Programmes"
+          value={fmt(programmes.length)}
+          sub="offered"
+          accentColor="#0891b2"
+          loading={progQ.isLoading}
+          onClick={() => navigate("/programmes")}
         />
       </div>
 
@@ -961,115 +1075,10 @@ export function DashboardPage() {
           />
         </div>
 
-        {/* Right: quick actions + summary */}
+        {/* Right: quick actions + module grid */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <QuickActions navigate={navigate} />
-
-          <WorkflowPipeline
-            title="📈 Marks Pipeline"
-            states={MARK_PIPELINE_STATES}
-            items={submissions}
-            loading={markQ.isLoading}
-          />
-
-          {/* Module links */}
-          <Card>
-            <div
-              style={{
-                padding: "16px 20px",
-                borderBottom: `1px solid ${C.gray100}`,
-              }}
-            >
-              <span style={{ fontSize: 14, fontWeight: 700, color: C.gray900 }}>
-                🗂 All Modules
-              </span>
-            </div>
-            {[
-              {
-                icon: "👨‍🎓",
-                label: "Students",
-                to: "/students",
-                color: "#2563eb",
-              },
-              {
-                icon: "📋",
-                label: "Admissions",
-                to: "/admissions",
-                color: "#7c3aed",
-              },
-              {
-                icon: "📅",
-                label: "Term Registrations",
-                to: "/term-registrations",
-                color: "#0891b2",
-              },
-              { icon: "📊", label: "Marks", to: "/marks", color: "#d97706" },
-              {
-                icon: "💰",
-                label: "Finance",
-                to: "/finance",
-                color: "#16a34a",
-              },
-              { icon: "👥", label: "Users", to: "/users", color: "#db2777" },
-              {
-                icon: "⚙️",
-                label: "Admin Studio",
-                to: "/admin-studio",
-                color: "#64748b",
-              },
-            ].map(({ icon, label, to, color }, i, arr) => (
-              <button
-                key={to}
-                onClick={() => navigate(to)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  width: "100%",
-                  padding: "11px 20px",
-                  background: "none",
-                  border: "none",
-                  borderBottom:
-                    i < arr.length - 1 ? `1px solid ${C.gray100}` : "none",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: C.gray700,
-                  transition: "background 0.1s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    C.gray50;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    "transparent";
-                }}
-              >
-                <span
-                  style={{
-                    width: 26,
-                    height: 26,
-                    borderRadius: 6,
-                    background: `${color}18`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 14,
-                  }}
-                >
-                  {icon}
-                </span>
-                {label}
-                <span
-                  style={{ marginLeft: "auto", color: C.gray300, fontSize: 15 }}
-                >
-                  ›
-                </span>
-              </button>
-            ))}
-          </Card>
+          <ModuleGrid navigate={navigate} />
         </div>
       </div>
 
