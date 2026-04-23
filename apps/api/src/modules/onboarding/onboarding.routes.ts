@@ -40,6 +40,9 @@ async function issueRefreshToken(userId: string): Promise<string> {
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+const OWNERSHIP_TYPES = ["public", "private", "faith_based", "community"] as const;
+const LICENSE_STATUSES = ["active", "pending", "expired", "suspended"] as const;
+
 const OnboardingSchema = z.object({
   // Institute details
   instituteName: z.string().min(2).max(255),
@@ -51,6 +54,12 @@ const OnboardingSchema = z.object({
   contactEmail: z.string().email(),
   phone: z.string().max(30).optional(),
   address: z.string().max(500).optional(),
+  // TVET / CoVE compliance fields
+  ownershipType: z.enum(OWNERSHIP_TYPES),
+  uvtabCentreCode: z.string().max(30).optional(),
+  licenseNumber: z.string().max(100).optional(),
+  licenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").optional().or(z.literal("")),
+  licenseStatus: z.enum(LICENSE_STATUSES).optional().default("active"),
   // Initial admin account
   adminEmail: z.string().email(),
   adminPassword: z
@@ -93,8 +102,11 @@ export async function onboardingRoutes(app: FastifyInstance) {
       });
     }
 
-    const { instituteName, slug, contactEmail, phone, address, adminEmail, adminPassword } =
-      parsed.data;
+    const {
+      instituteName, slug, contactEmail, phone, address,
+      ownershipType, uvtabCentreCode, licenseNumber, licenseDate, licenseStatus,
+      adminEmail, adminPassword,
+    } = parsed.data;
 
     const client = await pool.connect();
     try {
@@ -103,10 +115,18 @@ export async function onboardingRoutes(app: FastifyInstance) {
       // 1. Create the tenant
       const tenantRes = await client.query(
         `INSERT INTO platform.tenants
-           (slug, name, contact_email, phone, address, is_active, created_by_email, setup_completed)
-         VALUES ($1, $2, $3, $4, $5, true, $6, false)
+           (slug, name, contact_email, phone, address, is_active, created_by_email, setup_completed,
+            ownership_type, uvtab_centre_code, license_number, license_date, license_status)
+         VALUES ($1, $2, $3, $4, $5, true, $6, false, $7, $8, $9, $10, $11)
          RETURNING id`,
-        [slug, instituteName, contactEmail, phone ?? null, address ?? null, contactEmail],
+        [
+          slug, instituteName, contactEmail, phone ?? null, address ?? null, contactEmail,
+          ownershipType,
+          uvtabCentreCode || null,
+          licenseNumber || null,
+          licenseDate || null,
+          licenseStatus ?? "active",
+        ],
       );
       const tenantId: string = tenantRes.rows[0].id;
 

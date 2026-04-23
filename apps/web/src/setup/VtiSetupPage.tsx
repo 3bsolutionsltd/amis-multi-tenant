@@ -5,7 +5,7 @@ import { setTokens } from "../lib/auth";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 interface InstituteForm {
   instituteName: string;
@@ -19,6 +19,14 @@ interface AdminForm {
   adminEmail: string;
   adminPassword: string;
   confirmPassword: string;
+}
+
+interface TvetForm {
+  ownershipType: string;
+  uvtabCentreCode: string;
+  licenseNumber: string;
+  licenseStatus: string;
+  licenseDate: string;
 }
 
 // ------------------------------------------------------------------ helpers
@@ -82,7 +90,7 @@ const btnSecondary: React.CSSProperties = {
   width: "100%",
 };
 
-const STEPS = ["Institute Info", "Admin Account", "Review & Launch"];
+const STEPS = ["Institute Info", "TVET Compliance", "Admin Account", "Review & Launch"];
 
 function StepIndicator({ current }: { current: Step }) {
   return (
@@ -158,6 +166,14 @@ export function VtiSetupPage() {
     address: "",
   });
 
+  const [tvet, setTvet] = useState<TvetForm>({
+    ownershipType: "",
+    uvtabCentreCode: "",
+    licenseNumber: "",
+    licenseStatus: "active",
+    licenseDate: "",
+  });
+
   const [admin, setAdmin] = useState<AdminForm>({
     adminEmail: "",
     adminPassword: "",
@@ -188,6 +204,11 @@ export function VtiSetupPage() {
   }
 
   function validateStep2(): string | null {
+    if (!tvet.ownershipType) return "Ownership type is required for TVET Act compliance";
+    return null;
+  }
+
+  function validateStep3(): string | null {
     if (!admin.adminEmail.trim()) return "Admin email is required";
     if (!/^[^@]+@[^@]+\.[^@]+$/.test(admin.adminEmail))
       return "Please enter a valid admin email address";
@@ -213,6 +234,14 @@ export function VtiSetupPage() {
     setStep(3);
   }
 
+  function handleStep3Submit(e: FormEvent) {
+    e.preventDefault();
+    const err = validateStep3();
+    if (err) { setError(err); return; }
+    setError(null);
+    setStep(4);
+  }
+
   async function handleLaunch() {
     setSubmitting(true);
     setError(null);
@@ -226,6 +255,11 @@ export function VtiSetupPage() {
           contactEmail: institute.contactEmail,
           phone: institute.phone || undefined,
           address: institute.address || undefined,
+          ownershipType: tvet.ownershipType,
+          uvtabCentreCode: tvet.uvtabCentreCode || undefined,
+          licenseNumber: tvet.licenseNumber || undefined,
+          licenseDate: tvet.licenseDate || undefined,
+          licenseStatus: tvet.licenseStatus || "active",
           adminEmail: admin.adminEmail,
           adminPassword: admin.adminPassword,
         }),
@@ -369,7 +403,7 @@ export function VtiSetupPage() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  amis.app/
+                  amis.institute/
                 </span>
                 <input
                   style={{
@@ -443,9 +477,98 @@ export function VtiSetupPage() {
           </form>
         )}
 
-        {/* Step 2 */}
+        {/* Step 2: TVET Compliance */}
         {step === 2 && (
           <form onSubmit={handleStep2Submit}>
+            <p style={{ fontSize: 14, color: C.gray500, marginTop: 0, marginBottom: 20 }}>
+              Required for TVET Act compliance and CoVE framework reporting. These details are
+              submitted to TVET Authority Uganda for accreditation and inspection purposes.
+            </p>
+
+            <div style={{ marginBottom: 18 }}>
+              <label style={labelStyle}>Ownership Type *</label>
+              <select
+                style={selectCss}
+                value={tvet.ownershipType}
+                onChange={(e) => setTvet((p) => ({ ...p, ownershipType: e.target.value }))}
+                required
+              >
+                <option value="">Select ownership type…</option>
+                <option value="public">Government / Public</option>
+                <option value="private">Private</option>
+                <option value="faith_based">Faith-Based</option>
+                <option value="community">Community</option>
+              </select>
+              <div style={helpStyle}>Required by TVET Act — determines regulatory pathway.</div>
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <label style={labelStyle}>UVTAB Centre Code</label>
+              <input
+                style={inputCss}
+                placeholder="e.g. UVT212"
+                value={tvet.uvtabCentreCode}
+                onChange={(e) => setTvet((p) => ({ ...p, uvtabCentreCode: e.target.value.toUpperCase() }))}
+              />
+              <div style={helpStyle}>
+                Uganda Vocational Qualifications Framework exam centre code. Used for UVTAB
+                examination entry lists. Leave blank if not yet assigned.
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
+              <div>
+                <label style={labelStyle}>TVET License Number</label>
+                <input
+                  style={inputCss}
+                  placeholder="e.g. TVETA/LIC/2024/001"
+                  value={tvet.licenseNumber}
+                  onChange={(e) => setTvet((p) => ({ ...p, licenseNumber: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>License Issue Date</label>
+                <input
+                  style={inputCss}
+                  type="date"
+                  value={tvet.licenseDate}
+                  onChange={(e) => setTvet((p) => ({ ...p, licenseDate: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={labelStyle}>License Status</label>
+              <select
+                style={selectCss}
+                value={tvet.licenseStatus}
+                onChange={(e) => setTvet((p) => ({ ...p, licenseStatus: e.target.value }))}
+              >
+                <option value="active">Active</option>
+                <option value="pending">Pending (application in progress)</option>
+                <option value="expired">Expired</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <button
+                type="button"
+                style={btnSecondary}
+                onClick={() => { setError(null); setStep(1); }}
+              >
+                ← Back
+              </button>
+              <button type="submit" style={btnPrimary}>
+                Continue →
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Step 3: Admin Account */}
+        {step === 3 && (
+          <form onSubmit={handleStep3Submit}>
             <p style={{ fontSize: 14, color: C.gray500, marginTop: 0, marginBottom: 20 }}>
               Create the initial administrator account for your institute.
             </p>
@@ -499,7 +622,7 @@ export function VtiSetupPage() {
               <button
                 type="button"
                 style={btnSecondary}
-                onClick={() => { setError(null); setStep(1); }}
+                onClick={() => { setError(null); setStep(2); }}
               >
                 ← Back
               </button>
@@ -510,8 +633,8 @@ export function VtiSetupPage() {
           </form>
         )}
 
-        {/* Step 3: Review */}
-        {step === 3 && (
+        {/* Step 4: Review */}
+        {step === 4 && (
           <div>
             <p style={{ fontSize: 14, color: C.gray500, marginTop: 0, marginBottom: 20 }}>
               Review your details before launching.
@@ -546,6 +669,31 @@ export function VtiSetupPage() {
                   ))}
               </div>
 
+              <div style={{ borderTop: `1px solid ${C.gray200}`, paddingTop: 16, marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
+                  TVET Compliance
+                </div>
+                {[
+                  ["Ownership", ({
+                    public: "Government / Public",
+                    private: "Private",
+                    faith_based: "Faith-Based",
+                    community: "Community",
+                  } as Record<string, string>)[tvet.ownershipType] ?? tvet.ownershipType],
+                  tvet.uvtabCentreCode ? ["UVTAB Code", tvet.uvtabCentreCode] : null,
+                  tvet.licenseNumber ? ["License No.", tvet.licenseNumber] : null,
+                  tvet.licenseDate ? ["License Date", tvet.licenseDate] : null,
+                  ["License Status", tvet.licenseStatus],
+                ]
+                  .filter(Boolean)
+                  .map(([k, v]) => (
+                    <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 6 }}>
+                      <span style={{ color: C.gray500 }}>{k}</span>
+                      <span style={{ color: C.gray900, fontWeight: 500 }}>{v}</span>
+                    </div>
+                  ))}
+              </div>
+
               <div style={{ borderTop: `1px solid ${C.gray200}`, paddingTop: 16 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.gray400, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 }}>
                   Admin Account
@@ -561,7 +709,7 @@ export function VtiSetupPage() {
               <button
                 type="button"
                 style={btnSecondary}
-                onClick={() => { setError(null); setStep(2); }}
+                onClick={() => { setError(null); setStep(3); }}
                 disabled={submitting}
               >
                 ← Back

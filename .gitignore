@@ -1,3 +1,6 @@
 node_modules
 .env
 dist
+
+# Raw migration source data — never commit institution files
+db/data-migration/*/raw/

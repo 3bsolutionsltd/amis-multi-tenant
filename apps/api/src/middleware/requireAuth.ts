@@ -21,7 +21,7 @@ const PUBLIC_PATHS = new Set([
   "POST /auth/logout",
   "POST /auth/forgot-password",
   "POST /auth/reset-password",
-  "GET /auth/tenants",
+  "GET /auth/tenant-info",
   "GET /health",
   "POST /onboarding", // VTI self-registration is public
 ]);
