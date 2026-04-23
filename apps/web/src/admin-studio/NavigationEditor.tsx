@@ -19,28 +19,39 @@ interface NavItem {
   icon?: string;
 }
 
-/* Common app routes for autocomplete suggestions */
+/* Routes for datalist autocomplete — corrected to match actual app routes */
 const ROUTE_SUGGESTIONS = [
   "/dashboard",
   "/students",
   "/students/new",
+  "/students/import",
+  "/students/promotion",
   "/admissions",
   "/admissions/new",
+  "/admissions/import",
   "/term-registrations",
   "/term-registrations/new",
+  "/term-registrations/bulk",
   "/marks",
-  "/marks/bulk",
-  "/fees",
-  "/fees/entry",
-  "/fees/overview",
+  "/marks/new",
+  "/marks/bulk-entry",
+  "/finance",
+  "/finance/entry",
+  "/finance/overview",
+  "/finance/reconciliation",
+  "/finance/receipt",
+  "/finance/import",
+  "/results",
+  "/results/slip",
+  "/results/transcript",
   "/staff",
   "/staff/new",
   "/programmes",
   "/industrial-training",
+  "/industrial-training/new",
   "/field-placements",
+  "/field-placements/new",
   "/analytics",
-  "/results",
-  "/results/analysis",
   "/timetable",
   "/attendance",
   "/alumni",
@@ -49,8 +60,125 @@ const ROUTE_SUGGESTIONS = [
   "/reports/fee-collection",
   "/reports/it",
   "/reports/evaluations",
-  "/reports/nche",
+  "/reports/instructor",
+  "/reports/nche-enrollment",
+  "/reports/marks-analysis",
   "/users",
+];
+
+/* Categorised route catalogue shown in the browse panel */
+const ROUTES_CATALOG: { group: string; color: string; routes: { path: string; desc: string }[] }[] = [
+  {
+    group: "Core",
+    color: "#0f172a",
+    routes: [{ path: "/dashboard", desc: "Home / dashboard" }],
+  },
+  {
+    group: "Students",
+    color: "#2563eb",
+    routes: [
+      { path: "/students", desc: "Student list" },
+      { path: "/students/new", desc: "Enrol a new student" },
+      { path: "/students/import", desc: "Bulk import students" },
+      { path: "/students/promotion", desc: "Promote / progress students" },
+    ],
+  },
+  {
+    group: "Admissions",
+    color: "#7c3aed",
+    routes: [
+      { path: "/admissions", desc: "Applications list" },
+      { path: "/admissions/new", desc: "New application" },
+      { path: "/admissions/import", desc: "Bulk import applications" },
+    ],
+  },
+  {
+    group: "Term Registrations",
+    color: "#0891b2",
+    routes: [
+      { path: "/term-registrations", desc: "Registration list" },
+      { path: "/term-registrations/new", desc: "New registration" },
+      { path: "/term-registrations/bulk", desc: "Bulk registration" },
+    ],
+  },
+  {
+    group: "Marks",
+    color: "#d97706",
+    routes: [
+      { path: "/marks", desc: "Mark sheets list" },
+      { path: "/marks/new", desc: "New mark sheet" },
+      { path: "/marks/bulk-entry", desc: "Bulk marks entry" },
+    ],
+  },
+  {
+    group: "Finance",
+    color: "#16a34a",
+    routes: [
+      { path: "/finance", desc: "Fee payments list" },
+      { path: "/finance/entry", desc: "Record a payment" },
+      { path: "/finance/overview", desc: "Fee collection overview" },
+      { path: "/finance/reconciliation", desc: "SchoolPay reconciliation" },
+      { path: "/finance/receipt", desc: "Fee receipt" },
+      { path: "/finance/import", desc: "Bulk import fees" },
+    ],
+  },
+  {
+    group: "Results",
+    color: "#8b5cf6",
+    routes: [
+      { path: "/results", desc: "Results viewer" },
+      { path: "/results/slip", desc: "Results slip" },
+      { path: "/results/transcript", desc: "Student transcript" },
+    ],
+  },
+  {
+    group: "Staff",
+    color: "#ec4899",
+    routes: [
+      { path: "/staff", desc: "Staff / HR list" },
+      { path: "/staff/new", desc: "Add new staff member" },
+    ],
+  },
+  {
+    group: "Programmes",
+    color: "#0891b2",
+    routes: [{ path: "/programmes", desc: "Programmes & courses" }],
+  },
+  {
+    group: "Industrial Training",
+    color: "#f59e0b",
+    routes: [
+      { path: "/industrial-training", desc: "IT placements list" },
+      { path: "/industrial-training/new", desc: "New IT placement" },
+      { path: "/field-placements", desc: "Field placements list" },
+      { path: "/field-placements/new", desc: "New field placement" },
+    ],
+  },
+  {
+    group: "Analytics & Reports",
+    color: "#64748b",
+    routes: [
+      { path: "/analytics", desc: "Analytics dashboard" },
+      { path: "/reports/class-list", desc: "Class list report" },
+      { path: "/reports/fee-collection", desc: "Fee collection report" },
+      { path: "/reports/it", desc: "Industrial training report" },
+      { path: "/reports/evaluations", desc: "Teacher evaluations" },
+      { path: "/reports/instructor", desc: "Instructor report" },
+      { path: "/reports/nche-enrollment", desc: "NCHE enrollment report" },
+      { path: "/reports/marks-analysis", desc: "Marks analysis report" },
+    ],
+  },
+  {
+    group: "Other",
+    color: "#6b7280",
+    routes: [
+      { path: "/timetable", desc: "Timetable" },
+      { path: "/attendance", desc: "Attendance records" },
+      { path: "/alumni", desc: "Alumni list" },
+      { path: "/clearance", desc: "Student clearance" },
+      { path: "/users", desc: "System users" },
+    ],
+  },
 ];
 
 /* Friendly icons list (emoji) */
@@ -142,6 +270,10 @@ export function NavigationEditor() {
   const [editLabel, setEditLabel] = useState("");
   const [editRoute, setEditRoute] = useState("");
   const [editIcon, setEditIcon] = useState("");
+
+  // Route browser
+  const [showRoutePicker, setShowRoutePicker] = useState<"new" | "edit" | null>(null);
+  const [routeFilter, setRouteFilter] = useState("");
 
   // Copy-from-role
   const [copyFrom, setCopyFrom] = useState<NavRole | "">("");
@@ -316,6 +448,62 @@ export function NavigationEditor() {
             {ROUTE_SUGGESTIONS.map((r) => <option key={r} value={r} />)}
           </datalist>
 
+          {/* Route picker panel */}
+          {showRoutePicker && (
+            <div style={{ marginBottom: 14, border: "1px solid #bfdbfe", borderRadius: 8, background: "#f0f7ff", overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: "1px solid #bfdbfe", background: "#dbeafe" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#1e40af", flex: 1 }}>📂 Browse Routes</span>
+                <input
+                  placeholder="Filter…"
+                  value={routeFilter}
+                  onChange={(e) => setRouteFilter(e.target.value)}
+                  style={{ ...inputSt, padding: "4px 8px", fontSize: 12, width: 140 }}
+                  autoFocus
+                />
+                <button onClick={() => { setShowRoutePicker(null); setRouteFilter(""); }} style={{ ...btnSt, padding: "3px 8px", fontSize: 12 }}>✕</button>
+              </div>
+              <div style={{ maxHeight: 260, overflowY: "auto", padding: "8px 4px" }}>
+                {ROUTES_CATALOG.map((cat) => {
+                  const filtered = cat.routes.filter(
+                    (r) =>
+                      !routeFilter ||
+                      r.path.toLowerCase().includes(routeFilter.toLowerCase()) ||
+                      r.desc.toLowerCase().includes(routeFilter.toLowerCase()),
+                  );
+                  if (filtered.length === 0) return null;
+                  return (
+                    <div key={cat.group} style={{ marginBottom: 6 }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: cat.color, textTransform: "uppercase", letterSpacing: 1, padding: "4px 12px 2px" }}>
+                        {cat.group}
+                      </div>
+                      {filtered.map((r) => (
+                        <button
+                          key={r.path}
+                          onClick={() => {
+                            if (showRoutePicker === "new") setNewRoute(r.path);
+                            else if (showRoutePicker === "edit") setEditRoute(r.path);
+                            setShowRoutePicker(null);
+                            setRouteFilter("");
+                          }}
+                          style={{
+                            display: "flex", alignItems: "baseline", gap: 10, width: "100%",
+                            padding: "6px 12px", background: "none", border: "none",
+                            cursor: "pointer", textAlign: "left", borderRadius: 5,
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#dbeafe")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                        >
+                          <code style={{ fontSize: 12, color: "#1e3a8a", fontFamily: "monospace", minWidth: 200 }}>{r.path}</code>
+                          <span style={{ fontSize: 11, color: "#64748b" }}>{r.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <table style={{ borderCollapse: "collapse", width: "100%", marginBottom: 14 }}>
             <thead>
               <tr>
@@ -348,7 +536,10 @@ export function NavigationEditor() {
                         <input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} style={{ ...inputSt, width: "100%" }} autoFocus />
                       </td>
                       <td style={tdSt}>
-                        <input value={editRoute} onChange={(e) => setEditRoute(e.target.value)} list="route-suggestions" style={{ ...inputSt, width: "100%", fontFamily: "monospace", fontSize: 12 }} />
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <input value={editRoute} onChange={(e) => setEditRoute(e.target.value)} list="route-suggestions" style={{ ...inputSt, flex: 1, fontFamily: "monospace", fontSize: 12 }} />
+                          <button onClick={() => { setShowRoutePicker(showRoutePicker === "edit" ? null : "edit"); setRouteFilter(""); }} style={{ ...btnSt, padding: "4px 8px", fontSize: 12, color: "#2563eb", borderColor: "#bfdbfe" }} title="Browse routes">📂</button>
+                        </div>
                       </td>
                       <td style={{ ...tdSt, textAlign: "center" }}>
                         <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
@@ -391,14 +582,21 @@ export function NavigationEditor() {
               onKeyDown={(e) => e.key === "Enter" && addItem()}
               style={{ ...inputSt, flex: 1, minWidth: 120 }}
             />
-            <input
-              placeholder="/route"
-              value={newRoute}
-              onChange={(e) => setNewRoute(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addItem()}
-              list="route-suggestions"
-              style={{ ...inputSt, flex: 1, minWidth: 140, fontFamily: "monospace", fontSize: 12 }}
-            />
+            <div style={{ display: "flex", gap: 4, flex: 1, minWidth: 140 }}>
+              <input
+                placeholder="/route"
+                value={newRoute}
+                onChange={(e) => setNewRoute(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addItem()}
+                list="route-suggestions"
+                style={{ ...inputSt, flex: 1, fontFamily: "monospace", fontSize: 12 }}
+              />
+              <button
+                onClick={() => { setShowRoutePicker(showRoutePicker === "new" ? null : "new"); setRouteFilter(""); }}
+                style={{ ...btnSt, padding: "5px 9px", fontSize: 13, color: "#2563eb", borderColor: "#bfdbfe" }}
+                title="Browse available routes"
+              >📂</button>
+            </div>
             <button
               onClick={addItem}
               disabled={!newLabel.trim() || !newRoute.trim()}
