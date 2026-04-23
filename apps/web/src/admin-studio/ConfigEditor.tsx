@@ -164,7 +164,12 @@ function StructuredView({
       <div>
         <h4 style={sectionTitle}>Modules</h4>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-          {["students", "admissions", "finance"].map((key) => (
+          {[
+            "students", "admissions", "finance",
+            "marks", "results", "timetable", "attendance", "clearance",
+            "staff", "industrial-training", "field-placements",
+            "analytics", "reports", "alumni",
+          ].map((key) => (
             <label
               key={key}
               style={{

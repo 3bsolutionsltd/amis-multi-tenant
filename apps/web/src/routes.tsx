@@ -30,6 +30,7 @@ import { BrandingEditor } from "./admin-studio/BrandingEditor";
 import { ModuleToggles } from "./admin-studio/ModuleToggles";
 import { InstituteProfilePage } from "./admin-studio/InstituteProfilePage";
 import { StudioUsersPage } from "./admin-studio/StudioUsersPage";
+import { StudentFormEditor } from "./admin-studio/StudentFormEditor";
 import { VtiSetupPage } from "./setup/VtiSetupPage";
 import { PlatformAdminLayout } from "./platform-admin/PlatformAdminLayout";
 import { PlatformOverview } from "./platform-admin/PlatformOverview";
@@ -190,6 +191,7 @@ export const router = createBrowserRouter([
       { path: "modules", element: <ModuleToggles /> },
       { path: "workflows", element: <WorkflowViewer /> },
       { path: "navigation", element: <NavigationEditor /> },
+      { path: "student-form", element: <StudentFormEditor /> },
     ],
   },
 ]);

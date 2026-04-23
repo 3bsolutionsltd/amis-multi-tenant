@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getConfigStatus, createDraft } from "./admin-studio.api";
+import { getConfigStatus, createDraft, publishConfig } from "./admin-studio.api";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface BrandingValues {
@@ -29,8 +29,10 @@ export function BrandingEditor() {
   const qc = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<"draft" | "published" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const role = localStorage.getItem("amis_dev_role") ?? "admin";
   const [fullPayload, setFullPayload] = useState<Record<string, unknown>>({});
   const [values, setValues] = useState<BrandingValues>({
     appName: "AMIS",
@@ -60,31 +62,54 @@ export function BrandingEditor() {
       .finally(() => setLoading(false));
   }, []);
 
+  function buildUpdated() {
+    return {
+      ...fullPayload,
+      branding: {
+        ...((fullPayload.branding ?? {}) as Record<string, unknown>),
+        appName: values.appName,
+        logoUrl: values.logoUrl || undefined,
+      },
+      theme: {
+        ...((fullPayload.theme ?? {}) as Record<string, unknown>),
+        primaryColor: values.primaryColor,
+      },
+    };
+  }
+
   async function handleSave() {
     setSaving(true);
     setError(null);
-    setSuccess(false);
+    setSavedMsg(null);
     try {
-      const updated = {
-        ...fullPayload,
-        branding: {
-          ...((fullPayload.branding ?? {}) as Record<string, unknown>),
-          appName: values.appName,
-          logoUrl: values.logoUrl || undefined,
-        },
-        theme: {
-          ...((fullPayload.theme ?? {}) as Record<string, unknown>),
-          primaryColor: values.primaryColor,
-        },
-      };
+      const updated = buildUpdated();
       await createDraft(updated);
       setFullPayload(updated);
-      setSuccess(true);
+      setSavedMsg("draft");
       qc.invalidateQueries({ queryKey: ["config"] });
     } catch {
       setError("Failed to save branding changes");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSaveAndPublish() {
+    setPublishing(true);
+    setError(null);
+    setSavedMsg(null);
+    try {
+      const updated = buildUpdated();
+      await createDraft(updated);
+      await publishConfig(role);
+      setFullPayload(updated);
+      setSavedMsg("published");
+      qc.invalidateQueries({ queryKey: ["config"] });
+      qc.invalidateQueries({ queryKey: ["config/status"] });
+    } catch {
+      setError("Failed to save and publish");
+    } finally {
+      setPublishing(false);
     }
   }
 
@@ -181,29 +206,43 @@ export function BrandingEditor() {
         </div>
       </div>
 
-      <div style={{ marginTop: 24, display: "flex", gap: 12, alignItems: "center" }}>
+      {error && (
+        <div style={{ padding: "10px 16px", background: "#fee2e2", color: "#dc2626", borderRadius: 8, marginTop: 16, fontSize: 13 }}>
+          {error}
+        </div>
+      )}
+      {savedMsg && (
+        <div style={{ padding: "10px 16px", background: "#dcfce7", color: "#15803d", borderRadius: 8, marginTop: 16, fontSize: 13, fontWeight: 600 }}>
+          {savedMsg === "draft" ? "✓ Saved as draft — click Save & Publish to go live." : "✓ Published! Branding changes are now live."}
+        </div>
+      )}
+      <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || publishing}
           style={{
-            padding: "10px 24px",
+            padding: "10px 22px",
             background: saving ? "#93c5fd" : "#2563eb",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: saving ? "not-allowed" : "pointer",
+            color: "#fff", border: "none", borderRadius: 7,
+            fontSize: 14, fontWeight: 600,
+            cursor: saving || publishing ? "not-allowed" : "pointer",
           }}
         >
-          {saving ? "Saving..." : "Save as Draft"}
+          {saving ? "Saving…" : "Save as Draft"}
         </button>
-        {success && (
-          <span style={{ color: "#16a34a", fontSize: 13 }}>
-            Saved! Publish from Config Editor to go live.
-          </span>
-        )}
-        {error && <span style={{ color: "#b91c1c", fontSize: 13 }}>{error}</span>}
+        <button
+          onClick={handleSaveAndPublish}
+          disabled={saving || publishing}
+          style={{
+            padding: "10px 22px",
+            background: publishing ? "#4ade80" : "#16a34a",
+            color: "#fff", border: "none", borderRadius: 7,
+            fontSize: 14, fontWeight: 600,
+            cursor: saving || publishing ? "not-allowed" : "pointer",
+          }}
+        >
+          {publishing ? "Publishing…" : "Save & Publish"}
+        </button>
       </div>
     </div>
   );
