@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { ApiError } from "../lib/apiFetch";
+import { getAuthUser } from "../lib/auth";
 
 const APP_NAME = "AMIS";
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
@@ -83,7 +84,9 @@ export function LoginPage() {
 
     try {
       await login(email, password, orgSlug);
-      const redirect = searchParams.get("redirect") ?? "/";
+      const loggedInUser = getAuthUser();
+      const defaultRedirect = loggedInUser?.role === "platform_admin" ? "/platform-admin" : "/";
+      const redirect = searchParams.get("redirect") ?? defaultRedirect;
       navigate(redirect, { replace: true });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
