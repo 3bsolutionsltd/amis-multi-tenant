@@ -476,28 +476,30 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /auth/tenants
-   * Public — no auth required.
-   * Returns active tenants (id, slug, name, logoUrl) for the login dropdown.
+   * GET /auth/tenant-info?slug=<slug>
+   * Public — resolves a single tenant by slug.
+   * Returns only { name, logoUrl } — no id or full tenant list exposed.
+   * Used by the login page to show institution branding.
    */
-  app.get("/auth/tenants", async (_req, _reply) => {
-    const { rows } = await pool.query<{
-      id: string;
-      slug: string;
-      name: string;
-      logo_url: string | null;
-    }>(
-      `SELECT id, slug, name, logo_url
+  app.get("/auth/tenant-info", async (req, reply) => {
+    const slug = (req.query as Record<string, string>).slug?.trim();
+    if (!slug) {
+      return reply
+        .status(400)
+        .send({ statusCode: 400, message: "slug query parameter is required" });
+    }
+
+    const { rows } = await pool.query<{ name: string; logo_url: string | null }>(
+      `SELECT name, logo_url
        FROM platform.tenants
-       WHERE is_active = true
-       ORDER BY name`,
+       WHERE slug = $1 AND is_active = true`,
+      [slug],
     );
 
-    return rows.map((r) => ({
-      id: r.id,
-      slug: r.slug,
-      name: r.name,
-      logoUrl: r.logo_url,
-    }));
+    if (rows.length === 0) {
+      return reply.status(404).send({ statusCode: 404, message: "Institution not found" });
+    }
+
+    return { name: rows[0].name, logoUrl: rows[0].logo_url };
   });
 }

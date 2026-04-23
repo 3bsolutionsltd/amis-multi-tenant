@@ -1,9 +1,14 @@
 import { readFileSync } from "fs";
-import { resolve } from "path";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
 
 // Load .env from repo root at startup (dev only; production uses real env vars)
 try {
-  const envPath = resolve(process.cwd(), "../../.env");
+  // Resolve relative to this source file (apps/api/src/index.ts → ../../../.env)
+  // so it works regardless of the working directory at startup.
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const envPath = resolve(__dirname, "../../../.env");
   const lines = readFileSync(envPath, "utf8").split("\n");
   for (const line of lines) {
     const trimmed = line.trim();
