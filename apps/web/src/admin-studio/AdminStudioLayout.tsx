@@ -148,7 +148,6 @@ export function AdminStudioLayout() {
           <NavLink to="/admin-studio/grading" style={studioNavStyle}>
             Grading Scales
           </NavLink>
-          </NavLink>
         </nav>
 
         <main
