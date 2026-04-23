@@ -31,6 +31,11 @@ import { ModuleToggles } from "./admin-studio/ModuleToggles";
 import { InstituteProfilePage } from "./admin-studio/InstituteProfilePage";
 import { StudioUsersPage } from "./admin-studio/StudioUsersPage";
 import { StudentFormEditor } from "./admin-studio/StudentFormEditor";
+import { AdmissionFormEditor } from "./admin-studio/AdmissionFormEditor";
+import { FeeStructureEditor } from "./admin-studio/FeeStructureEditor";
+import { GradingScaleEditor } from "./admin-studio/GradingScaleEditor";
+import { AcademicCalendarPage } from "./admin-studio/AcademicCalendarPage";
+import { DashboardWidgetsEditor } from "./admin-studio/DashboardWidgetsEditor";
 import { VtiSetupPage } from "./setup/VtiSetupPage";
 import { PlatformAdminLayout } from "./platform-admin/PlatformAdminLayout";
 import { PlatformOverview } from "./platform-admin/PlatformOverview";
@@ -192,6 +197,11 @@ export const router = createBrowserRouter([
       { path: "workflows", element: <WorkflowViewer /> },
       { path: "navigation", element: <NavigationEditor /> },
       { path: "student-form", element: <StudentFormEditor /> },
+      { path: "admission-form", element: <AdmissionFormEditor /> },
+      { path: "fee-structure", element: <FeeStructureEditor /> },
+      { path: "grading", element: <GradingScaleEditor /> },
+      { path: "academic-calendar", element: <AcademicCalendarPage /> },
+      { path: "dashboards", element: <DashboardWidgetsEditor /> },
     ],
   },
 ]);

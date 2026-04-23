@@ -6,6 +6,10 @@ interface BrandingValues {
   appName: string;
   logoUrl: string;
   primaryColor: string;
+  secondaryColor: string;
+  sidebarColor: string;
+  fontFamily: string;
+  borderRadiusStyle: string;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -38,6 +42,10 @@ export function BrandingEditor() {
     appName: "AMIS",
     logoUrl: "",
     primaryColor: "#2563EB",
+    secondaryColor: "#64748b",
+    sidebarColor: "#0f172a",
+    fontFamily: "Inter",
+    borderRadiusStyle: "rounded",
   });
 
   useEffect(() => {
@@ -56,6 +64,10 @@ export function BrandingEditor() {
           appName: (branding.appName as string) ?? "AMIS",
           logoUrl: (branding.logoUrl as string) ?? "",
           primaryColor: (theme.primaryColor as string) ?? "#2563EB",
+          secondaryColor: (theme.secondaryColor as string) ?? "#64748b",
+          sidebarColor: (theme.sidebarColor as string) ?? "#0f172a",
+          fontFamily: (theme.fontFamily as string) ?? "Inter",
+          borderRadiusStyle: (theme.borderRadiusStyle as string) ?? "rounded",
         });
       })
       .catch(() => setError("Failed to load config"))
@@ -73,6 +85,10 @@ export function BrandingEditor() {
       theme: {
         ...((fullPayload.theme ?? {}) as Record<string, unknown>),
         primaryColor: values.primaryColor,
+        secondaryColor: values.secondaryColor,
+        sidebarColor: values.sidebarColor,
+        fontFamily: values.fontFamily,
+        borderRadiusStyle: values.borderRadiusStyle,
       },
     };
   }
@@ -203,6 +219,75 @@ export function BrandingEditor() {
               }}
             />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="secondaryColor" style={labelStyle}>Secondary / Accent Color</label>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <input
+              id="secondaryColor"
+              type="color"
+              value={values.secondaryColor}
+              onChange={(e) => setValues((v) => ({ ...v, secondaryColor: e.target.value }))}
+              style={{ width: 48, height: 36, border: "none", cursor: "pointer" }}
+            />
+            <input
+              value={values.secondaryColor}
+              onChange={(e) => setValues((v) => ({ ...v, secondaryColor: e.target.value }))}
+              pattern="^#[0-9A-Fa-f]{6}$"
+              style={{ ...inputStyle, width: 120 }}
+            />
+            <div style={{ width: 80, height: 36, borderRadius: 6, background: values.secondaryColor }} />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="sidebarColor" style={labelStyle}>Sidebar Background Color</label>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <input
+              id="sidebarColor"
+              type="color"
+              value={values.sidebarColor}
+              onChange={(e) => setValues((v) => ({ ...v, sidebarColor: e.target.value }))}
+              style={{ width: 48, height: 36, border: "none", cursor: "pointer" }}
+            />
+            <input
+              value={values.sidebarColor}
+              onChange={(e) => setValues((v) => ({ ...v, sidebarColor: e.target.value }))}
+              pattern="^#[0-9A-Fa-f]{6}$"
+              style={{ ...inputStyle, width: 120 }}
+            />
+            <div style={{ width: 80, height: 36, borderRadius: 6, background: values.sidebarColor }} />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="fontFamily" style={labelStyle}>Font Family</label>
+          <select
+            id="fontFamily"
+            value={values.fontFamily}
+            onChange={(e) => setValues((v) => ({ ...v, fontFamily: e.target.value }))}
+            style={inputStyle}
+          >
+            {["Inter", "Poppins", "Roboto", "System Default"].map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
+          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#94a3b8" }}>Applies globally across the app interface.</p>
+        </div>
+
+        <div>
+          <label htmlFor="borderRadiusStyle" style={labelStyle}>Border Radius Style</label>
+          <select
+            id="borderRadiusStyle"
+            value={values.borderRadiusStyle}
+            onChange={(e) => setValues((v) => ({ ...v, borderRadiusStyle: e.target.value }))}
+            style={inputStyle}
+          >
+            <option value="sharp">Sharp — square corners</option>
+            <option value="rounded">Rounded — gentle curves (default)</option>
+            <option value="pill">Pill — fully rounded buttons &amp; inputs</option>
+          </select>
         </div>
       </div>
 

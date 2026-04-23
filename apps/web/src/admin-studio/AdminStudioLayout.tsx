@@ -118,16 +118,36 @@ export function AdminStudioLayout() {
           <NavLink to="/admin-studio/modules" style={studioNavStyle}>
             Module Toggles
           </NavLink>
+          <NavLink to="/admin-studio/navigation" style={studioNavStyle}>
+            Navigation
+          </NavLink>
+          <NavLink to="/admin-studio/dashboards" style={studioNavStyle}>
+            Dashboard Widgets
+          </NavLink>
+
+          <div style={NAV_SECTION}>Forms</div>
           <NavLink to="/admin-studio/student-form" style={studioNavStyle}>
             Student Form Fields
           </NavLink>
-          <NavLink to="/admin-studio/navigation" style={studioNavStyle}>
-            Navigation
+          <NavLink to="/admin-studio/admission-form" style={studioNavStyle}>
+            Admission Form
           </NavLink>
 
           <div style={NAV_SECTION}>Academic</div>
           <NavLink to="/admin-studio/workflows" style={studioNavStyle}>
             Workflows
+          </NavLink>
+
+          <div style={NAV_SECTION}>Data Management</div>
+          <NavLink to="/admin-studio/academic-calendar" style={studioNavStyle}>
+            Academic Calendar
+          </NavLink>
+          <NavLink to="/admin-studio/fee-structure" style={studioNavStyle}>
+            Fee Structures
+          </NavLink>
+          <NavLink to="/admin-studio/grading" style={studioNavStyle}>
+            Grading Scales
+          </NavLink>
           </NavLink>
         </nav>
 
