@@ -20,7 +20,7 @@ const READ_ROLES = [
 ] as const;
 
 const FS_COLS =
-  "id, tenant_id, academic_year_id, term_id, programme_id, fee_type, description, amount, currency, is_active, created_at, updated_at";
+  "id, tenant_id, academic_year_id, term_id, programme_id, fee_type, student_category, description, amount, currency, is_active, created_at, updated_at";
 
 // ------------------------------------------------------------------ routes
 
@@ -43,6 +43,7 @@ export async function feeStructuresRoutes(app: FastifyInstance) {
         term_id,
         programme_id,
         fee_type,
+        student_category,
         include_inactive,
         page,
         limit,
@@ -72,6 +73,10 @@ export async function feeStructuresRoutes(app: FastifyInstance) {
           params.push(fee_type);
           conditions.push(`fs.fee_type = $${params.length}`);
         }
+        if (student_category) {
+          params.push(student_category);
+          conditions.push(`fs.student_category = $${params.length}`);
+        }
 
         const where =
           conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -79,7 +84,7 @@ export async function feeStructuresRoutes(app: FastifyInstance) {
         params.push(limit, offset);
         return client.query(
           `SELECT fs.id, fs.tenant_id, fs.academic_year_id, fs.term_id, fs.programme_id,
-                  fs.fee_type, fs.description, fs.amount, fs.currency, fs.is_active,
+                  fs.fee_type, fs.student_category, fs.description, fs.amount, fs.currency, fs.is_active,
                   fs.created_at, fs.updated_at,
                   ay.name AS academic_year_name,
                   p.code AS programme_code, p.title AS programme_title
@@ -132,14 +137,14 @@ export async function feeStructuresRoutes(app: FastifyInstance) {
       if (!parsed.success)
         return reply.status(422).send({ error: parsed.error.flatten() });
 
-      const { academic_year_id, term_id, programme_id, fee_type, description, amount, currency } =
+      const { academic_year_id, term_id, programme_id, fee_type, student_category, description, amount, currency } =
         parsed.data;
 
       const row = await withTenant(tid, (client) =>
         client.query(
           `INSERT INTO app.fee_structures
-             (tenant_id, academic_year_id, term_id, programme_id, fee_type, description, amount, currency)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             (tenant_id, academic_year_id, term_id, programme_id, fee_type, student_category, description, amount, currency)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING ${FS_COLS}`,
           [
             tid,
@@ -147,6 +152,7 @@ export async function feeStructuresRoutes(app: FastifyInstance) {
             term_id ?? null,
             programme_id,
             fee_type ?? "tuition",
+            student_category ?? "all",
             description ?? null,
             amount,
             currency ?? "UGX",
