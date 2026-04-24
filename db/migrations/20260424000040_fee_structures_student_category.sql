@@ -11,7 +11,7 @@ ALTER TABLE app.fee_structures
     CHECK (student_category IN ('all', 'boarding', 'day'));
 
 -- Drop old unique index and recreate including student_category
-DROP INDEX IF EXISTS fee_structures_unique_idx;
+DROP INDEX IF EXISTS app.fee_structures_unique_idx;
 
 CREATE UNIQUE INDEX fee_structures_unique_idx
   ON app.fee_structures (
@@ -25,7 +25,7 @@ CREATE UNIQUE INDEX fee_structures_unique_idx
 
 -- migrate:down
 
-DROP INDEX IF EXISTS fee_structures_unique_idx;
+DROP INDEX IF EXISTS app.fee_structures_unique_idx;
 
 ALTER TABLE app.fee_structures DROP COLUMN IF EXISTS student_category;
 
