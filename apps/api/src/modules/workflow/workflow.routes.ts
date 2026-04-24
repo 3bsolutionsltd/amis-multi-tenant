@@ -185,6 +185,17 @@ export async function workflowRoutes(app: FastifyInstance) {
           } as const;
         }
 
+        // Enforce required_role if the transition has one
+        if (transition.required_role) {
+          const actorRole = req.user?.role ?? null;
+          if (actorRole !== transition.required_role && actorRole !== "admin" && actorRole !== "platform_admin") {
+            return {
+              forbidden: true,
+              message: `action "${action}" requires role "${transition.required_role}"`,
+            } as const;
+          }
+        }
+
         // Update instance state
         const { rows: updated } = await client.query<WorkflowInstance>(
           `UPDATE app.workflow_instances
@@ -224,6 +235,8 @@ export async function workflowRoutes(app: FastifyInstance) {
           .send({ error: "workflow instance not found — call /init first" });
       if ("wrongKey" in result)
         return reply.status(400).send({ error: result.message });
+      if ("forbidden" in result)
+        return reply.status(403).send({ error: result.message });
       if ("invalidTransition" in result)
         return reply.status(400).send({ error: result.message });
       return reply.status(200).send(result);

@@ -6,7 +6,18 @@ interface WorkflowTransition {
   action: string;
   from: string;
   to: string;
+  required_role?: string;
 }
+
+const ROLES = [
+  "registrar",
+  "finance",
+  "dean",
+  "hod",
+  "principal",
+  "instructor",
+  "admin",
+];
 
 interface WorkflowDef {
   initial_state: string;
@@ -73,7 +84,7 @@ export function WorkflowViewer() {
 
   // Per-workflow new state/transition inputs
   const [newState, setNewState] = useState<Record<string, string>>({});
-  const [newTrans, setNewTrans] = useState<Record<string, { action: string; from: string; to: string }>>({});
+const [newTrans, setNewTrans] = useState<Record<string, { action: string; from: string; to: string; required_role: string }>>({});
 
   useEffect(() => {
     getConfigStatus()
@@ -135,13 +146,15 @@ export function WorkflowViewer() {
   }
 
   function addTransition(wfKey: string) {
-    const t = newTrans[wfKey] ?? { action: "", from: "", to: "" };
+    const t = newTrans[wfKey] ?? { action: "", from: "", to: "", required_role: "" };
     if (!t.action.trim() || !t.from || !t.to) return;
+    const entry: WorkflowTransition = { action: t.action.trim(), from: t.from, to: t.to };
+    if (t.required_role) entry.required_role = t.required_role;
     setWorkflows((prev) => {
       const wf = prev[wfKey];
-      return { ...prev, [wfKey]: { ...wf, transitions: [...wf.transitions, { action: t.action.trim(), from: t.from, to: t.to }] } };
+      return { ...prev, [wfKey]: { ...wf, transitions: [...wf.transitions, entry] } };
     });
-    setNewTrans((p) => ({ ...p, [wfKey]: { action: "", from: "", to: "" } }));
+    setNewTrans((p) => ({ ...p, [wfKey]: { action: "", from: "", to: "", required_role: "" } }));
   }
 
   function removeTransition(wfKey: string, idx: number) {
@@ -240,7 +253,7 @@ export function WorkflowViewer() {
       ) : (
         wfKeys.map((wfKey) => {
           const wf = workflows[wfKey];
-          const nt = newTrans[wfKey] ?? { action: "", from: "", to: "" };
+          const nt = newTrans[wfKey] ?? { action: "", from: "", to: "", required_role: "" };
           return (
             <div key={wfKey} style={cardStyle}>
               {/* Workflow title row */}
@@ -317,6 +330,7 @@ export function WorkflowViewer() {
                       <th style={thStyle}>Action</th>
                       <th style={thStyle}>From</th>
                       <th style={thStyle}>To</th>
+                      <th style={thStyle}>Required role</th>
                       {editMode && <th style={thStyle}></th>}
                     </tr>
                   </thead>
@@ -326,6 +340,15 @@ export function WorkflowViewer() {
                         <td style={tdStyle}><code style={{ fontFamily: "monospace", fontSize: 12, background: "#f8fafc", padding: "1px 6px", borderRadius: 3 }}>{t.action}</code></td>
                         <td style={tdStyle}>{t.from}</td>
                         <td style={tdStyle}>{t.to}</td>
+                        <td style={tdStyle}>
+                          {t.required_role ? (
+                            <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 4, background: "#ede9fe", color: "#6d28d9", fontSize: 11, fontWeight: 600 }}>
+                              {t.required_role}
+                            </span>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: 12 }}>any</span>
+                          )}
+                        </td>
                         {editMode && (
                           <td style={tdStyle}>
                             <button onClick={() => removeTransition(wfKey, i)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
@@ -338,23 +361,30 @@ export function WorkflowViewer() {
               )}
 
               {editMode && (
-                <div style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "12px 14px", background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
-                  <div style={{ flex: 2 }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: "12px 14px", background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0", flexWrap: "wrap" }}>
+                  <div style={{ flex: 2, minWidth: 120 }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 3 }}>Action</div>
-                    <input value={nt.action} onChange={(e) => setNewTrans((p) => ({ ...p, [wfKey]: { ...nt, action: e.target.value } }))} placeholder="e.g. approve" style={inputSt} />
+                    <input value={nt.action} onChange={(e) => setNewTrans((p) => ({ ...p, [wfKey]: { ...nt, action: e.target.value } }))} placeholder="e.g. verify_payment" style={inputSt} />
                   </div>
-                  <div style={{ flex: 2 }}>
+                  <div style={{ flex: 2, minWidth: 120 }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 3 }}>From</div>
                     <select value={nt.from} onChange={(e) => setNewTrans((p) => ({ ...p, [wfKey]: { ...nt, from: e.target.value } }))} style={selectSt}>
                       <option value="">Select…</option>
                       {wf.states.map((s) => <option key={s}>{s}</option>)}
                     </select>
                   </div>
-                  <div style={{ flex: 2 }}>
+                  <div style={{ flex: 2, minWidth: 120 }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 3 }}>To</div>
                     <select value={nt.to} onChange={(e) => setNewTrans((p) => ({ ...p, [wfKey]: { ...nt, to: e.target.value } }))} style={selectSt}>
                       <option value="">Select…</option>
                       {wf.states.map((s) => <option key={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex: 2, minWidth: 120 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 3 }}>Required role</div>
+                    <select value={nt.required_role ?? ""} onChange={(e) => setNewTrans((p) => ({ ...p, [wfKey]: { ...nt, required_role: e.target.value } }))} style={selectSt}>
+                      <option value="">any role</option>
+                      {ROLES.map((r) => <option key={r}>{r}</option>)}
                     </select>
                   </div>
                   <button onClick={() => addTransition(wfKey)} style={{ padding: "8px 16px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>

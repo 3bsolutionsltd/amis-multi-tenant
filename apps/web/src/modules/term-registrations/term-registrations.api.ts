@@ -66,7 +66,7 @@ export function getWorkflowDef(key: string): Promise<{
   key: string;
   initial_state: string;
   states: string[];
-  transitions: { from: string; action: string; to: string }[];
+  transitions: { from: string; action: string; to: string; required_role?: string }[];
 }> {
   return apiFetch(`/workflows/${key}`);
 }
