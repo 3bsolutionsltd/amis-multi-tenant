@@ -49,7 +49,7 @@ export function AcademicCalendarPage() {
   const [yearForm, setYearForm] = useState({ name: "", start_date: "", end_date: "", is_current: false });
   const [yearError, setYearError] = useState<string | null>(null);
 
-  const [expandedYear, setExpandedYear] = useState<string | null>(null);
+  const [collapsedYears, setCollapsedYears] = useState<Set<string>>(new Set());
   const [showTermForm, setShowTermForm] = useState<string | null>(null);
   const [termForm, setTermForm] = useState({ name: "", term_number: "1", start_date: "", end_date: "", is_current: false });
   const [termError, setTermError] = useState<string | null>(null);
@@ -88,7 +88,7 @@ export function AcademicCalendarPage() {
 
   const createTermMut = useMutation({
     mutationFn: (body: object) => apiFetch("/terms", { method: "POST", body: JSON.stringify(body) }),
-    onSuccess: () => { const yearId = showTermForm; qc.invalidateQueries({ queryKey: ["terms-all"] }); setShowTermForm(null); resetTermForm(); setSuccessMsg("Term created."); if (yearId) setExpandedYear(yearId); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["terms-all"] }); setShowTermForm(null); resetTermForm(); setSuccessMsg("Term created."); },
     onError: (err: unknown) => {
       if (err instanceof ApiError) {
         if (err.status === 409) {
@@ -218,15 +218,16 @@ export function AcademicCalendarPage() {
       ) : (
         years.map((year) => {
           const yearTerms = terms.filter((t) => t.academic_year_id === year.id);
-          const isExpanded = expandedYear === year.id;
+          const isExpanded = !collapsedYears.has(year.id);
           return (
             <div key={year.id} style={cardSt}>
               {/* Year header row */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <button
-                    onClick={() => setExpandedYear(isExpanded ? null : year.id)}
+                    onClick={() => setCollapsedYears((prev) => { const next = new Set(prev); if (next.has(year.id)) next.delete(year.id); else next.add(year.id); return next; })}
                     style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#64748b", padding: "0 4px" }}
+                    title={isExpanded ? "Collapse" : "Expand"}
                   >
                     {isExpanded ? "▾" : "▸"}
                   </button>
@@ -234,6 +235,11 @@ export function AcademicCalendarPage() {
                     <span style={{ fontWeight: 700, fontSize: 15, color: "#0f172a" }}>{year.name}</span>
                     {year.is_current && (
                       <span style={{ marginLeft: 8, fontSize: 11, background: "#dbeafe", color: "#1d4ed8", padding: "2px 8px", borderRadius: 10, fontWeight: 700 }}>CURRENT</span>
+                    )}
+                    {yearTerms.length > 0 && (
+                      <span style={{ marginLeft: 8, fontSize: 11, background: "#f0fdf4", color: "#16a34a", padding: "2px 8px", borderRadius: 10, fontWeight: 600, border: "1px solid #bbf7d0" }}>
+                        {yearTerms.length} term{yearTerms.length !== 1 ? "s" : ""}
+                      </span>
                     )}
                     <span style={{ marginLeft: 12, fontSize: 12, color: "#64748b" }}>
                       {dateFmt(year.start_date)} → {dateFmt(year.end_date)}
@@ -289,7 +295,7 @@ export function AcademicCalendarPage() {
                 </div>
               )}
 
-              {/* Terms list */}
+              {/* Terms list — always visible */}
               {isExpanded && yearTerms.length > 0 && (
                 <div style={{ marginTop: 14, paddingLeft: 32 }}>
                   {yearTerms
