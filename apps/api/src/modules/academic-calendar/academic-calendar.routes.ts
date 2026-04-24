@@ -252,17 +252,27 @@ export async function academicCalendarRoutes(app: FastifyInstance) {
       const { academic_year_id, name, term_number, start_date, end_date, is_current } =
         parsed.data;
 
-      const row = await withTenant(tid, (client) =>
-        client.query(
-          `INSERT INTO app.terms
-             (tenant_id, academic_year_id, name, term_number, start_date, end_date, is_current)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           RETURNING ${TERM_COLS}`,
-          [tid, academic_year_id, name, term_number, start_date, end_date, is_current ?? false],
-        ),
-      );
-
-      return reply.status(201).send(row.rows[0]);
+      try {
+        const row = await withTenant(tid, (client) =>
+          client.query(
+            `INSERT INTO app.terms
+               (tenant_id, academic_year_id, name, term_number, start_date, end_date, is_current)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING ${TERM_COLS}`,
+            [tid, academic_year_id, name, term_number, start_date, end_date, is_current ?? false],
+          ),
+        );
+        return reply.status(201).send(row.rows[0]);
+      } catch (err: unknown) {
+        const pgCode = (err as { code?: string })?.code;
+        if (pgCode === "23505") {
+          return reply.status(409).send({ error: "A term with that number already exists for this year, or only one current term is allowed per tenant." });
+        }
+        if (pgCode === "23503") {
+          return reply.status(422).send({ error: "The specified academic year does not exist." });
+        }
+        throw err;
+      }
     },
   );
 
