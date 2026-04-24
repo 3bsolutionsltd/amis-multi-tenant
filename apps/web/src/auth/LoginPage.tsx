@@ -220,7 +220,7 @@ export function LoginPage() {
           Academic<br />Management<br />Information System
         </h1>
         <p style={{ fontSize: 15, opacity: 0.75, lineHeight: 1.6, maxWidth: 320, margin: 0 }}>
-          Manage students, admissions, marks, finance, and more â€” all in one place.
+          Manage students, admissions, marks, finance, and more — all in one place.
         </p>
 
         {/* Decorative dots */}
@@ -255,10 +255,8 @@ export function LoginPage() {
             boxSizing: "border-box",
           }}
         >
-          {/* Mobile-only app name */}
-          <div className="login-brand-panel" style={{ display: "block" }}>
-            <style>{`.login-brand-panel { display: block; } @media (min-width: 768px) { .login-mobile-header { display: none !important; } }`}</style>
-          </div>
+          {/* Mobile-only: hide this header on desktop */}
+          <style>{`@media (min-width: 768px) { .login-mobile-header { display: none !important; } }`}</style>
           <div className="login-mobile-header" style={{ marginBottom: 24 }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--primary-color, #2563EB)", marginBottom: 4 }}>
               {APP_NAME}
@@ -277,8 +275,8 @@ export function LoginPage() {
                   <p className="login-error" style={{ marginTop: 0 }}>{tenantError}</p>
                 ) : (
                   <div className="login-tenant-badge">
-                    <span>ðŸ«</span>
-                    <span>{tenantInfo ? tenantInfo.name : "Loading institutionâ€¦"}</span>
+                    <span>🏫</span>
+                    <span>{tenantInfo ? tenantInfo.name : "Loading institution…"}</span>
                   </div>
                 )}
               </div>
@@ -323,7 +321,7 @@ export function LoginPage() {
                         style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 16, lineHeight: 1, padding: 2 }}
                         aria-label={showPassword ? "Hide password" : "Show password"}
                       >
-                        {showPassword ? "ðŸ™ˆ" : "ðŸ‘"}
+                        {showPassword ? "🙈" : "👁"}
                       </button>
                     </div>
                   </div>
@@ -331,7 +329,7 @@ export function LoginPage() {
                   {error && <p className="login-error">{error}</p>}
 
                   <button type="submit" className="login-submit-btn" disabled={isSubmitting || !tenantInfo}>
-                    {isSubmitting ? "Signing inâ€¦" : "Sign in"}
+                    {isSubmitting ? "Signing in…" : "Sign in"}
                   </button>
                 </form>
               )}
@@ -348,7 +346,7 @@ export function LoginPage() {
               </p>
             </>
           ) : (
-            /* ---- MODE 1: no ?org= â€” find institution ---- */
+            /* ---- MODE 1: no ?org= — find institution ---- */
             <>
               <div style={{ marginBottom: 28 }}>
                 <h2 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 700, color: "#111827" }}>
@@ -373,7 +371,7 @@ export function LoginPage() {
                 />
 
                 <button type="submit" className="login-submit-btn">
-                  Continue â†’
+                  Continue →
                 </button>
               </form>
 
@@ -388,7 +386,7 @@ export function LoginPage() {
 
         {/* Footer */}
         <p style={{ position: "fixed", bottom: 16, left: 0, right: 0, textAlign: "center", fontSize: 11, color: "#d1d5db", pointerEvents: "none" }}>
-          {APP_NAME} Â· Academic Management Information System
+          {APP_NAME} · Academic Management Information System
         </p>
       </div>
     </div>

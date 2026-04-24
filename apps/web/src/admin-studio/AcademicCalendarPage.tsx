@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "../lib/apiFetch";
+import { apiFetch, ApiError } from "../lib/apiFetch";
 
 /* ------------------------------------------------------------------ types */
 
@@ -89,7 +89,21 @@ export function AcademicCalendarPage() {
   const createTermMut = useMutation({
     mutationFn: (body: object) => apiFetch("/terms", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => { const yearId = showTermForm; qc.invalidateQueries({ queryKey: ["terms-all"] }); setShowTermForm(null); resetTermForm(); setSuccessMsg("Term created."); if (yearId) setExpandedYear(yearId); },
-    onError: () => setTermError("Failed to create term"),
+    onError: (err: unknown) => {
+      if (err instanceof ApiError) {
+        if (err.status === 409) {
+          setTermError("A term with that number already exists for this year (or only one current term allowed).");
+        } else if (err.status === 422) {
+          setTermError("Validation error. Check the academic year and dates.");
+        } else if (err.status === 403) {
+          setTermError("You do not have permission to create terms.");
+        } else {
+          setTermError(`Failed to create term (${err.status}). Please try again.`);
+        }
+      } else {
+        setTermError("Failed to create term. Please check all fields and try again.");
+      }
+    },
   });
 
   const updateTermMut = useMutation({
