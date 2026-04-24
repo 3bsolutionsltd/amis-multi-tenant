@@ -95,8 +95,8 @@ export function DashboardWidgetsEditor() {
       setFullPayload(updated);
       setSavedMsg("draft");
       qc.invalidateQueries({ queryKey: ["config"] });
-    } catch {
-      setError("Failed to save dashboard widgets");
+    } catch (e) {
+      setError("Failed to save dashboard widgets: " + (e instanceof Error ? e.message : "unknown error"));
     } finally {
       setSaving(false);
     }
@@ -112,8 +112,8 @@ export function DashboardWidgetsEditor() {
       setSavedMsg("published");
       qc.invalidateQueries({ queryKey: ["config"] });
       qc.invalidateQueries({ queryKey: ["config/status"] });
-    } catch {
-      setError("Failed to publish dashboard widgets");
+    } catch (e) {
+      setError("Failed to publish dashboard widgets: " + (e instanceof Error ? e.message : "unknown error"));
     } finally {
       setPublishing(false);
     }
