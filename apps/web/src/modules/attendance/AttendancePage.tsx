@@ -35,6 +35,23 @@ export function AttendancePage() {
   const qc = useQueryClient();
   const { programmes } = useConfig() as { programmes?: string[] };
 
+  // All useState hooks must come first (before any queries or derived values)
+  const [filters, setFilters] = useState({
+    programme: "",
+    academic_year: "",
+    term_number: "",
+    course_id: "",
+    date: new Date().toISOString().slice(0, 10), // today
+  });
+  const [applied, setApplied] = useState({ ...filters });
+  const [viewMode, setViewMode] = useState<ViewMode>("sheet");
+  const [saved, setSaved] = useState(false);
+
+  // Sheet state: map of student_id → {status, notes}
+  const [sheet, setSheet] = useState<
+    Record<string, { status: AttendanceStatus; notes: string }>
+  >({});
+
   const { data: academicYears = [] } = useQuery({
     queryKey: ["academic-years"],
     queryFn: () => listAcademicYears(),
@@ -51,23 +68,6 @@ export function AttendancePage() {
     queryKey: ["courses", selectedProgramme?.id],
     queryFn: () => listCourses({ programme_id: selectedProgramme?.id }),
   });
-
-  // Filters
-  const [filters, setFilters] = useState({
-    programme: "",
-    academic_year: "",
-    term_number: "",
-    course_id: "",
-    date: new Date().toISOString().slice(0, 10), // today
-  });
-  const [applied, setApplied] = useState({ ...filters });
-  const [viewMode, setViewMode] = useState<ViewMode>("sheet");
-  const [saved, setSaved] = useState(false);
-
-  // Sheet state: map of student_id → {status, notes}
-  const [sheet, setSheet] = useState<
-    Record<string, { status: AttendanceStatus; notes: string }>
-  >({});
 
   const canQuery =
     !!applied.course_id && !!applied.date;

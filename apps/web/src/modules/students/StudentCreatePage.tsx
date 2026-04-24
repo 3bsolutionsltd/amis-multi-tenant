@@ -93,9 +93,11 @@ export function StudentCreatePage() {
       ?.filter((f) => f.visible !== false)
       .sort((a, b) => (a.order ?? 99) - (b.order ?? 99)) ?? FALLBACK_FIELDS;
 
+  const coreFieldKeys = new Set(coreFields.map((f) => f.key));
+
   const extFields =
     studentFormConfig?.extensionFields
-      ?.filter((f) => f.visible !== false)
+      ?.filter((f) => f.visible !== false && !coreFieldKeys.has(f.key))
       .sort((a, b) => (a.order ?? 99) - (b.order ?? 99)) ?? [];
 
   const [form, setForm] = useState<Record<string, string>>(

@@ -81,19 +81,19 @@ export function AcademicCalendarPage() {
   });
 
   const updateYearMut = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: object }) => apiFetch(`/academic-years/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    mutationFn: ({ id, body }: { id: string; body: object }) => apiFetch(`/academic-years/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["academic-years"] }); setEditYear(null); setSuccessMsg("Updated."); },
     onError: () => setYearError("Failed to update"),
   });
 
   const createTermMut = useMutation({
     mutationFn: (body: object) => apiFetch("/terms", { method: "POST", body: JSON.stringify(body) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["terms-all"] }); setShowTermForm(null); resetTermForm(); setSuccessMsg("Term created."); },
+    onSuccess: () => { const yearId = showTermForm; qc.invalidateQueries({ queryKey: ["terms-all"] }); setShowTermForm(null); resetTermForm(); setSuccessMsg("Term created."); if (yearId) setExpandedYear(yearId); },
     onError: () => setTermError("Failed to create term"),
   });
 
   const updateTermMut = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: object }) => apiFetch(`/terms/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    mutationFn: ({ id, body }: { id: string; body: object }) => apiFetch(`/terms/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["terms-all"] }); setEditTerm(null); setSuccessMsg("Updated."); },
     onError: () => setTermError("Failed to update term"),
   });

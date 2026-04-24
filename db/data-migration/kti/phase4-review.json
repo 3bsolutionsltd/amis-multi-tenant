@@ -1,0 +1,32 @@
+[
+  {
+    "row": 8,
+    "source_name": "KABANDIZE DERICK",
+    "matched_name": null,
+    "score": 0,
+    "amount": 51000,
+    "currency": "UGX",
+    "receipt_no": "53221168",
+    "payment_date": "2026-04-11"
+  },
+  {
+    "row": 12,
+    "source_name": "MUHINDO ATWANZIRE",
+    "matched_name": null,
+    "score": 0,
+    "amount": 401000,
+    "currency": "UGX",
+    "receipt_no": "51245232",
+    "payment_date": "2026-02-09"
+  },
+  {
+    "row": 13,
+    "source_name": "GABULA PAUL TRAVER",
+    "matched_name": null,
+    "score": 0,
+    "amount": 401000,
+    "currency": "UGX",
+    "receipt_no": "50773261",
+    "payment_date": "2026-01-31"
+  }
+]

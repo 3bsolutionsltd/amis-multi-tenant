@@ -112,6 +112,7 @@ const FALLBACK_NAV = [
   { label: "Marks Analysis", route: "/reports/marks-analysis" },
   { label: "Timetable", route: "/timetable" },
   { label: "Attendance", route: "/attendance" },
+  { label: "Alumni", route: "/alumni" },
   { label: "Users", route: "/users" },
 ];
 
@@ -135,6 +136,7 @@ const NAV_ICONS: Record<string, string> = {
   "/reports/marks-analysis": "📊",
   "/timetable": "🗓️",
   "/attendance": "✅",
+  "/alumni": "🎓",
 };
 
 function Header() {
