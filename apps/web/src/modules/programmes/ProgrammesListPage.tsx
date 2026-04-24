@@ -31,6 +31,12 @@ const PROGRAMME_LEVELS = [
   "Bachelor's Degree",
 ] as const;
 
+const FALLBACK_DEPARTMENTS = [
+  "ICT", "Business", "Engineering", "Education", "Health Sciences",
+  "Agriculture", "Social Sciences", "Hospitality", "Construction",
+  "Automotive", "Electrical", "Others",
+];
+
 function ProgrammeModal({
   programme,
   onClose,
@@ -42,6 +48,7 @@ function ProgrammeModal({
 }) {
   const isEdit = programme !== null;
   const { departments } = useConfig();
+  const deptOptions = departments.length > 0 ? departments : FALLBACK_DEPARTMENTS;
   const [form, setForm] = useState({
     code: programme?.code ?? "",
     title: programme?.title ?? "",
@@ -116,16 +123,12 @@ function ProgrammeModal({
           </Field>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Field label="Department">
-              {departments.length > 0 ? (
-                <select style={selectCss} value={form.department} onChange={(e) => set("department", e.target.value)}>
-                  <option value="">— Select department —</option>
-                  {departments.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-              ) : (
-                <input style={inputCss} value={form.department} onChange={(e) => set("department", e.target.value)} placeholder="e.g. ICT" />
-              )}
+              <select style={selectCss} value={form.department} onChange={(e) => set("department", e.target.value)}>
+                <option value="">— Select department —</option>
+                {deptOptions.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
             </Field>
             <Field label="Duration (months)">
               <input type="number" min={1} style={inputCss} value={form.duration_months} onChange={(e) => set("duration_months", e.target.value)} placeholder="e.g. 12" />
