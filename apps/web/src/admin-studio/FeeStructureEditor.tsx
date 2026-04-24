@@ -17,6 +17,7 @@ interface FeeStructure {
   programme_code: string;
   programme_title: string;
   fee_type: string;
+  student_category: string;
   description: string | null;
   amount: string;
   currency: string;
@@ -24,8 +25,14 @@ interface FeeStructure {
 }
 
 type FeeType = "tuition" | "functional" | "examination" | "other";
+type StudentCategory = "all" | "boarding" | "day";
 
 const FEE_TYPES: FeeType[] = ["tuition", "functional", "examination", "other"];
+const STUDENT_CATEGORIES: { value: StudentCategory; label: string }[] = [
+  { value: "all", label: "All students" },
+  { value: "boarding", label: "Boarding" },
+  { value: "day", label: "Day Scholar" },
+];
 
 /* ------------------------------------------------------------------ styles */
 
@@ -66,6 +73,7 @@ export function FeeStructureEditor() {
     term_id: "",
     programme_id: "",
     fee_type: "tuition" as FeeType,
+    student_category: "all" as StudentCategory,
     description: "",
     amount: "",
     currency: "UGX",
@@ -137,7 +145,7 @@ export function FeeStructureEditor() {
   /* ---- helpers ---- */
 
   function resetForm() {
-    setForm({ academic_year_id: "", term_id: "", programme_id: "", fee_type: "tuition", description: "", amount: "", currency: "UGX", is_active: true });
+    setForm({ academic_year_id: "", term_id: "", programme_id: "", fee_type: "tuition", student_category: "all", description: "", amount: "", currency: "UGX", is_active: true });
   }
 
   function openEdit(item: FeeStructure) {
@@ -147,6 +155,7 @@ export function FeeStructureEditor() {
       term_id: item.term_id ?? "",
       programme_id: item.programme_id,
       fee_type: item.fee_type as FeeType,
+      student_category: (item.student_category ?? "all") as StudentCategory,
       description: item.description ?? "",
       amount: item.amount,
       currency: item.currency,
@@ -166,6 +175,7 @@ export function FeeStructureEditor() {
       term_id: form.term_id || null,
       programme_id: form.programme_id,
       fee_type: form.fee_type,
+      student_category: form.student_category,
       description: form.description || null,
       amount: parseFloat(form.amount),
       currency: form.currency,
@@ -250,6 +260,12 @@ export function FeeStructureEditor() {
                 </select>
               </div>
               <div>
+                <label style={labelSt}>Student Category</label>
+                <select value={form.student_category} onChange={(e) => setForm((f) => ({ ...f, student_category: e.target.value as StudentCategory }))} style={selectSt}>
+                  {STUDENT_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+              <div>
                 <label style={labelSt}>Amount ({form.currency}) *</label>
                 <input required type="number" min={0} step={0.01} value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} style={inputSt} placeholder="0.00" />
               </div>
@@ -305,6 +321,7 @@ export function FeeStructureEditor() {
                 <tr>
                   <th style={th}>Programme</th>
                   <th style={th}>Fee Type</th>
+                  <th style={th}>Category</th>
                   <th style={th}>Term</th>
                   <th style={th}>Amount</th>
                   <th style={th}>Status</th>
@@ -316,6 +333,11 @@ export function FeeStructureEditor() {
                   <tr key={fs.id}>
                     <td style={td}><strong>{fs.programme_code}</strong> — {fs.programme_title}</td>
                     <td style={td}>{fs.fee_type.charAt(0).toUpperCase() + fs.fee_type.slice(1)}</td>
+                    <td style={td}>
+                      {fs.student_category === "boarding" && <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "#dbeafe", color: "#1d4ed8" }}>Boarding</span>}
+                      {fs.student_category === "day" && <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "#fef9c3", color: "#854d0e" }}>Day Scholar</span>}
+                      {(!fs.student_category || fs.student_category === "all") && <span style={{ color: "#94a3b8", fontSize: 12 }}>All</span>}
+                    </td>
                     <td style={{ ...td, color: "#64748b" }}>{terms.find((t) => t.id === fs.term_id)?.name ?? "Year-level"}</td>
                     <td style={{ ...td, fontWeight: 700 }}>{fs.currency} {parseFloat(fs.amount).toLocaleString()}</td>
                     <td style={td}><span style={badgeStyle(fs.is_active)}>{fs.is_active ? "Active" : "Inactive"}</span></td>

@@ -1,10 +1,13 @@
 import { z } from "zod";
 
+const StudentCategorySchema = z.enum(["all", "boarding", "day"]);
+
 export const CreateFeeStructureSchema = z.object({
   academic_year_id: z.string().uuid(),
   term_id: z.string().uuid().optional(),
   programme_id: z.string().uuid(),
   fee_type: z.enum(["tuition", "functional", "examination", "other"]).optional(),
+  student_category: StudentCategorySchema.optional(),
   description: z.string().optional(),
   amount: z.number().positive(),
   currency: z.string().min(1).max(5).optional(),
@@ -12,6 +15,7 @@ export const CreateFeeStructureSchema = z.object({
 
 export const UpdateFeeStructureSchema = z.object({
   fee_type: z.enum(["tuition", "functional", "examination", "other"]).optional(),
+  student_category: StudentCategorySchema.optional(),
   description: z.string().optional(),
   amount: z.number().positive().optional(),
   currency: z.string().min(1).max(5).optional(),
@@ -23,6 +27,7 @@ export const FeeStructuresQuerySchema = z.object({
   term_id: z.string().uuid().optional(),
   programme_id: z.string().uuid().optional(),
   fee_type: z.enum(["tuition", "functional", "examination", "other"]).optional(),
+  student_category: StudentCategorySchema.optional(),
   include_inactive: z
     .string()
     .optional()
