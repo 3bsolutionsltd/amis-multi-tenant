@@ -151,10 +151,7 @@ export function LoginPage() {
 
       {/* ===== LEFT: branding panel ===== */}
       <div
-        style={{
-          display: "none",
-          // shown on md+ via inline media-query workaround (handled via class below)
-        }}
+        style={{ display: "none" }}
         className="login-brand-panel"
       >
         <style>{`
@@ -162,14 +159,14 @@ export function LoginPage() {
             .login-brand-panel {
               display: flex !important;
               flex-direction: column;
-              justify-content: center;
-              align-items: flex-start;
               width: 45%;
               min-height: 100vh;
               background: linear-gradient(145deg, var(--primary-color, #2563EB) 0%, #1e40af 100%);
-              padding: 60px 56px;
+              padding: 52px 56px;
               box-sizing: border-box;
               color: #fff;
+              position: relative;
+              overflow: hidden;
             }
           }
           .login-input-pw { position: relative; }
@@ -212,27 +209,64 @@ export function LoginPage() {
           }
         `}</style>
 
-        {/* Logo / App name */}
-        {tenantInfo?.logoUrl && (
-          <div style={{ marginBottom: 20 }}>
-            <img src={tenantInfo.logoUrl} alt={tenantInfo?.name ?? APP_NAME} style={{ height: 56, maxWidth: 180, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
-          </div>
-        )}
-        <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.7, marginBottom: 16 }}>
-          {APP_NAME}
-        </div>
-        <h1 style={{ fontSize: 36, fontWeight: 800, lineHeight: 1.15, margin: "0 0 16px", letterSpacing: "-0.02em" }}>
-          Academic<br />Management<br />Information System
-        </h1>
-        <p style={{ fontSize: 15, opacity: 0.75, lineHeight: 1.6, maxWidth: 320, margin: 0 }}>
-          Manage students, admissions, marks, finance, and more — all in one place.
-        </p>
+        {/* Decorative background circles */}
+        <div style={{ position: "absolute", top: -100, right: -100, width: 380, height: 380, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none", zIndex: 0 }} />
+        <div style={{ position: "absolute", bottom: 40, left: -80, width: 260, height: 260, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none", zIndex: 0 }} />
+        <div style={{ position: "absolute", top: "45%", right: -50, width: 180, height: 180, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none", zIndex: 0 }} />
 
-        {/* Decorative dots */}
-        <div style={{ marginTop: "auto", display: "flex", gap: 8, paddingTop: 48 }}>
-          {[1,2,3].map(i => (
-            <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: `rgba(255,255,255,${i === 1 ? 0.9 : 0.3})` }} />
-          ))}
+        {/* Logo / brand mark */}
+        <div style={{ marginBottom: 44, zIndex: 1 }}>
+          {tenantInfo?.logoUrl ? (
+            <img src={tenantInfo.logoUrl} alt={tenantInfo?.name ?? APP_NAME} style={{ height: 52, maxWidth: 180, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+          ) : (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🎓</div>
+              <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>{APP_NAME}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Heading block */}
+        <div style={{ zIndex: 1, flex: 1 }}>
+          <h1 style={{ fontSize: 34, fontWeight: 800, lineHeight: 1.2, margin: "0 0 12px", letterSpacing: "-0.02em" }}>
+            Academic Management<br />Information System
+          </h1>
+          <p style={{ fontSize: 14, opacity: 0.72, lineHeight: 1.65, maxWidth: 300, margin: "0 0 44px" }}>
+            A unified platform for managing your institution — from enrollment to graduation.
+          </p>
+
+          {/* Feature highlights */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {([
+              { icon: "👨‍🎓", label: "Students & Admissions", desc: "Manage records, applications and intake" },
+              { icon: "📊", label: "Marks & Assessments", desc: "Enter results, view grades and transcripts" },
+              { icon: "💳", label: "Finance & Payments", desc: "Fee structures, invoices and collection" },
+              { icon: "📅", label: "Academic Calendar", desc: "Terms, academic years and scheduling" },
+            ] as const).map(({ icon, label, desc }) => (
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                  background: "rgba(255,255,255,0.14)",
+                  backdropFilter: "blur(4px)",
+                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18,
+                }}>
+                  {icon}
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>{label}</div>
+                  <div style={{ fontSize: 12, opacity: 0.6, lineHeight: 1.4, marginTop: 2 }}>{desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ zIndex: 1, paddingTop: 40 }}>
+          <div style={{ height: 1, background: "rgba(255,255,255,0.15)", marginBottom: 18 }} />
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.45, lineHeight: 1.5 }}>
+            © {new Date().getFullYear()} {APP_NAME} · Academic Management Information System
+          </p>
         </div>
       </div>
 
