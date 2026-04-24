@@ -227,7 +227,12 @@ const [newTrans, setNewTrans] = useState<Record<string, { action: string; from: 
   /* ---- save / publish ---- */
 
   function buildUpdated() {
-    return { ...fullPayload, workflows };
+    // The API schema requires a `key` field on each workflow definition.
+    // Inject it from the Record key before sending.
+    const workflowsWithKeys = Object.fromEntries(
+      Object.entries(workflows).map(([k, wf]) => [k, { ...wf, key: k }]),
+    );
+    return { ...fullPayload, workflows: workflowsWithKeys };
   }
 
   async function handleSave() {
@@ -238,8 +243,9 @@ const [newTrans, setNewTrans] = useState<Record<string, { action: string; from: 
       setFullPayload(updated);
       setSavedMsg("draft");
       qc.invalidateQueries({ queryKey: ["config"] });
-    } catch {
-      setError("Failed to save workflows");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "unknown error";
+      setError(`Failed to save workflows: ${msg}`);
     } finally {
       setSaving(false);
     }
@@ -255,8 +261,9 @@ const [newTrans, setNewTrans] = useState<Record<string, { action: string; from: 
       setSavedMsg("published");
       qc.invalidateQueries({ queryKey: ["config"] });
       qc.invalidateQueries({ queryKey: ["config/status"] });
-    } catch {
-      setError("Failed to publish workflows");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "unknown error";
+      setError(`Failed to publish workflows: ${msg}`);
     } finally {
       setPublishing(false);
     }
