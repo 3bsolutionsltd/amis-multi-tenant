@@ -52,6 +52,7 @@ interface ConfigData {
 interface ConfigContextValue {
   config: ConfigData | null;
   isLoading: boolean;
+  isDefaultConfig: boolean;
   appName: string;
   logoUrl: string | null;
   role: string;
@@ -66,6 +67,7 @@ interface ConfigContextValue {
 const ConfigContext = createContext<ConfigContextValue>({
   config: null,
   isLoading: false,
+  isDefaultConfig: true,
   appName: "AMIS",
   logoUrl: null,
   role: "admin",
@@ -93,6 +95,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     enabled: !!user,
   });
 
+  const isDefaultConfig = !isLoading && !config;
   const primaryColor = config?.payload?.theme?.primaryColor ?? "#2563EB";
   const appName = config?.payload?.branding?.appName ?? "AMIS";
   const logoUrl = config?.payload?.branding?.logoUrl ?? null;
@@ -111,6 +114,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
       value={{
         config: config ?? null,
         isLoading,
+        isDefaultConfig,
         appName,
         logoUrl,
         role,

@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Component, useState, type ErrorInfo, type ReactNode } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { ConfigProvider, useConfig } from "./ConfigProvider";
 import { TenantSwitcher } from "./TenantSwitcher";
@@ -413,7 +413,73 @@ function DashboardCards() {
   );
 }
 
-function MainContent() {
+function DefaultConfigBanner() {
+  const { isDefaultConfig, isLoading, role } = useConfig();
+  const [dismissed, setDismissed] = useState(() =>
+    sessionStorage.getItem("amis_default_config_dismissed") === "1",
+  );
+
+  if (isLoading || !isDefaultConfig || dismissed) return null;
+
+  // Only show to admins — regular staff don't need to act on this
+  const showFull = role === "admin" || role === "platform_admin";
+
+  function dismiss() {
+    sessionStorage.setItem("amis_default_config_dismissed", "1");
+    setDismissed(true);
+  }
+
+  return (
+    <div
+      role="alert"
+      style={{
+        background: "#fffbeb",
+        borderBottom: "1px solid #fde68a",
+        padding: "9px 24px",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        fontSize: 13,
+        color: "#92400e",
+      }}
+    >
+      <span style={{ fontSize: 16, flexShrink: 0 }}>⚙️</span>
+      <span style={{ flex: 1 }}>
+        {showFull ? (
+          <>
+            <strong>Default configuration is active.</strong> This institution has no published
+            configuration — workflows, branding and navigation are using built-in defaults.{" "}
+            <Link
+              to="/admin-studio/config"
+              style={{ color: "#b45309", fontWeight: 600, textDecoration: "underline" }}
+            >
+              Set up configuration →
+            </Link>
+          </>
+        ) : (
+          "System is running on default configuration. Contact your administrator to customise settings."
+        )}
+      </span>
+      <button
+        onClick={dismiss}
+        aria-label="Dismiss"
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: "#b45309",
+          fontSize: 16,
+          lineHeight: 1,
+          padding: 2,
+          flexShrink: 0,
+        }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
   const { pathname } = useLocation();
   return (
     <main
@@ -437,6 +503,7 @@ function Shell() {
   return (
     <ConfigProvider>
       <Header />
+      <DefaultConfigBanner />
       <div style={{ display: "flex" }}>
         <Sidebar />
         <MainContent />
