@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { createSubmission } from "./marks.api";
 import { listProgrammes } from "../programmes/programmes.api";
+import { listCourses } from "../courses/courses.api";
+import { listAcademicYears, listTerms } from "../academic-calendar/academic-calendar.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -33,14 +35,41 @@ export function MarkCreatePage() {
   });
   const programmes = programmesQ.data ?? [];
 
+  const { data: academicYears } = useQuery({
+    queryKey: ["academic-years"],
+    queryFn: listAcademicYears,
+    staleTime: 60_000,
+  });
+
   const [form, setForm] = useState({
     course_id: "",
     programme: "",
-    intake: "2026/2027",
+    intake: "",
     term: "",
     assessment_type: "end_of_term",
     weight: "",
   });
+
+  // Resolve programme UUID for course filtering
+  const selectedProgramme = programmes.find(
+    (p) => (p.code ?? p.name) === form.programme,
+  );
+  const coursesQ = useQuery({
+    queryKey: ["courses", selectedProgramme?.id],
+    queryFn: () => listCourses({ programme_id: selectedProgramme?.id, limit: 200 }),
+    enabled: !!selectedProgramme?.id,
+    staleTime: 60_000,
+  });
+  const courses = coursesQ.data ?? [];
+
+  const selectedYear = (academicYears ?? []).find((y) => y.name === form.intake);
+  const termsQ = useQuery({
+    queryKey: ["terms", selectedYear?.id],
+    queryFn: () => listTerms({ academic_year_id: selectedYear?.id }),
+    enabled: !!selectedYear?.id,
+    staleTime: 60_000,
+  });
+  const termOptions = termsQ.data ?? [];
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,22 +107,12 @@ export function MarkCreatePage() {
           onSubmit={handleSubmit}
           style={{ display: "flex", flexDirection: "column", gap: 16 }}
         >
-          <Field label="Course ID" required>
-            <input
-              required
-              style={inputCss}
-              value={form.course_id}
-              placeholder="e.g. NCBC101"
-              onChange={(e) => set("course_id", e.target.value)}
-            />
-          </Field>
-
           <Field label="Programme" required>
             <select
               required
               style={selectCss}
               value={form.programme}
-              onChange={(e) => set("programme", e.target.value)}
+              onChange={(e) => { set("programme", e.target.value); set("course_id", ""); }}
             >
               <option value="">— Select Programme —</option>
               {programmes.map((p) => (
@@ -104,13 +123,48 @@ export function MarkCreatePage() {
             </select>
           </Field>
 
-          <Field label="Intake" required>
-            <input
+          <Field label="Course" required>
+            {selectedProgramme ? (
+              <select
+                required
+                style={selectCss}
+                value={form.course_id}
+                onChange={(e) => set("course_id", e.target.value)}
+                disabled={coursesQ.isLoading}
+              >
+                <option value="">{coursesQ.isLoading ? "Loading courses…" : "— Select Course —"}</option>
+                {courses.map((c) => (
+                  <option key={c.id} value={c.code}>
+                    {c.code} — {c.title}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                required
+                style={{ ...selectCss, background: "#f9fafb", color: "#9ca3af", cursor: "not-allowed" }}
+                value=""
+                disabled
+                placeholder="Select a programme first"
+                readOnly
+              />
+            )}
+          </Field>
+
+          <Field label="Intake (Academic Year)" required>
+            <select
               required
-              style={inputCss}
+              style={selectCss}
               value={form.intake}
-              onChange={(e) => set("intake", e.target.value)}
-            />
+              onChange={(e) => { set("intake", e.target.value); set("term", ""); }}
+            >
+              <option value="">— Select Academic Year —</option>
+              {(academicYears ?? []).map((y) => (
+                <option key={y.id} value={y.name}>
+                  {y.name}{y.is_current ? " (Current)" : ""}
+                </option>
+              ))}
+            </select>
           </Field>
 
           <Field label="Term" required>
@@ -119,11 +173,12 @@ export function MarkCreatePage() {
               style={selectCss}
               value={form.term}
               onChange={(e) => set("term", e.target.value)}
+              disabled={!selectedYear}
             >
-              <option value="">— Select Term —</option>
-              {TERMS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
+              <option value="">{!selectedYear ? "Select intake first" : "— Select Term —"}</option>
+              {termOptions.map((t) => (
+                <option key={t.id} value={t.name}>
+                  {t.name}{t.is_current ? " (Current)" : ""}
                 </option>
               ))}
             </select>

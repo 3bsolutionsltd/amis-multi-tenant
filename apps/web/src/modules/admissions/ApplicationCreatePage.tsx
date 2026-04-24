@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { createApplication } from "./admissions.api";
 import { listProgrammes } from "../programmes/programmes.api";
+import { listAcademicYears } from "../academic-calendar/academic-calendar.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -14,7 +15,7 @@ import {
   ErrorBanner,
 } from "../../lib/ui";
 
-const SPONSORSHIP_TYPES = ["Government", "Private"];
+const SPONSORSHIP_TYPES = ["Government", "Private", "Self-Sponsored", "Scholarship", "Other"];
 
 export function ApplicationCreatePage() {
   ensureGlobalCss();
@@ -25,6 +26,17 @@ export function ApplicationCreatePage() {
     queryFn: () => listProgrammes(),
   });
 
+  const { data: academicYears } = useQuery({
+    queryKey: ["academic-years"],
+    queryFn: () => listAcademicYears(),
+    staleTime: 60_000,
+  });
+
+  // Default intake to current academic year name, or first available
+  const defaultIntake = (academicYears ?? []).find((y) => y.is_current)?.name
+    ?? (academicYears ?? [])[0]?.name
+    ?? "";
+
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
@@ -33,7 +45,7 @@ export function ApplicationCreatePage() {
     dob: "",
     gender: "",
     programme: "",
-    intake: "2026/2027",
+    intake: "",
     sponsorship_type: "",
   });
   const [saving, setSaving] = useState(false);
@@ -164,12 +176,19 @@ export function ApplicationCreatePage() {
               </select>
             </Field>
             <Field label="Intake" required>
-              <input
+              <select
                 required
-                style={inputCss}
-                value={form.intake}
+                style={selectCss}
+                value={form.intake || defaultIntake}
                 onChange={(e) => set("intake", e.target.value)}
-              />
+              >
+                <option value="">— Select Intake —</option>
+                {(academicYears ?? []).map((y) => (
+                  <option key={y.id} value={y.name}>
+                    {y.name}{y.is_current ? " (Current)" : ""}
+                  </option>
+                ))}
+              </select>
             </Field>
           </div>
 
