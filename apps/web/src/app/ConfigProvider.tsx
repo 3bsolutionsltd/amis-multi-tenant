@@ -53,6 +53,7 @@ interface ConfigContextValue {
   config: ConfigData | null;
   isLoading: boolean;
   appName: string;
+  logoUrl: string | null;
   role: string;
   navigation: NavItem[];
   dashboards: DashCard[];
@@ -66,6 +67,7 @@ const ConfigContext = createContext<ConfigContextValue>({
   config: null,
   isLoading: false,
   appName: "AMIS",
+  logoUrl: null,
   role: "admin",
   navigation: [],
   dashboards: [],
@@ -93,6 +95,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
 
   const primaryColor = config?.payload?.theme?.primaryColor ?? "#2563EB";
   const appName = config?.payload?.branding?.appName ?? "AMIS";
+  const logoUrl = config?.payload?.branding?.logoUrl ?? null;
   const navigation = config?.payload?.navigation?.[role] ?? [];
   const dashboards = config?.payload?.dashboards?.[role] ?? [];
   const studentFormConfig = config?.payload?.forms?.students ?? null;
@@ -109,6 +112,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         config: config ?? null,
         isLoading,
         appName,
+        logoUrl,
         role,
         navigation,
         dashboards,

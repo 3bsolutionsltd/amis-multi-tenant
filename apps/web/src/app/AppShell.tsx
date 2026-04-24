@@ -140,7 +140,7 @@ const NAV_ICONS: Record<string, string> = {
 };
 
 function Header() {
-  const { appName } = useConfig();
+  const { appName, logoUrl } = useConfig();
   const { user, logout } = useAuth();
   return (
     <header
@@ -161,17 +161,23 @@ function Header() {
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div
           style={{
-            width: 30,
-            height: 30,
+            width: 36,
+            height: 36,
             borderRadius: 8,
-            background: "rgba(255,255,255,0.2)",
+            background: logoUrl ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.2)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             fontSize: 16,
+            overflow: "hidden",
+            flexShrink: 0,
           }}
         >
-          🎓
+          {logoUrl ? (
+            <img src={logoUrl} alt={appName} style={{ width: 32, height: 32, objectFit: "contain" }} />
+          ) : (
+            "🎓"
+          )}
         </div>
         <strong style={{ fontSize: 17, letterSpacing: "-0.01em" }}>
           {appName}
