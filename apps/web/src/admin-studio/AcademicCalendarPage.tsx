@@ -68,7 +68,7 @@ export function AcademicCalendarPage() {
 
   const { data: terms = [] } = useQuery<Term[]>({
     queryKey: ["terms-all"],
-    queryFn: () => apiFetch<Term[]>("/terms?limit=200"),
+    queryFn: () => apiFetch<Term[]>("/terms?limit=100"),
     staleTime: 30_000,
   });
 
