@@ -102,7 +102,7 @@ export function FeeStructureEditor() {
     staleTime: 60_000,
   });
 
-  const { data: feeStructures = [], isLoading } = useQuery<FeeStructure[]>({
+  const { data: feeStructures = [], isLoading, isError: fsError } = useQuery<FeeStructure[]>({
     queryKey: ["fee-structures", selectedYear],
     queryFn: () => selectedYear
       ? apiFetch<FeeStructure[]>(`/fee-structures?academic_year_id=${selectedYear}&include_inactive=true&limit=200`)
@@ -306,6 +306,10 @@ export function FeeStructureEditor() {
       {/* Table */}
       {isLoading ? (
         <p style={{ color: "#64748b" }}>Loading…</p>
+      ) : fsError ? (
+        <div style={{ padding: "12px 16px", background: "#fee2e2", color: "#dc2626", borderRadius: 8, fontSize: 13 }}>
+          Failed to load fee structures. Check server logs.
+        </div>
       ) : feeStructures.length === 0 ? (
         <div style={{ padding: 32, textAlign: "center", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, color: "#94a3b8" }}>
           No fee structures yet. Click <strong>+ Add Fee Structure</strong> to create one.
