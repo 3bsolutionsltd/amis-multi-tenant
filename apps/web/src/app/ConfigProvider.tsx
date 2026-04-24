@@ -35,6 +35,10 @@ interface ConfigPayload {
   navigation?: Record<string, NavItem[]>;
   dashboards?: Record<string, DashCard[]>;
   forms?: { students?: StudentFormConfig };
+  institution?: {
+    departments?: string[];
+    designations?: string[];
+  };
 }
 
 interface ConfigData {
@@ -54,6 +58,8 @@ interface ConfigContextValue {
   dashboards: DashCard[];
   primaryColor: string;
   studentFormConfig: StudentFormConfig | null;
+  departments: string[];
+  designations: string[];
 }
 
 const ConfigContext = createContext<ConfigContextValue>({
@@ -65,6 +71,8 @@ const ConfigContext = createContext<ConfigContextValue>({
   dashboards: [],
   primaryColor: "#2563EB",
   studentFormConfig: null,
+  departments: [],
+  designations: [],
 });
 
 export function useConfig() {
@@ -88,6 +96,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const navigation = config?.payload?.navigation?.[role] ?? [];
   const dashboards = config?.payload?.dashboards?.[role] ?? [];
   const studentFormConfig = config?.payload?.forms?.students ?? null;
+  const departments = config?.payload?.institution?.departments ?? [];
+  const designations = config?.payload?.institution?.designations ?? [];
 
   useEffect(() => {
     document.documentElement.style.setProperty("--primary-color", primaryColor);
@@ -104,6 +114,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         dashboards,
         primaryColor,
         studentFormConfig,
+        departments,
+        designations,
       }}
     >
       {children}

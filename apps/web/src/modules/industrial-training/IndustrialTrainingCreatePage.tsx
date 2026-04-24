@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { createIndustrialTraining } from "./industrial-training.api";
 import type { TrainingStatus } from "./industrial-training.api";
 import { StudentPickerInput } from "../../lib/StudentPickerInput";
+import { useConfig } from "../../app/ConfigProvider";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -14,6 +15,7 @@ import {
   ErrorBanner,
   Field,
   inputCss,
+  selectCss,
 } from "../../lib/ui";
 
 const STATUSES: TrainingStatus[] = [
@@ -26,6 +28,7 @@ const STATUSES: TrainingStatus[] = [
 export function IndustrialTrainingCreatePage() {
   ensureGlobalCss();
   const navigate = useNavigate();
+  const { departments } = useConfig();
 
   const [form, setForm] = useState({
     student_id: "",
@@ -113,12 +116,25 @@ export function IndustrialTrainingCreatePage() {
           />
         </Field>
         <Field label="Department">
-          <input
-            style={inputCss}
-            placeholder="e.g. Engineering"
-            value={form.department}
-            onChange={(e) => f("department", e.target.value)}
-          />
+          {departments.length > 0 ? (
+            <select
+              style={selectCss}
+              value={form.department}
+              onChange={(e) => f("department", e.target.value)}
+            >
+              <option value="">— Select department —</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              style={inputCss}
+              placeholder="e.g. Engineering"
+              value={form.department}
+              onChange={(e) => f("department", e.target.value)}
+            />
+          )}
         </Field>
         <Field label="Supervisor">
           <input

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listProgrammes, deleteProgramme, createProgramme, updateProgramme, type CreateProgrammeBody, type Programme } from "./programmes.api";
+import { useConfig } from "../../app/ConfigProvider";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -40,6 +41,7 @@ function ProgrammeModal({
   onSaved: () => void;
 }) {
   const isEdit = programme !== null;
+  const { departments } = useConfig();
   const [form, setForm] = useState({
     code: programme?.code ?? "",
     title: programme?.title ?? "",
@@ -114,7 +116,16 @@ function ProgrammeModal({
           </Field>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Field label="Department">
-              <input style={inputCss} value={form.department} onChange={(e) => set("department", e.target.value)} placeholder="e.g. ICT" />
+              {departments.length > 0 ? (
+                <select style={selectCss} value={form.department} onChange={(e) => set("department", e.target.value)}>
+                  <option value="">— Select department —</option>
+                  {departments.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              ) : (
+                <input style={inputCss} value={form.department} onChange={(e) => set("department", e.target.value)} placeholder="e.g. ICT" />
+              )}
             </Field>
             <Field label="Duration (months)">
               <input type="number" min={1} style={inputCss} value={form.duration_months} onChange={(e) => set("duration_months", e.target.value)} placeholder="e.g. 12" />

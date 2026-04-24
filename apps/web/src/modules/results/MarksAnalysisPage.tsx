@@ -16,12 +16,15 @@ import {
   TD,
   Badge,
 } from "../../lib/ui";
-import { C, inputCss } from "../../lib/ui";
+import { C, inputCss, selectCss } from "../../lib/ui";
 import {
   getMarksAnalysis,
   type MarksAnalysisParams,
   type CourseAnalysis,
 } from "./results.api";
+import { listTerms } from "../academic-calendar/academic-calendar.api";
+import { listProgrammes } from "../programmes/programmes.api";
+import { listCourses } from "../courses/courses.api";
 
 function passRateColor(rate: number): string {
   if (rate >= 80) return C.green;
@@ -83,6 +86,24 @@ export function MarksAnalysisPage() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["marks-analysis", applied],
     queryFn: () => getMarksAnalysis(applied),
+  });
+
+  const { data: terms = [] } = useQuery({
+    queryKey: ["terms"],
+    queryFn: () => listTerms(),
+  });
+
+  const { data: programmes = [] } = useQuery({
+    queryKey: ["programmes"],
+    queryFn: () => listProgrammes(),
+  });
+
+  const selectedProgramme = programmes.find((p) => p.code === filters.programme);
+
+  const { data: courses = [] } = useQuery({
+    queryKey: ["courses", selectedProgramme?.id],
+    queryFn: () => listCourses({ programme_id: selectedProgramme?.id }),
+    enabled: !!selectedProgramme,
   });
 
   function handleApply() {
@@ -168,29 +189,43 @@ export function MarksAnalysisPage() {
       />
 
       <FilterBar>
-        <Field label="Term ID">
-          <input
-            style={inputCss}
-            placeholder="e.g. term-uuid"
+        <Field label="Term">
+          <select
+            style={selectCss}
             value={filters.term_id ?? ""}
-            onChange={(e) => setFilters((f) => ({ ...f, term_id: e.target.value }))}
-          />
+            onChange={(e) => setFilters((f) => ({ ...f, term_id: e.target.value || undefined }))}
+          >
+            <option value="">All terms</option>
+            {terms.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
         </Field>
         <Field label="Programme">
-          <input
-            style={inputCss}
-            placeholder="e.g. BCS"
+          <select
+            style={selectCss}
             value={filters.programme ?? ""}
-            onChange={(e) => setFilters((f) => ({ ...f, programme: e.target.value }))}
-          />
+            onChange={(e) => {
+              setFilters((f) => ({ ...f, programme: e.target.value || undefined, course_id: undefined }));
+            }}
+          >
+            <option value="">All programmes</option>
+            {programmes.map((p) => (
+              <option key={p.id} value={p.code}>{p.code} — {p.title}</option>
+            ))}
+          </select>
         </Field>
-        <Field label="Course ID">
-          <input
-            style={inputCss}
-            placeholder="e.g. CSC101"
+        <Field label="Course">
+          <select
+            style={selectCss}
             value={filters.course_id ?? ""}
-            onChange={(e) => setFilters((f) => ({ ...f, course_id: e.target.value }))}
-          />
+            onChange={(e) => setFilters((f) => ({ ...f, course_id: e.target.value || undefined }))}
+          >
+            <option value="">All courses</option>
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>{c.code} — {c.title}</option>
+            ))}
+          </select>
         </Field>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
           <PrimaryBtn onClick={handleApply}>Generate</PrimaryBtn>
