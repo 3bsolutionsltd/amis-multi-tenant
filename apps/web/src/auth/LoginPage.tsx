@@ -213,6 +213,11 @@ export function LoginPage() {
         `}</style>
 
         {/* Logo / App name */}
+        {tenantInfo?.logoUrl && (
+          <div style={{ marginBottom: 20 }}>
+            <img src={tenantInfo.logoUrl} alt={tenantInfo?.name ?? APP_NAME} style={{ height: 56, maxWidth: 180, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+          </div>
+        )}
         <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.7, marginBottom: 16 }}>
           {APP_NAME}
         </div>
@@ -275,7 +280,11 @@ export function LoginPage() {
                   <p className="login-error" style={{ marginTop: 0 }}>{tenantError}</p>
                 ) : (
                   <div className="login-tenant-badge">
-                    <span>🏫</span>
+                    {tenantInfo?.logoUrl ? (
+                      <img src={tenantInfo.logoUrl} alt={tenantInfo.name} style={{ width: 20, height: 20, objectFit: "contain", borderRadius: 3 }} />
+                    ) : (
+                      <span>🏫</span>
+                    )}
                     <span>{tenantInfo ? tenantInfo.name : "Loading institution…"}</span>
                   </div>
                 )}
