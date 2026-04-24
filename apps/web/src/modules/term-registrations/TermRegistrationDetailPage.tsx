@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../auth/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getTermRegistration,
@@ -82,9 +83,17 @@ export function TermRegistrationDetailPage() {
     );
 
   const currentState = reg.current_state;
+  const { user } = useAuth();
   const availableActions = wfDef
     ? wfDef.transitions
-        .filter((t) => t.from === currentState)
+        .filter(
+          (t) =>
+            t.from === currentState &&
+            (!t.required_role ||
+              t.required_role === user?.role ||
+              user?.role === "admin" ||
+              user?.role === "platform_admin"),
+        )
         .map((t) => t.action)
     : [];
 

@@ -5,6 +5,10 @@ const workflowTransitionSchema = z.object({
   action: z.string().min(1),
   from: z.string().min(1),
   to: z.string().min(1),
+  // Optional: restrict which role may fire this transition.
+  // When set, the API enforces it server-side and the UI only shows the
+  // action button to users with a matching role.
+  required_role: z.string().optional(),
 });
 
 // A single workflow definition stored inside the config payload.
