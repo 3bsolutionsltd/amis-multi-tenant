@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createTermRegistration } from "./term-registrations.api";
 import { listStudents, type Student } from "../students/students.api";
+import { listAcademicYears, listTerms } from "../academic-calendar/academic-calendar.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -13,8 +14,6 @@ import {
   PrimaryBtn,
   ErrorBanner,
 } from "../../lib/ui";
-
-const TERMS = ["Term 1", "Term 2", "Term 3"];
 
 export function TermRegistrationCreatePage() {
   ensureGlobalCss();
@@ -37,10 +36,25 @@ export function TermRegistrationCreatePage() {
       : null,
   );
   const [form, setForm] = useState({
-    academic_year: "2026/2027",
-    term: "Term 1",
+    academic_year: "",
+    term: "",
   });
   const [error, setError] = useState<string | null>(null);
+
+  const { data: academicYears } = useQuery({
+    queryKey: ["academic-years"],
+    queryFn: () => listAcademicYears(),
+    staleTime: 60_000,
+  });
+
+  const selectedYear = (academicYears ?? []).find((y) => y.name === form.academic_year);
+
+  const { data: terms } = useQuery({
+    queryKey: ["terms", selectedYear?.id],
+    queryFn: () => listTerms({ academic_year_id: selectedYear?.id }),
+    enabled: !!selectedYear?.id,
+    staleTime: 60_000,
+  });
 
   const { data: searchResults } = useQuery({
     queryKey: ["students-search", search],
@@ -164,14 +178,21 @@ export function TermRegistrationCreatePage() {
           </Field>
 
           <Field label="Academic Year" required>
-            <input
+            <select
               required
-              style={inputCss}
+              style={selectCss}
               value={form.academic_year}
               onChange={(e) =>
-                setForm((f) => ({ ...f, academic_year: e.target.value }))
+                setForm((f) => ({ ...f, academic_year: e.target.value, term: "" }))
               }
-            />
+            >
+              <option value="">— Select Academic Year —</option>
+              {(academicYears ?? []).map((y) => (
+                <option key={y.id} value={y.name}>
+                  {y.name}{y.is_current ? " (Current)" : ""}
+                </option>
+              ))}
+            </select>
           </Field>
 
           <Field label="Term" required>
@@ -180,10 +201,12 @@ export function TermRegistrationCreatePage() {
               style={selectCss}
               value={form.term}
               onChange={(e) => setForm((f) => ({ ...f, term: e.target.value }))}
+              disabled={!selectedYear}
             >
-              {TERMS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
+              <option value="">{!selectedYear ? "Select year first" : "— Select Term —"}</option>
+              {(terms ?? []).map((t) => (
+                <option key={t.id} value={t.name}>
+                  {t.name}{t.is_current ? " (Current)" : ""}
                 </option>
               ))}
             </select>
