@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getProgramme, updateProgramme, deleteProgramme, type UpdateProgrammeBody } from "./programmes.api";
+import { useConfig } from "../../app/ConfigProvider";
 import {
   ensureGlobalCss,
   Spinner,
@@ -33,6 +34,7 @@ export function ProgrammeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { departments } = useConfig();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     code: "",
@@ -140,7 +142,16 @@ export function ProgrammeDetailPage() {
             </Field>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="Department">
-                <input style={inputCss} value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} />
+                {departments.length > 0 ? (
+                  <select style={selectCss} value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))}>
+                    <option value="">— Select department —</option>
+                    {departments.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input style={inputCss} value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} />
+                )}
               </Field>
               <Field label="Duration (months)">
                 <input type="number" min={1} style={inputCss} value={form.duration_months} onChange={(e) => setForm((f) => ({ ...f, duration_months: e.target.value }))} />

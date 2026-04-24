@@ -11,6 +11,9 @@ import {
   type BatchAttendanceItem,
 } from "./attendance.api";
 import { useConfig } from "../../app/ConfigProvider";
+import { listAcademicYears } from "../academic-calendar/academic-calendar.api";
+import { listCourses } from "../courses/courses.api";
+import { listProgrammes } from "../programmes/programmes.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -31,6 +34,23 @@ export function AttendancePage() {
   ensureGlobalCss();
   const qc = useQueryClient();
   const { programmes } = useConfig() as { programmes?: string[] };
+
+  const { data: academicYears = [] } = useQuery({
+    queryKey: ["academic-years"],
+    queryFn: () => listAcademicYears(),
+  });
+
+  const { data: programmesList = [] } = useQuery({
+    queryKey: ["programmes"],
+    queryFn: () => listProgrammes(),
+  });
+
+  const selectedProgramme = programmesList.find((p) => p.code === filters.programme);
+
+  const { data: coursesList = [] } = useQuery({
+    queryKey: ["courses", selectedProgramme?.id],
+    queryFn: () => listCourses({ programme_id: selectedProgramme?.id }),
+  });
 
   // Filters
   const [filters, setFilters] = useState({
@@ -194,15 +214,19 @@ export function AttendancePage() {
             marginBottom: 12,
           }}
         >
-          <Field label="Course ID *">
-            <input
-              style={inputCss}
+          <Field label="Course *">
+            <select
+              style={selectCss}
               value={filters.course_id}
               onChange={(e) =>
                 setFilters({ ...filters, course_id: e.target.value })
               }
-              placeholder="e.g. CS101"
-            />
+            >
+              <option value="">— Select course —</option>
+              {coursesList.map((c) => (
+                <option key={c.id} value={c.id}>{c.code} — {c.title}</option>
+              ))}
+            </select>
           </Field>
           <Field label="Date *">
             <input
@@ -242,14 +266,18 @@ export function AttendancePage() {
             )}
           </Field>
           <Field label="Academic Year">
-            <input
-              style={inputCss}
+            <select
+              style={selectCss}
               value={filters.academic_year}
               onChange={(e) =>
                 setFilters({ ...filters, academic_year: e.target.value })
               }
-              placeholder="e.g. 2025/2026"
-            />
+            >
+              <option value="">All years</option>
+              {academicYears.map((y) => (
+                <option key={y.id} value={y.name}>{y.name}</option>
+              ))}
+            </select>
           </Field>
           <Field label="Term">
             <select

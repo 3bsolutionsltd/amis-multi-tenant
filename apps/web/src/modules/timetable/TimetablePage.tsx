@@ -27,6 +27,9 @@ import {
   type DayOfWeek,
   type TimetableFilters,
 } from "./timetable.api";
+import { listAcademicYears } from "../academic-calendar/academic-calendar.api";
+import { listProgrammes } from "../programmes/programmes.api";
+import { listCourses } from "../courses/courses.api";
 
 // ─── Slot colour palette (cycle by course) ───────────────────────────────────
 const SLOT_COLORS = [
@@ -139,6 +142,24 @@ function SlotForm({
   const set = (k: keyof TimetableSlotInput, v: unknown) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  const { data: academicYears = [] } = useQuery({
+    queryKey: ["academic-years"],
+    queryFn: () => listAcademicYears(),
+  });
+
+  const { data: programmes = [] } = useQuery({
+    queryKey: ["programmes"],
+    queryFn: () => listProgrammes(),
+  });
+
+  const selectedProgramme = programmes.find((p) => p.code === form.programme);
+
+  const { data: courses = [] } = useQuery({
+    queryKey: ["courses", selectedProgramme?.id],
+    queryFn: () => listCourses({ programme_id: selectedProgramme?.id }),
+    enabled: !!selectedProgramme,
+  });
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     onSave(form);
@@ -149,14 +170,45 @@ function SlotForm({
       {error && <ErrorBanner message={error} />}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <Field label="Programme">
+          <select
+            style={selectCss}
+            value={form.programme ?? ""}
+            onChange={(e) => {
+              set("programme", e.target.value);
+              set("course_id", "");
+            }}
+          >
+            <option value="">— Select —</option>
+            {programmes.map((p) => (
+              <option key={p.id} value={p.code}>{p.code} — {p.title}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Academic Year">
+          <select
+            style={selectCss}
+            value={form.academic_year ?? ""}
+            onChange={(e) => set("academic_year", e.target.value)}
+          >
+            <option value="">— Select year —</option>
+            {academicYears.map((y) => (
+              <option key={y.id} value={y.name}>{y.name}</option>
+            ))}
+          </select>
+        </Field>
         <Field label="Course ID *">
-          <input
-            style={inputCss}
+          <select
+            style={selectCss}
             required
             value={form.course_id}
             onChange={(e) => set("course_id", e.target.value)}
-            placeholder="e.g. CSC101"
-          />
+          >
+            <option value="">— Select course —</option>
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>{c.code} — {c.title}</option>
+            ))}
+          </select>
         </Field>
         <Field label="Day *">
           <select
@@ -201,22 +253,6 @@ function SlotForm({
             value={form.instructor_name ?? ""}
             onChange={(e) => set("instructor_name", e.target.value)}
             placeholder="Name"
-          />
-        </Field>
-        <Field label="Programme">
-          <input
-            style={inputCss}
-            value={form.programme ?? ""}
-            onChange={(e) => set("programme", e.target.value)}
-            placeholder="e.g. BCS"
-          />
-        </Field>
-        <Field label="Academic Year">
-          <input
-            style={inputCss}
-            value={form.academic_year ?? ""}
-            onChange={(e) => set("academic_year", e.target.value)}
-            placeholder="e.g. 2025/2026"
           />
         </Field>
         <Field label="Term">

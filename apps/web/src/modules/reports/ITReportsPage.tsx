@@ -6,6 +6,8 @@ import {
   type ITReport,
   type CreateITReportBody,
 } from "./reports.api";
+import { listIndustrialTraining } from "../industrial-training/industrial-training.api";
+import { useAuth } from "../../auth/AuthContext";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -38,11 +40,18 @@ function ITReportModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { user } = useAuth();
   const [form, setForm] = useState<Partial<CreateITReportBody>>({
     report_type: "student",
+    submitted_by: user?.email ?? "",
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const { data: itRecords = [] } = useQuery({
+    queryKey: ["industrial-training-picker"],
+    queryFn: () => listIndustrialTraining({ limit: 200 }),
+  });
 
   function set(k: keyof CreateITReportBody, v: string | number) {
     setForm((f) => ({ ...f, [k]: v || undefined }));
@@ -99,13 +108,19 @@ function ITReportModal({
         <h2 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 600 }}>New IT Report</h2>
         {error && <ErrorBanner message={error} />}
         <form onSubmit={handleSubmit}>
-          <Field label="Industrial Training ID *">
-            <input
-              style={inputCss}
+          <Field label="Industrial Training Record *">
+            <select
+              style={selectCss}
               value={form.industrial_training_id ?? ""}
               onChange={(e) => set("industrial_training_id", e.target.value)}
-              placeholder="UUID of IT record"
-            />
+            >
+              <option value="">— Select IT record —</option>
+              {itRecords.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.first_name ? `${r.first_name} ${r.last_name ?? ""} — ` : ""}{r.company}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Report Type *">
             <select
@@ -161,6 +176,7 @@ function ITReportModal({
               style={inputCss}
               value={form.submitted_by ?? ""}
               onChange={(e) => set("submitted_by", e.target.value)}
+              placeholder="Your name or email"
             />
           </Field>
           <div style={{ display: "flex", gap: 8, marginTop: 20, justifyContent: "flex-end" }}>

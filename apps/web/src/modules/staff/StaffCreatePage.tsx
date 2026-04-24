@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { createStaff, type CreateStaffBody } from "./staff.api";
 import { ApiError } from "../../lib/apiFetch";
+import { useConfig } from "../../app/ConfigProvider";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -21,6 +22,7 @@ export function StaffCreatePage() {
   ensureGlobalCss();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { departments, designations } = useConfig();
 
   const [form, setForm] = useState<CreateStaffBody>({
     first_name: "",
@@ -183,20 +185,46 @@ export function StaffCreatePage() {
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
           >
             <Field label="Department" error={fieldErrors.department}>
-              <input
-                style={inputCss}
-                value={form.department ?? ""}
-                onChange={(e) => set("department", e.target.value)}
-                placeholder="e.g. ICT"
-              />
+              {departments.length > 0 ? (
+                <select
+                  style={selectCss}
+                  value={form.department ?? ""}
+                  onChange={(e) => set("department", e.target.value)}
+                >
+                  <option value="">— Select department —</option>
+                  {departments.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  style={inputCss}
+                  value={form.department ?? ""}
+                  onChange={(e) => set("department", e.target.value)}
+                  placeholder="e.g. ICT"
+                />
+              )}
             </Field>
             <Field label="Designation" error={fieldErrors.designation}>
-              <input
-                style={inputCss}
-                value={form.designation ?? ""}
-                onChange={(e) => set("designation", e.target.value)}
-                placeholder="e.g. Lecturer"
-              />
+              {designations.length > 0 ? (
+                <select
+                  style={selectCss}
+                  value={form.designation ?? ""}
+                  onChange={(e) => set("designation", e.target.value)}
+                >
+                  <option value="">— Select designation —</option>
+                  {designations.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  style={inputCss}
+                  value={form.designation ?? ""}
+                  onChange={(e) => set("designation", e.target.value)}
+                  placeholder="e.g. Lecturer"
+                />
+              )}
             </Field>
           </div>
           <div
