@@ -63,6 +63,56 @@ const inputSt: React.CSSProperties = {
 
 const selectSt: React.CSSProperties = { ...inputSt };
 
+/* ---- built-in seed workflows (mirrors API DEFAULT_WORKFLOWS) ----------- */
+// These are used to pre-populate the editor when no workflows have been
+// published yet, so the admin sees (and can customise) the active defaults.
+const SEED_WORKFLOWS: Record<string, WorkflowDef> = {
+  term_registration: {
+    initial_state: "REGISTERED",
+    states: [
+      "REGISTERED", "DOCS_VERIFIED", "FEE_PAID", "GUILD_FEE_VERIFIED",
+      "ENROLLMENT_ENDORSED", "PPE_ISSUED", "HALL_ALLOCATED", "MEAL_CARD_ISSUED",
+      "HOD_VERIFIED", "MEDICAL_CLEARED", "LIBRARY_CARD_ISSUED",
+      "ONLINE_REGISTERED", "EXAM_ENROLLED",
+    ],
+    transitions: [
+      { action: "verify_docs",        from: "REGISTERED",           to: "DOCS_VERIFIED",        required_role: "registrar" },
+      { action: "verify_payment",     from: "DOCS_VERIFIED",        to: "FEE_PAID",             required_role: "finance"   },
+      { action: "verify_guild_fee",   from: "FEE_PAID",             to: "GUILD_FEE_VERIFIED",   required_role: "dean"      },
+      { action: "endorse_enrollment", from: "GUILD_FEE_VERIFIED",   to: "ENROLLMENT_ENDORSED",  required_role: "dean"      },
+      { action: "issue_ppe",          from: "ENROLLMENT_ENDORSED",  to: "PPE_ISSUED",           required_role: "admin"     },
+      { action: "allocate_hall",      from: "PPE_ISSUED",           to: "HALL_ALLOCATED",       required_role: "admin"     },
+      { action: "issue_meal_card",    from: "HALL_ALLOCATED",       to: "MEAL_CARD_ISSUED",     required_role: "admin"     },
+      { action: "hod_verify",         from: "MEAL_CARD_ISSUED",     to: "HOD_VERIFIED",         required_role: "hod"       },
+      { action: "medical_clear",      from: "HOD_VERIFIED",         to: "MEDICAL_CLEARED",      required_role: "admin"     },
+      { action: "issue_library_card", from: "MEDICAL_CLEARED",      to: "LIBRARY_CARD_ISSUED",  required_role: "admin"     },
+      { action: "online_register",    from: "LIBRARY_CARD_ISSUED",  to: "ONLINE_REGISTERED",    required_role: "admin"     },
+      { action: "enroll_for_exams",   from: "ONLINE_REGISTERED",    to: "EXAM_ENROLLED",        required_role: "registrar" },
+    ],
+  },
+  marks: {
+    initial_state: "DRAFT",
+    states: ["DRAFT", "SUBMITTED", "HOD_REVIEW", "APPROVED", "PUBLISHED"],
+    transitions: [
+      { action: "submit",  from: "DRAFT",       to: "SUBMITTED",  required_role: "instructor" },
+      { action: "review",  from: "SUBMITTED",   to: "HOD_REVIEW", required_role: "hod"        },
+      { action: "approve", from: "HOD_REVIEW",  to: "APPROVED",   required_role: "hod"        },
+      { action: "return",  from: "HOD_REVIEW",  to: "DRAFT",      required_role: "hod"        },
+      { action: "publish", from: "APPROVED",    to: "PUBLISHED",  required_role: "registrar"  },
+    ],
+  },
+  admission: {
+    initial_state: "submitted",
+    states: ["submitted", "shortlisted", "interview", "accepted", "rejected"],
+    transitions: [
+      { action: "shortlist", from: "submitted",   to: "shortlisted", required_role: "registrar" },
+      { action: "interview", from: "shortlisted", to: "interview",   required_role: "registrar" },
+      { action: "accept",    from: "interview",   to: "accepted",    required_role: "principal" },
+      { action: "reject",    from: "interview",   to: "rejected",    required_role: "principal" },
+    ],
+  },
+};
+
 /* ---------------------------------------------------------------- component */
 
 export function WorkflowViewer() {
@@ -86,12 +136,22 @@ export function WorkflowViewer() {
   const [newState, setNewState] = useState<Record<string, string>>({});
 const [newTrans, setNewTrans] = useState<Record<string, { action: string; from: string; to: string; required_role: string }>>({});
 
+  const [seededFromDefaults, setSeededFromDefaults] = useState(false);
+
   useEffect(() => {
     getConfigStatus()
       .then((s) => {
         const p = (s.draft ?? s.published ?? {}) as Record<string, unknown>;
         setFullPayload(p);
-        setWorkflows((p.workflows ?? {}) as Record<string, WorkflowDef>);
+        const saved = (p.workflows ?? {}) as Record<string, WorkflowDef>;
+        if (Object.keys(saved).length === 0) {
+          // Nothing published yet — seed editor from built-in defaults so the
+          // admin sees what the system is currently running and can customise it.
+          setWorkflows(SEED_WORKFLOWS);
+          setSeededFromDefaults(true);
+        } else {
+          setWorkflows(saved);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -232,6 +292,13 @@ const [newTrans, setNewTrans] = useState<Record<string, { action: string; from: 
           )}
         </div>
       </div>
+
+      {/* Default-seed notice */}
+      {seededFromDefaults && (
+        <div style={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: 8, padding: "10px 16px", marginBottom: 20, fontSize: 13, color: "#713f12" }}>
+          <strong>Showing built-in defaults.</strong> No workflows have been published yet — the editor is pre-loaded with the system defaults so you can review and customise them. Click <strong>Save &amp; Publish</strong> to make these (or your changes) the active configuration.
+        </div>
+      )}
 
       {/* New workflow form */}
       {showNewWf && (
