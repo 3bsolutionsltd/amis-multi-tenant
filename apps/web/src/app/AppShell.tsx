@@ -480,6 +480,7 @@ function DefaultConfigBanner() {
   );
 }
 
+function MainContent() {
   const { pathname } = useLocation();
   return (
     <main
