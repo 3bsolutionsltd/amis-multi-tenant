@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AMIS — User Manual & Toolkit</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-light: #dbeafe;
+      --primary-dark: #1d4ed8;
+      --success: #16a34a;
+      --success-light: #dcfce7;
+      --warning: #d97706;
+      --warning-light: #fef3c7;
+      --danger: #dc2626;
+      --danger-light: #fee2e2;
+      --sidebar-w: 280px;
+      --header-h: 60px;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --text-light: #94a3b8;
+      --code-bg: #f1f5f9;
+      --badge-radius: 4px;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    [data-theme="dark"] {
+      --primary: #60a5fa;
+      --primary-light: #1e3a5f;
+      --primary-dark: #93c5fd;
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-light: #64748b;
+      --code-bg: #0f172a;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── TOPBAR ─────────────────────────────────────────────────────── */
+    #topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 20px;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+    #menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px;
+      color: var(--text);
+      font-size: 20px;
+    }
+    #logo-area {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+      min-width: 140px;
+    }
+    #logo-area .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--primary);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    #logo-area .logo-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    #logo-area .logo-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 400;
+      display: block;
+    }
+    #search-wrap {
+      flex: 1;
+      max-width: 440px;
+      position: relative;
+    }
+    #search-input {
+      width: 100%;
+      padding: 8px 16px 8px 38px;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #search-input:focus { border-color: var(--primary); }
+    #search-wrap .search-icon {
+      position: absolute;
+      left: 12px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-light);
+      font-size: 15px;
+    }
+    #search-clear {
+      position: absolute;
+      right: 10px; top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-light);
+      font-size: 16px;
+      display: none;
+      padding: 2px 4px;
+    }
+    #role-filter {
+      padding: 7px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+    }
+    .topbar-btn {
+      padding: 7px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .topbar-btn:hover { background: var(--bg); }
+    #theme-btn { font-size: 16px; padding: 7px 10px; }
+
+    /* ── LAYOUT ─────────────────────────────────────────────────────── */
+    #layout {
+      display: flex;
+      padding-top: var(--header-h);
+      min-height: 100vh;
+    }
+
+    /* ── SIDEBAR ────────────────────────────────────────────────────── */
+    #sidebar {
+      position: fixed;
+      top: var(--header-h);
+      left: 0;
+      bottom: 0;
+      width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      z-index: 90;
+      transition: transform 0.25s ease;
+    }
+    #sidebar::-webkit-scrollbar { width: 5px; }
+    #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .sidebar-group { padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .sidebar-group:last-child { border-bottom: none; }
+    .sidebar-group-label {
+      padding: 8px 18px 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-light);
+    }
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 18px;
+      font-size: 13.5px;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+      cursor: pointer;
+      background: none;
+      border-top: none;
+      border-right: none;
+      border-bottom: none;
+      width: 100%;
+      text-align: left;
+    }
+    .sidebar-link:hover {
+      color: var(--primary);
+      background: var(--primary-light);
+      border-left-color: var(--primary);
+    }
+    .sidebar-link.active {
+      color: var(--primary);
+      background: var(--primary-light);
+      border-left-color: var(--primary);
+      font-weight: 600;
+    }
+    .sidebar-link .icon { font-size: 14px; flex-shrink: 0; }
+    .sidebar-link .num {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-left: auto;
+      background: var(--bg);
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    /* ── CONTENT ────────────────────────────────────────────────────── */
+    #content {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      padding: 40px 48px;
+      max-width: calc(100% - var(--sidebar-w));
+    }
+
+    /* ── SEARCH RESULTS BANNER ──────────────────────────────────────── */
+    #search-banner {
+      display: none;
+      background: var(--primary-light);
+      border: 1px solid var(--primary);
+      border-radius: var(--radius);
+      padding: 12px 18px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      color: var(--primary);
+    }
+    mark {
+      background: #fef08a;
+      color: #713f12;
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+    [data-theme="dark"] mark { background: #713f12; color: #fef08a; }
+
+    /* ── SECTIONS ───────────────────────────────────────────────────── */
+    .section {
+      background: var(--surface);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 36px 40px;
+      margin-bottom: 28px;
+      box-shadow: var(--shadow);
+      transition: opacity 0.2s;
+    }
+    .section.hidden { display: none; }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .section-title { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .section-desc { font-size: 14px; color: var(--text-muted); }
+    .section-num {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--text-light);
+      background: var(--bg);
+      padding: 3px 10px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    /* ── ROLE BADGES ────────────────────────────────────────────────── */
+    .roles-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+    .role-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .role-admin    { background:#dbeafe; color:#1d4ed8; }
+    .role-registrar{ background:#dcfce7; color:#15803d; }
+    .role-finance  { background:#fef3c7; color:#b45309; }
+    .role-principal{ background:#f3e8ff; color:#7c3aed; }
+    .role-dean     { background:#fce7f3; color:#be185d; }
+    .role-hod      { background:#e0f2fe; color:#0369a1; }
+    .role-instructor{background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; }
+    .role-all      { background:#f1f5f9; color:#475569; }
+
+    /* ── CONTENT TYPOGRAPHY ─────────────────────────────────────────── */
+    .section h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 28px 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section h2::before {
+      content: '';
+      display: inline-block;
+      width: 4px; height: 18px;
+      background: var(--primary);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .section h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 20px 0 8px;
+    }
+    .section p { margin-bottom: 12px; color: var(--text-muted); font-size: 14.5px; }
+    .section ul, .section ol {
+      padding-left: 20px;
+      margin-bottom: 14px;
+      color: var(--text-muted);
+      font-size: 14.5px;
+    }
+    .section li { margin-bottom: 5px; }
+    .section strong { color: var(--text); }
+
+    /* ── WORKFLOW BOX ───────────────────────────────────────────────── */
+    .workflow {
+      background: var(--code-bg);
+      border-radius: var(--radius);
+      padding: 18px 24px;
+      margin: 16px 0;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--text);
+      overflow-x: auto;
+      border: 1px solid var(--border);
+    }
+    .workflow .arrow { color: var(--primary); }
+
+    /* ── TABLES ─────────────────────────────────────────────────────── */
+    .tbl-wrap { overflow-x: auto; margin: 16px 0; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead { background: var(--bg); }
+    th {
+      padding: 11px 16px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 2px solid var(--border);
+    }
+    td {
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 14px;
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg); }
+
+    /* ── CALLOUT BOXES ──────────────────────────────────────────────── */
+    .callout {
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin: 14px 0;
+      font-size: 14px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .callout-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .callout-warn { background: var(--warning-light); border: 1px solid #fcd34d; color: #92400e; }
+    .callout-tip  { background: var(--success-light); border: 1px solid #86efac; color: #14532d; }
+    [data-theme="dark"] .callout-info { background: #1e3a5f; border-color: #1d4ed8; color: #93c5fd; }
+    [data-theme="dark"] .callout-warn { background: #422006; border-color: #d97706; color: #fcd34d; }
+    [data-theme="dark"] .callout-tip  { background: #052e16; border-color: #16a34a; color: #86efac; }
+
+    /* ── STEPS ──────────────────────────────────────────────────────── */
+    .steps { counter-reset: step; list-style: none; padding: 0; margin: 14px 0; }
+    .steps li {
+      counter-increment: step;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 10px 0;
+      border-bottom: 1px dashed var(--border);
+      font-size: 14.5px;
+      color: var(--text-muted);
+    }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before {
+      content: counter(step);
+      flex-shrink: 0;
+      width: 26px; height: 26px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* ── DEPT BADGES ────────────────────────────────────────────────── */
+    .dept-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .dept-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-size: 13.5px;
+    }
+    .dept-card .dept-name { font-weight: 600; color: var(--text); margin-bottom: 3px; }
+    .dept-card .dept-desc { font-size: 12px; color: var(--text-muted); }
+
+    /* ── CATEGORY BADGES ────────────────────────────────────────────── */
+    .cat-boarding { background: #dbeafe; color: #1d4ed8; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .cat-day      { background: #fef3c7; color: #92400e; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .cat-all      { background: #f1f5f9; color: #475569; font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+
+    /* ── STATUS CHIPS ───────────────────────────────────────────────── */
+    .chip {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .chip-blue   { background:#dbeafe; color:#1d4ed8; }
+    .chip-green  { background:#dcfce7; color:#15803d; }
+    .chip-yellow { background:#fef3c7; color:#92400e; }
+    .chip-red    { background:#fee2e2; color:#dc2626; }
+    .chip-purple { background:#f3e8ff; color:#7c3aed; }
+    .chip-gray   { background:#f1f5f9; color:#475569; }
+
+    /* ── CODE ───────────────────────────────────────────────────────── */
+    code {
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      color: var(--primary);
+      border: 1px solid var(--border);
+    }
+
+    /* ── NO-RESULTS ─────────────────────────────────────────────────── */
+    #no-results {
+      display: none;
+      text-align: center;
+      padding: 80px 40px;
+      color: var(--text-muted);
+    }
+    #no-results .nr-icon { font-size: 48px; margin-bottom: 16px; }
+    #no-results h3 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
+
+    /* ── BACK TO TOP ────────────────────────────────────────────────── */
+    #btt {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      width: 42px; height: 42px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      font-size: 18px;
+      cursor: pointer;
+      box-shadow: var(--shadow-md);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    #btt:hover { transform: translateY(-2px); }
+
+    /* ── PRINT ──────────────────────────────────────────────────────── */
+    @media print {
+      #topbar, #sidebar, #btt, .roles-row { display: none !important; }
+      #layout { display: block; padding-top: 0; }
+      #content { margin: 0; padding: 20px; max-width: 100%; }
+      .section { break-inside: avoid; box-shadow: none; border-color: #ccc; margin-bottom: 16px; }
+    }
+
+    /* ── RESPONSIVE ─────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      #menu-btn { display: flex; align-items: center; }
+      #role-filter, .topbar-btn:not(#theme-btn) { display: none; }
+      #sidebar { transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.2); }
+      #content { margin-left: 0; padding: 24px 20px; max-width: 100%; }
+    }
+    @media (max-width: 480px) {
+      #content { padding: 16px 14px; }
+      .section { padding: 22px 18px; }
+      .section-title { font-size: 18px; }
+    }
+
+    /* ── HERO ───────────────────────────────────────────────────────── */
+    #hero {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #4f46e5 100%);
+      border-radius: 14px;
+      padding: 48px 48px;
+      margin-bottom: 32px;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    #hero::after {
+      content: '';
+      position: absolute;
+      right: -40px; top: -40px;
+      width: 200px; height: 200px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 50%;
+    }
+    #hero h1 { font-size: 30px; font-weight: 800; margin-bottom: 8px; }
+    #hero p  { font-size: 15px; opacity: 0.85; max-width: 520px; }
+    .hero-meta { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
+    .hero-meta-item { font-size: 13px; opacity: 0.8; display: flex; gap: 6px; align-items: center; }
+
+    /* ── QUICK-ACCESS GRID ──────────────────────────────────────────── */
+    #quick-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    .quick-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 16px;
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.15s;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .quick-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 4px 14px rgba(37,99,235,0.15);
+      transform: translateY(-2px);
+    }
+    .quick-card .qc-icon { font-size: 26px; margin-bottom: 8px; }
+    .quick-card .qc-label { font-size: 13px; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<!-- ══ TOPBAR ══════════════════════════════════════════════════════════ -->
+<header id="topbar">
+  <button id="menu-btn" aria-label="Toggle menu">☰</button>
+  <a id="logo-area" href="#hero">
+    <div class="logo-icon">A</div>
+    <div>
+      <div class="logo-text">AMIS</div>
+      <span class="logo-sub">User Manual</span>
+    </div>
+  </a>
+  <div id="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input id="search-input" type="search" placeholder="Search the manual…" autocomplete="off" />
+    <button id="search-clear" title="Clear search">×</button>
+  </div>
+  <select id="role-filter" title="Filter by role">
+    <option value="">All Roles</option>
+    <option value="admin">Admin</option>
+    <option value="registrar">Registrar</option>
+    <option value="finance">Finance</option>
+    <option value="principal">Principal</option>
+    <option value="dean">Dean</option>
+    <option value="hod">HOD</option>
+    <option value="instructor">Instructor</option>
+  </select>
+  <button class="topbar-btn" onclick="window.print()">🖨️ Print</button>
+  <button class="topbar-btn" id="theme-btn" title="Toggle dark mode">🌙</button>
+</header>
+
+<!-- ══ LAYOUT ══════════════════════════════════════════════════════════ -->
+<div id="layout">
+
+<!-- ══ SIDEBAR ════════════════════════════════════════════════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Getting Started</div>
+    <button class="sidebar-link" data-target="s-intro">📖 Introduction</button>
+    <button class="sidebar-link" data-target="s-getting-started">🚀 Login & Navigation</button>
+    <button class="sidebar-link" data-target="s-dashboard">🏠 Dashboard</button>
+    <button class="sidebar-link" data-target="s-roles">🔐 Roles & Permissions</button>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Core Modules</div>
+    <button class="sidebar-link" data-target="s-students">👨‍🎓 Students</button>
+    <button class="sidebar-link" data-target="s-admissions">📋 Admissions</button>
+    <button class="sidebar-link" data-target="s-term-reg">📅 Term Registrations</button>
+    <button class="sidebar-link" data-target="s-finance">💰 Finance & Fees</button>
+    <button class="sidebar-link" data-target="s-marks">📊 Marks & Assessments</button>
+    <button class="sidebar-link" data-target="s-results">📄 Results & Transcripts</button>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Academic Operations</div>
+    <button class="sidebar-link" data-target="s-attendance">✅ Attendance</button>
+    <button class="sidebar-link" data-target="s-timetable">🗓️ Timetable</button>
+    <button class="sidebar-link" data-target="s-programmes">🎓 Programmes</button>
+    <button class="sidebar-link" data-target="s-clearance">🔓 Clearance</button>
+    <button class="sidebar-link" data-target="s-industrial">🏗️ Industrial Training</button>
+    <button class="sidebar-link" data-target="s-field">📍 Field Placements</button>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">People & HR</div>
+    <button class="sidebar-link" data-target="s-staff">👔 Staff / HR</button>
+    <button class="sidebar-link" data-target="s-alumni">🎓 Alumni</button>
+    <button class="sidebar-link" data-target="s-users">👥 Users</button>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Analytics & Reports</div>
+    <button class="sidebar-link" data-target="s-analytics">📈 Analytics</button>
+    <button class="sidebar-link" data-target="s-reports">📑 Reports</button>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Configuration</div>
+    <button class="sidebar-link" data-target="s-admin-studio">⚙️ Admin Studio</button>
+    <button class="sidebar-link" data-target="s-platform">🌐 Platform Admin</button>
+    <button class="sidebar-link" data-target="s-public-portal">🌍 Public Portal</button>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Help</div>
+    <button class="sidebar-link" data-target="s-troubleshoot">🛠️ Troubleshooting</button>
+  </div>
+</nav>
+
+<!-- ══ MAIN CONTENT ═══════════════════════════════════════════════════ -->
+<main id="content">
+
+  <!-- Hero -->
+  <div id="hero">
+    <h1>📚 AMIS User Manual</h1>
+    <p>Complete guide to the Academic Management Information System — from student enrolment to results, finance, and administration.</p>
+    <div class="hero-meta">
+      <span class="hero-meta-item">📅 Version 3.0</span>
+      <span class="hero-meta-item">🏫 Multi-Tenant Edition</span>
+      <span class="hero-meta-item">📖 25 Sections</span>
+      <span class="hero-meta-item">👤 7 Roles Covered</span>
+    </div>
+  </div>
+
+  <!-- Quick Access Grid -->
+  <div id="quick-grid">
+    <a href="#s-students"     class="quick-card"><div class="qc-icon">👨‍🎓</div><div class="qc-label">Students</div></a>
+    <a href="#s-admissions"   class="quick-card"><div class="qc-icon">📋</div><div class="qc-label">Admissions</div></a>
+    <a href="#s-finance"      class="quick-card"><div class="qc-icon">💰</div><div class="qc-label">Finance</div></a>
+    <a href="#s-marks"        class="quick-card"><div class="qc-icon">📊</div><div class="qc-label">Marks</div></a>
+    <a href="#s-results"      class="quick-card"><div class="qc-icon">📄</div><div class="qc-label">Results</div></a>
+    <a href="#s-term-reg"     class="quick-card"><div class="qc-icon">📅</div><div class="qc-label">Registration</div></a>
+    <a href="#s-admin-studio" class="quick-card"><div class="qc-icon">⚙️</div><div class="qc-label">Admin Studio</div></a>
+    <a href="#s-troubleshoot" class="quick-card"><div class="qc-icon">🛠️</div><div class="qc-label">Troubleshoot</div></a>
+  </div>
+
+  <div id="search-banner"></div>
+  <div id="no-results">
+    <div class="nr-icon">🔍</div>
+    <h3>No results found</h3>
+    <p>Try different search terms or clear the filter.</p>
+  </div>
+
+  <!-- ══ 1. INTRODUCTION ══════════════════════════════════════════════ -->
+  <section class="section" id="s-intro" data-roles="all">
+    <div class="section-header">
+      <div class="section-icon" style="background:#eff6ff">📖</div>
+      <div>
+        <div class="section-title">Introduction</div>
+        <div class="section-desc">What is AMIS and how it works</div>
+      </div>
+      <div class="section-num">Section 1</div>
+    </div>
+    <div class="roles-row"><span class="role-badge role-all">All Users</span></div>
+    <p>AMIS is a multi-tenant <strong>Academic Management Information System</strong> designed for technical and vocational education institutions. It manages the full student lifecycle — from public admission applications through enrolment, marks, fees, clearance, and alumni tracking — while supporting multi-institute deployments from a single platform.</p>
+    <h2>Key Concepts</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Tenant</strong></td><td>A single institution (e.g., Kasese Technical Institute)</td></tr>
+        <tr><td><strong>Academic Year</strong></td><td>A calendar year of study (e.g., 2025/2026)</td></tr>
+        <tr><td><strong>Term</strong></td><td>A study period within an academic year (Term 1, 2, 3)</td></tr>
+        <tr><td><strong>Programme</strong></td><td>A course of study (e.g., Diploma in ICT)</td></tr>
+        <tr><td><strong>Intake</strong></td><td>The year a student cohort was admitted (e.g., 2024)</td></tr>
+        <tr><td><strong>Submission</strong></td><td>A batch of marks submitted by an instructor</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ══ 2. GETTING STARTED ════════════════════════════════════════════ -->
+  <section class="section" id="s-getting-started" data-roles="all">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f0fdf4">🚀</div>
+      <div>
+        <div class="section-title">Getting Started — Login & Navigation</div>
+        <div class="section-desc">How to sign in, reset your password, and navigate the system</div>
+      </div>
+      <div class="section-num">Section 2</div>
+    </div>
+    <div class="roles-row"><span class="role-badge role-all">All Users</span></div>
+    <h2>Logging In</h2>
+    <ol class="steps">
+      <li>Open your browser and navigate to your institution's AMIS URL.</li>
+      <li>Enter your <strong>Organisation slug</strong> (e.g., <code>kti</code>), <strong>email address</strong>, and <strong>password</strong>.</li>
+      <li>Click <strong>Sign In</strong>.</li>
+    </ol>
+    <div class="callout callout-info"><span class="callout-icon">💡</span><span><strong>Forgot your password?</strong> Click <em>Forgot password?</em> below the sign-in button. Enter your email address — you will receive a reset link within a few minutes.</span></div>
+    <h2>Resetting a Password</h2>
+    <ol class="steps">
+      <li>Click the link in the password-reset email.</li>
+      <li>Enter and confirm your new password.</li>
+      <li>Click <strong>Reset Password</strong> — you will be redirected to login.</li>
+    </ol>
+    <h2>Main Navigation</h2>
+    <p>After login, the left-hand sidebar lists all modules available to your role. The top header shows the institute logo and name, your current role badge, and a logout link. The current page is highlighted with a coloured left border.</p>
+  </section>
+
+  <!-- ══ 3. DASHBOARD ══════════════════════════════════════════════════ -->
+  <section class="section" id="s-dashboard" data-roles="all">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef3c7">🏠</div>
+      <div>
+        <div class="section-title">Dashboard</div>
+        <div class="section-desc">The home screen — overview metrics and quick links</div>
+      </div>
+      <div class="section-num">Section 3</div>
+    </div>
+    <div class="roles-row"><span class="role-badge role-all">All Roles</span></div>
+    <p>The Dashboard is the home screen after login. It shows role-aware metric cards and quick navigation links.</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Card</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Welcome Banner</strong></td><td>Greeting with your name, role, and today's date</td></tr>
+        <tr><td><strong>Total Students</strong></td><td>Count of active enrolled students</td></tr>
+        <tr><td><strong>Pending Admissions</strong></td><td>Applications awaiting review</td></tr>
+        <tr><td><strong>Pending Registrations</strong></td><td>Term registrations not yet completed</td></tr>
+        <tr><td><strong>Pending Marks</strong></td><td>Mark submissions awaiting approval</td></tr>
+        <tr><td><strong>Staff</strong></td><td>Number of active staff records</td></tr>
+        <tr><td><strong>Programmes</strong></td><td>Active programmes offered</td></tr>
+        <tr><td><strong>Fee Overview</strong></td><td>Total collected vs total due (Finance roles)</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ══ 4. STUDENTS ═══════════════════════════════════════════════════ -->
+  <section class="section" id="s-students" data-roles="admin registrar dean hod instructor finance principal">
+    <div class="section-header">
+      <div class="section-icon" style="background:#eff6ff">👨‍🎓</div>
+      <div>
+        <div class="section-title">Students</div>
+        <div class="section-desc">Managing student records, imports, and promotions</div>
+      </div>
+      <div class="section-num">Section 4</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-dean">Dean</span>
+      <span class="role-badge role-hod">HOD</span>
+      <span class="role-badge role-instructor">Instructor</span>
+      <span class="role-badge role-finance">Finance</span>
+      <span class="role-badge role-principal">Principal</span>
+    </div>
+    <h2>Viewing the Student List</h2>
+    <p>Navigate to <strong>Students</strong> in the sidebar. The list shows all active students by default.</p>
+    <p>Use the filter bar to:</p>
+    <ul>
+      <li><strong>Search</strong> by name or admission number</li>
+      <li><strong>Filter by Academic Year</strong> — select a year of study</li>
+      <li><strong>Filter by Programme</strong> — narrow to a specific programme</li>
+      <li><strong>Show Inactive</strong> — toggle to include deactivated student records</li>
+    </ul>
+    <h2>Creating a Student</h2>
+    <ol class="steps">
+      <li>Click <strong>+ New Student</strong>.</li>
+      <li>Fill in First Name, Last Name, Admission Number (unique), Programme, Intake, Date of Birth, Gender, Nationality.</li>
+      <li>Optional: contact details, guardian info, district.</li>
+      <li>Click <strong>Save</strong>.</li>
+    </ol>
+    <h2>Student Detail Page</h2>
+    <p>The detail page shows all information across tabs: <strong>Profile</strong>, <strong>Fees</strong>, <strong>Marks</strong>, <strong>Term Registrations</strong>, <strong>Documents</strong>, and <strong>Clearance</strong>.</p>
+    <h2>Importing Students (Bulk)</h2>
+    <ol class="steps">
+      <li>Click <strong>Import Students</strong> (top right of the student list).</li>
+      <li>Download the <strong>CSV template</strong>.</li>
+      <li>Fill in the template — each row is one student.</li>
+      <li>Upload the completed CSV file.</li>
+      <li>Review the preview table and click <strong>Import</strong>.</li>
+    </ol>
+    <div class="callout callout-info"><span class="callout-icon">ℹ️</span><span>Rows with errors (e.g., duplicate admission numbers) are flagged; valid rows are still imported.</span></div>
+    <h2>Student Promotion</h2>
+    <ol class="steps">
+      <li>Click <strong>Promote Students</strong> from the student list.</li>
+      <li>Select the source academic year/term and the target year.</li>
+      <li>Select students to promote (or select all).</li>
+      <li>Click <strong>Promote</strong> — each student's year of study is incremented.</li>
+    </ol>
+  </section>
+
+  <!-- ══ 5. ADMISSIONS ══════════════════════════════════════════════════ -->
+  <section class="section" id="s-admissions" data-roles="admin registrar principal">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef3c7">📋</div>
+      <div>
+        <div class="section-title">Admissions</div>
+        <div class="section-desc">Processing applications from prospective students</div>
+      </div>
+      <div class="section-num">Section 5</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-principal">Principal</span>
+    </div>
+    <h2>Admission Workflow</h2>
+    <div class="workflow">
+DRAFT
+  <span class="arrow">→</span> SUBMITTED
+  <span class="arrow">→</span> UNDER_REVIEW
+  <span class="arrow">→</span> COMMITTEE_REVIEW
+  <span class="arrow">→</span> APPROVED_GOVT  <em>(government-sponsored)</em>
+  <span class="arrow">→</span> APPROVED_PRIVATE <em>(self-sponsored)</em>
+  <span class="arrow">→</span> ENROLLED
+  
+At any review stage <span class="arrow">→</span> REJECTED
+    </div>
+    <h2>Creating an Application</h2>
+    <ol class="steps">
+      <li>Click <strong>+ New Application</strong>.</li>
+      <li>Enter applicant details: name, programme, intake, email, phone.</li>
+      <li>Add academic qualifications.</li>
+      <li>Click <strong>Save as Draft</strong>.</li>
+    </ol>
+    <div class="callout callout-tip"><span class="callout-icon">✅</span><span>Applications also arrive automatically via the <strong>Public Portal</strong> at <code>/apply/:slug</code>.</span></div>
+    <h2>Processing an Application</h2>
+    <p>Open an application and use the <strong>Transition</strong> buttons to advance through the workflow:</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Button</th><th>Transition</th></tr></thead>
+      <tbody>
+        <tr><td>Submit</td><td>DRAFT → SUBMITTED</td></tr>
+        <tr><td>Start Review</td><td>SUBMITTED → UNDER_REVIEW</td></tr>
+        <tr><td>Escalate to Committee</td><td>UNDER_REVIEW → COMMITTEE_REVIEW</td></tr>
+        <tr><td>Approve (Govt / Private)</td><td>→ APPROVED</td></tr>
+        <tr><td>Reject</td><td>→ REJECTED</td></tr>
+        <tr><td>Enrol</td><td>Converts applicant → Student record</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ══ 6. TERM REGISTRATIONS ═════════════════════════════════════════ -->
+  <section class="section" id="s-term-reg" data-roles="admin registrar dean">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f0fdf4">📅</div>
+      <div>
+        <div class="section-title">Term Registrations</div>
+        <div class="section-desc">The 12-step workflow to officially enrol a student for a term</div>
+      </div>
+      <div class="section-num">Section 6</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-dean">Dean</span>
+    </div>
+    <h2>Registration Workflow (12 Steps)</h2>
+    <div class="workflow">
+1.  REGISTRATION_STARTED
+2.  <span class="arrow">→</span> DOCUMENTS_VERIFIED
+3.  <span class="arrow">→</span> FEES_VERIFIED
+4.  <span class="arrow">→</span> GUILD_FEES_VERIFIED
+5.  <span class="arrow">→</span> DEAN_ENDORSED
+6.  <span class="arrow">→</span> HALL_ALLOCATED
+7.  <span class="arrow">→</span> CATERING_VERIFIED
+8.  <span class="arrow">→</span> MEDICAL_CHECKED
+9.  <span class="arrow">→</span> LIBRARY_CARD_ISSUED
+10. <span class="arrow">→</span> ONLINE_REGISTERED
+11. <span class="arrow">→</span> EXAM_ENROLLED
+12. <span class="arrow">→</span> CLEARANCE_ISSUED
+    </div>
+    <h2>Creating a Registration</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Term Registrations → + New Registration</strong>.</li>
+      <li>Select the student (type to search), academic year, term, and programme.</li>
+      <li>Click <strong>Save</strong> — created at REGISTRATION_STARTED.</li>
+    </ol>
+    <h2>Advancing a Registration</h2>
+    <p>Open a record and click the appropriate transition button (e.g., <strong>Verify Documents</strong>, <strong>Verify Fees</strong>, <strong>Dean Endorse</strong>). Each step may be restricted to certain roles.</p>
+    <h2>Bulk Registration</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Term Registrations → Bulk Register</strong>.</li>
+      <li>Select the term and programme.</li>
+      <li>Choose students from the list (checkbox or select all).</li>
+      <li>Click <strong>Register All</strong> — creates REGISTRATION_STARTED records for all selected students at once.</li>
+    </ol>
+  </section>
+
+  <!-- ══ 7. FINANCE ════════════════════════════════════════════════════ -->
+  <section class="section" id="s-finance" data-roles="admin finance principal registrar">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef9c3">💰</div>
+      <div>
+        <div class="section-title">Finance & Fees</div>
+        <div class="section-desc">Payment recording, fee ledger, overview, and reconciliation</div>
+      </div>
+      <div class="section-num">Section 7</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-finance">Finance</span>
+      <span class="role-badge role-principal">Principal</span>
+    </div>
+    <h2>Per-Student Fee Ledger</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Finance</strong>.</li>
+      <li>Search for a student by name or admission number.</li>
+      <li>Summary cards show <strong>Total Due</strong>, <strong>Total Paid</strong>, <strong>Balance</strong>, and <strong>Status</strong> (<span class="chip chip-green">PAID</span> / <span class="chip chip-yellow">PARTIAL</span> / <span class="chip chip-red">OWING</span>).</li>
+      <li>The transaction table below lists every payment with date, amount, method, and reference.</li>
+    </ol>
+    <h2>Recording a Payment</h2>
+    <ol class="steps">
+      <li>Click <strong>Record Payment</strong> or navigate to <strong>Finance → Fee Entry</strong>.</li>
+      <li>Select the student and enter: Amount, Payment method, Reference number, Payment date.</li>
+      <li>Click <strong>Save</strong>.</li>
+    </ol>
+    <h2>Fee Overview (Institution-Wide)</h2>
+    <p>Navigate to <strong>Finance → Overview</strong>. Summary cards show total expected revenue, total collected, collection rate (%), fully paid count, and a <strong>Defaulters Table</strong> listing students with outstanding balances.</p>
+    <h2>SchoolPay Reconciliation</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Finance → Reconciliation</strong>.</li>
+      <li>Find an unmatched SchoolPay transaction and click <strong>Match</strong>.</li>
+      <li>Search for the student and click <strong>Confirm Match</strong>.</li>
+    </ol>
+    <h2>Importing Payments (Bulk)</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Finance → Import</strong>.</li>
+      <li>Download the CSV template, fill in payments, and upload.</li>
+      <li>Review and confirm.</li>
+    </ol>
+    <div class="callout callout-info"><span class="callout-icon">🖨️</span><span>Navigate to <strong>Finance → Receipt</strong> to print or preview a fee receipt for a student and term.</span></div>
+  </section>
+
+  <!-- ══ 8. MARKS ══════════════════════════════════════════════════════ -->
+  <section class="section" id="s-marks" data-roles="admin registrar hod instructor">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f0fdf4">📊</div>
+      <div>
+        <div class="section-title">Marks & Assessments</div>
+        <div class="section-desc">Submitting, reviewing, and publishing student marks</div>
+      </div>
+      <div class="section-num">Section 8</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-hod">HOD</span>
+      <span class="role-badge role-instructor">Instructor</span>
+    </div>
+    <h2>Marks Workflow</h2>
+    <div class="workflow">
+DRAFT <span class="arrow">→</span> SUBMITTED <span class="arrow">→</span> HOD_REVIEW <span class="arrow">→</span> APPROVED <span class="arrow">→</span> PUBLISHED
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>State</th><th>Who Acts</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td><span class="chip chip-gray">DRAFT</span></td><td>Instructor</td><td>Enter marks, then Submit</td></tr>
+        <tr><td><span class="chip chip-yellow">SUBMITTED</span></td><td>HOD</td><td>Review and Approve or Return</td></tr>
+        <tr><td><span class="chip chip-blue">HOD_REVIEW</span></td><td>HOD</td><td>Approve</td></tr>
+        <tr><td><span class="chip chip-purple">APPROVED</span></td><td>Admin / Registrar</td><td>Publish</td></tr>
+        <tr><td><span class="chip chip-green">PUBLISHED</span></td><td>—</td><td>Visible in Results</td></tr>
+      </tbody>
+    </table></div>
+    <h2>Bulk Mark Entry</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Marks → Bulk Entry</strong>.</li>
+      <li>Select programme, term, and course.</li>
+      <li>The page loads all registered students for that combination.</li>
+      <li>Enter marks directly in the table (coursework, exam, total calculated automatically).</li>
+      <li>Click <strong>Save All</strong>.</li>
+    </ol>
+  </section>
+
+  <!-- ══ 9. RESULTS ════════════════════════════════════════════════════ -->
+  <section class="section" id="s-results" data-roles="admin registrar principal dean">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fce7f3">📄</div>
+      <div>
+        <div class="section-title">Results & Transcripts</div>
+        <div class="section-desc">Processing end-of-term results, slips, and full transcripts</div>
+      </div>
+      <div class="section-num">Section 9</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-principal">Principal</span>
+      <span class="role-badge role-dean">Dean</span>
+    </div>
+    <h2>Processing End-of-Term Results</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Results</strong> and select the term.</li>
+      <li>Click <strong>Process Results</strong> — the system calculates GPA based on published marks and configured grading scales.</li>
+      <li>The table shows each student's GPA and pass/fail status.</li>
+    </ol>
+    <div class="callout callout-warn"><span class="callout-icon">⚠️</span><span>Marks must be in <strong>PUBLISHED</strong> state before running results processing.</span></div>
+    <h2>Results Slip</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Results → Result Slip</strong>.</li>
+      <li>Select a student and term.</li>
+      <li>Click <strong>Preview</strong> to view the formatted results slip, then <strong>Print</strong> or save as PDF.</li>
+    </ol>
+    <h2>Transcript</h2>
+    <p>Navigate to <strong>Results → Transcript</strong> and select a student to generate a full academic transcript covering all completed terms.</p>
+  </section>
+
+  <!-- ══ 10. ATTENDANCE ════════════════════════════════════════════════ -->
+  <section class="section" id="s-attendance" data-roles="admin registrar hod instructor dean">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f0fdf4">✅</div>
+      <div>
+        <div class="section-title">Attendance</div>
+        <div class="section-desc">Recording and reviewing student attendance per course</div>
+      </div>
+      <div class="section-num">Section 10</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-instructor">Instructor</span>
+      <span class="role-badge role-hod">HOD</span>
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+    </div>
+    <h2>Taking Attendance</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Attendance</strong> and select: Programme, Academic Year, Term, Course, Date.</li>
+      <li>Click <strong>Load Sheet</strong>.</li>
+      <li>For each student, set: <span class="chip chip-green">P</span> Present, <span class="chip chip-red">A</span> Absent, <span class="chip chip-yellow">L</span> Late, <span class="chip chip-blue">E</span> Excused.</li>
+      <li>Add optional per-student notes.</li>
+      <li>Click <strong>Save Attendance</strong>.</li>
+    </ol>
+    <h2>Attendance Summary</h2>
+    <p>Switch to the <strong>Summary</strong> tab to view attendance rates per student across a date range, showing percentage attendance and total absences.</p>
+  </section>
+
+  <!-- ══ 11. TIMETABLE ═════════════════════════════════════════════════ -->
+  <section class="section" id="s-timetable" data-roles="admin registrar hod instructor">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fefce8">🗓️</div>
+      <div>
+        <div class="section-title">Timetable</div>
+        <div class="section-desc">Weekly class schedule grid — view, add, and edit slots</div>
+      </div>
+      <div class="section-num">Section 11</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-hod">HOD</span>
+      <span class="role-badge role-instructor">Instructor (view)</span>
+    </div>
+    <h2>Viewing the Timetable</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Timetable</strong>.</li>
+      <li>Select the academic year, programme, and optionally filter by term.</li>
+      <li>The timetable renders as a weekly grid (Mon–Fri) with colour-coded slots per course.</li>
+      <li>Each slot shows: course name, room, instructor, and time.</li>
+    </ol>
+    <h2>Adding / Editing Slots</h2>
+    <ol class="steps">
+      <li>Click <strong>+ Add Slot</strong> or click an empty cell.</li>
+      <li>Fill in: Day, Start/End time, Course, Room, Instructor, Notes.</li>
+      <li>Click <strong>Save</strong>. To edit, click a slot → modify → <strong>Update</strong>. To remove, click <strong>Delete</strong>.</li>
+    </ol>
+  </section>
+
+  <!-- ══ 12. PROGRAMMES ════════════════════════════════════════════════ -->
+  <section class="section" id="s-programmes" data-roles="admin registrar principal">
+    <div class="section-header">
+      <div class="section-icon" style="background:#eff6ff">🎓</div>
+      <div>
+        <div class="section-title">Programmes & Curriculum</div>
+        <div class="section-desc">Managing study programmes and their associated courses</div>
+      </div>
+      <div class="section-num">Section 12</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-principal">Principal</span>
+    </div>
+    <h2>Creating a Programme</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Programmes → + New Programme</strong>.</li>
+      <li>Enter: Code (e.g., <code>DICT</code>), Title, Department, Level, Duration in months.</li>
+      <li>Click <strong>Save</strong>.</li>
+    </ol>
+    <h2>Programme Levels</h2>
+    <div class="roles-row" style="flex-wrap:wrap; gap:8px; margin-bottom:0;">
+      <span class="chip chip-blue">Certificate</span>
+      <span class="chip chip-blue">National Certificate</span>
+      <span class="chip chip-blue">National Diploma</span>
+      <span class="chip chip-blue">Higher National Diploma</span>
+      <span class="chip chip-blue">Diploma</span>
+      <span class="chip chip-blue">Bachelor's Degree</span>
+    </div>
+    <h2>Courses (Curriculum)</h2>
+    <p>Open a programme's detail page and click the <strong>Courses</strong> tab to view and add courses. Each course has: Code, Title, Credit units, Year of study, Term, and Core/Elective status.</p>
+  </section>
+
+  <!-- ══ 13. CLEARANCE ═════════════════════════════════════════════════ -->
+  <section class="section" id="s-clearance" data-roles="admin registrar dean hod finance">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fce7f3">🔓</div>
+      <div>
+        <div class="section-title">Clearance</div>
+        <div class="section-desc">8-department sign-off confirming student obligations are met</div>
+      </div>
+      <div class="section-num">Section 13</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-dean">Dean</span>
+      <span class="role-badge role-hod">HOD</span>
+      <span class="role-badge role-finance">Finance</span>
+    </div>
+    <h2>Initiating Clearance</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Clearance</strong>, search for and select a student.</li>
+      <li>Select the term and click <strong>Initiate Clearance</strong>.</li>
+    </ol>
+    <h2>Department Sign-Off</h2>
+    <div class="dept-grid">
+      <div class="dept-card"><div class="dept-name">🏪 Store</div><div class="dept-desc">Equipment / materials returned</div></div>
+      <div class="dept-card"><div class="dept-name">📚 Library</div><div class="dept-desc">All books returned</div></div>
+      <div class="dept-card"><div class="dept-name">⚽ Sports</div><div class="dept-desc">Sports equipment returned</div></div>
+      <div class="dept-card"><div class="dept-name">🏠 Warden</div><div class="dept-desc">Hostel room cleared</div></div>
+      <div class="dept-card"><div class="dept-name">🎓 HOD</div><div class="dept-desc">Academic requirements met</div></div>
+      <div class="dept-card"><div class="dept-name">👥 Dean of Students</div><div class="dept-desc">General conduct verified</div></div>
+      <div class="dept-card"><div class="dept-name">💰 Accounts</div><div class="dept-desc">Fees fully paid</div></div>
+      <div class="dept-card"><div class="dept-name">📋 Academic Registrar</div><div class="dept-desc">Enrolment documents complete</div></div>
+    </div>
+    <ol class="steps">
+      <li>Open the student's clearance record.</li>
+      <li>Find your department row.</li>
+      <li>Click <strong>Sign Off</strong> (green) or <strong>Reject</strong> (red), add optional remarks.</li>
+      <li>Click <strong>Confirm</strong>.</li>
+    </ol>
+    <div class="callout callout-tip"><span class="callout-icon">✅</span><span>A student is fully cleared when <strong>all</strong> departments have signed off.</span></div>
+  </section>
+
+  <!-- ══ 14. INDUSTRIAL TRAINING ═══════════════════════════════════════ -->
+  <section class="section" id="s-industrial" data-roles="admin registrar instructor hod">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f0fdf4">🏗️</div>
+      <div>
+        <div class="section-title">Industrial Training</div>
+        <div class="section-desc">Tracking students on external on-the-job placements</div>
+      </div>
+      <div class="section-num">Section 14</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-instructor">Instructor</span>
+      <span class="role-badge role-hod">HOD</span>
+    </div>
+    <h2>Creating an IT Record</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Industrial Training → + New Record</strong>.</li>
+      <li>Select the student, enter company name, supervisor details, and start/end dates.</li>
+      <li>Set status: <span class="chip chip-blue">Scheduled</span> <span class="chip chip-green">Active</span> <span class="chip chip-purple">Completed</span> <span class="chip chip-red">Cancelled</span>.</li>
+      <li>Click <strong>Save</strong>.</li>
+    </ol>
+  </section>
+
+  <!-- ══ 15. FIELD PLACEMENTS ══════════════════════════════════════════ -->
+  <section class="section" id="s-field" data-roles="admin registrar instructor">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef3c7">📍</div>
+      <div>
+        <div class="section-title">Field Placements</div>
+        <div class="section-desc">Academic field placement records (teaching practice, hospital attachments)</div>
+      </div>
+      <div class="section-num">Section 15</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-instructor">Instructor</span>
+    </div>
+    <p>Navigate to <strong>Field Placements</strong> to create, view, and update placement records per student. Track placement location, supervisor, and dates. Similar to Industrial Training but for academic field placements.</p>
+  </section>
+
+  <!-- ══ 16. STAFF ══════════════════════════════════════════════════════ -->
+  <section class="section" id="s-staff" data-roles="admin principal">
+    <div class="section-header">
+      <div class="section-icon" style="background:#eff6ff">👔</div>
+      <div>
+        <div class="section-title">Staff / HR</div>
+        <div class="section-desc">Managing staff records and employment details</div>
+      </div>
+      <div class="section-num">Section 16</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-principal">Principal</span>
+    </div>
+    <h2>Adding a Staff Member</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Staff → + New Staff</strong>.</li>
+      <li>Fill in: First Name, Last Name, Email, Phone, Staff Number, Department, Designation, Employment Type, Join Date.</li>
+      <li>Click <strong>Save</strong>.</li>
+    </ol>
+    <h2>Employment Types</h2>
+    <div class="roles-row">
+      <span class="chip chip-blue">Full-time</span>
+      <span class="chip chip-green">Part-time</span>
+      <span class="chip chip-yellow">Contract</span>
+      <span class="chip chip-gray">Temporary</span>
+    </div>
+  </section>
+
+  <!-- ══ 17. ALUMNI ═════════════════════════════════════════════════════ -->
+  <section class="section" id="s-alumni" data-roles="admin registrar principal">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f0fdf4">🎓</div>
+      <div>
+        <div class="section-title">Alumni</div>
+        <div class="section-desc">Graduated student records and CSV export</div>
+      </div>
+      <div class="section-num">Section 17</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-principal">Principal</span>
+    </div>
+    <p>Navigate to <strong>Alumni</strong>. Alumni records are created automatically when a student completes their programme. Search by name or student number.</p>
+    <p>Click <strong>Export CSV</strong> (top right) to download all alumni records as a spreadsheet for external reporting.</p>
+  </section>
+
+  <!-- ══ 18. USERS ═════════════════════════════════════════════════════ -->
+  <section class="section" id="s-users" data-roles="admin">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fce7f3">👥</div>
+      <div>
+        <div class="section-title">Users & Access Control</div>
+        <div class="section-desc">Managing system accounts and role assignments</div>
+      </div>
+      <div class="section-num">Section 18</div>
+    </div>
+    <div class="roles-row"><span class="role-badge role-admin">Admin Only</span></div>
+    <p>Navigate to <strong>Users</strong>. Create, view, edit, activate, and deactivate user accounts. Assign roles to control access.</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Role</th><th>Key Access</th></tr></thead>
+      <tbody>
+        <tr><td><span class="role-badge role-admin">admin</span></td><td>Full access to all modules + Admin Studio</td></tr>
+        <tr><td><span class="role-badge role-registrar">registrar</span></td><td>Students, Admissions, Term Registrations, Programmes, Results</td></tr>
+        <tr><td><span class="role-badge role-finance">finance</span></td><td>Finance (full), Fee Structures (read), Students (read)</td></tr>
+        <tr><td><span class="role-badge role-principal">principal</span></td><td>All modules read-only + Analytics + Reports</td></tr>
+        <tr><td><span class="role-badge role-dean">dean</span></td><td>Term Registrations (sign-off), Clearance (Dean step)</td></tr>
+        <tr><td><span class="role-badge role-hod">hod</span></td><td>Marks (review/approve), Courses, Clearance (HOD step)</td></tr>
+        <tr><td><span class="role-badge role-instructor">instructor</span></td><td>Marks (own submissions), Attendance, Timetable (view)</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ══ 19. ANALYTICS ════════════════════════════════════════════════ -->
+  <section class="section" id="s-analytics" data-roles="admin principal registrar">
+    <div class="section-header">
+      <div class="section-icon" style="background:#eff6ff">📈</div>
+      <div>
+        <div class="section-title">Analytics</div>
+        <div class="section-desc">Cross-module term performance statistics</div>
+      </div>
+      <div class="section-num">Section 19</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-principal">Principal</span>
+      <span class="role-badge role-registrar">Registrar</span>
+    </div>
+    <ol class="steps">
+      <li>Navigate to <strong>Analytics</strong>.</li>
+      <li>Select the academic year and term.</li>
+      <li>View: Total Students, Total Applications, IT Placements, Mark Submissions by state, Fee Collection Rate, Attendance Rate.</li>
+    </ol>
+  </section>
+
+  <!-- ══ 20. REPORTS ═══════════════════════════════════════════════════ -->
+  <section class="section" id="s-reports" data-roles="admin principal registrar finance">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef3c7">📑</div>
+      <div>
+        <div class="section-title">Reports</div>
+        <div class="section-desc">Fee collection, class lists, evaluations, NCHE, and marks analysis</div>
+      </div>
+      <div class="section-num">Section 20</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-principal">Principal</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-finance">Finance</span>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Report</th><th>Location</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Fee Collection</strong></td><td>Reports → Fee Collection</td><td>All payments filtered by programme, term, date range. CSV export with admission number, name, amount, method, reference.</td></tr>
+        <tr><td><strong>Class List</strong></td><td>Reports → Class List</td><td>Printable register with student names and signature columns.</td></tr>
+        <tr><td><strong>IT Reports</strong></td><td>Reports → Industrial Training</td><td>Supervisor and student evaluation reports for IT placements.</td></tr>
+        <tr><td><strong>Teacher Evaluations</strong></td><td>Reports → Evaluations</td><td>Instructor performance evaluations by HODs or students.</td></tr>
+        <tr><td><strong>Instructor Reports</strong></td><td>Reports → Instructor Reports</td><td>Term-end reports: completion rates, challenges, recommendations.</td></tr>
+        <tr><td><strong>NCHE Enrolment</strong></td><td>Reports → NCHE Enrolment</td><td>Student counts per programme and year of study for NCHE submission.</td></tr>
+        <tr><td><strong>Marks Analysis</strong></td><td>Reports → Marks Analysis</td><td>Pass/fail distribution, GPA distribution, top performers per programme/term.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ══ 21. ADMIN STUDIO ══════════════════════════════════════════════ -->
+  <section class="section" id="s-admin-studio" data-roles="admin">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fce7f3">⚙️</div>
+      <div>
+        <div class="section-title">Admin Studio</div>
+        <div class="section-desc">System configuration — all 14 sections</div>
+      </div>
+      <div class="section-num">Section 21</div>
+    </div>
+    <div class="roles-row"><span class="role-badge role-admin">Admin Only</span></div>
+    <div class="callout callout-warn"><span class="callout-icon">⚠️</span><span>Configuration changes only take effect after they are <strong>Published</strong>. Changes saved as drafts are not live.</span></div>
+    <p>Navigate to <strong>Admin Studio</strong> via the gear icon in the top navigation, or directly at <code>/admin-studio</code>.</p>
+
+    <h2>Config Dashboard</h2>
+    <p>Landing page showing current published config version, pending draft status, and quick-access buttons to all sections. Use <strong>Validate → Publish</strong> to go live, or <strong>Rollback</strong> to revert.</p>
+
+    <h2>Institute Profile</h2>
+    <p>Set institution name, short name, logo URL, address, contact email/phone, and website.</p>
+
+    <h2>Branding & Theme</h2>
+    <p>Customise primary colour (hex code), secondary colour, logo URL, and font family. Changes preview live before publishing.</p>
+
+    <h2>Module Toggles</h2>
+    <p>Enable or disable system modules. Disabled modules are hidden from all users' navigation.</p>
+
+    <h2>Navigation Editor</h2>
+    <p>Customise the sidebar navigation per role. Drag to reorder, add custom links, set icons, and configure visibility per role (use <strong>Role Tabs</strong> to switch between roles).</p>
+
+    <h2>Academic Calendar</h2>
+    <p>Create academic years and terms. For each year, click <strong>+ Add Term</strong> and enter term number, name, start date, end date. Use <strong>Mark as Current</strong> to set the active year/term used system-wide.</p>
+
+    <h2>Workflow Editor</h2>
+    <p>View and configure the state machines for Admissions, Term Registrations, and Mark Submissions. Each workflow shows States, Transitions, and which Role can trigger each transition.</p>
+
+    <h2>Student Form Editor</h2>
+    <p>Control which fields appear on the student form — toggle on/off, mark required, reorder, add custom fields.</p>
+
+    <h2>Admission Form Editor</h2>
+    <p>Configure the public application form — visible fields, required fields, and programme-specific questions.</p>
+
+    <h2>Fee Structure Editor</h2>
+    <p>Define the official fee schedule per programme, academic year, and term.</p>
+    <ol class="steps">
+      <li>Click <strong>+ Add Fee Structure</strong>.</li>
+      <li>Select: Academic Year, Term, Programme, Fee Type (Tuition / Functional / Examination / Other).</li>
+      <li>Select <strong>Student Category</strong>: <span class="cat-all">All Students</span>, <span class="cat-boarding">Boarding</span>, or <span class="cat-day">Day Scholar</span>.</li>
+      <li>Enter Amount and optional description.</li>
+      <li>Click <strong>Create</strong>.</li>
+    </ol>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Fee Type</th><th><span class="cat-boarding">Boarding</span></th><th><span class="cat-day">Day Scholar</span></th><th>Frequency</th></tr></thead>
+      <tbody>
+        <tr><td>Tuition + Hostel + Utilities</td><td>UGX 689,000</td><td>UGX 539,000</td><td>Per term</td></tr>
+        <tr><td>Guild Fee</td><td>UGX 15,000</td><td>UGX 15,000</td><td>Per term</td></tr>
+        <tr><td>Admission Fee</td><td>UGX 10,000</td><td>UGX 10,000</td><td>Once</td></tr>
+        <tr><td>Uniform</td><td>UGX 65,000</td><td>UGX 65,000</td><td>Once</td></tr>
+        <tr><td>Institute ID</td><td>UGX 15,000</td><td>UGX 15,000</td><td>Once</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2>Grading Scale Editor</h2>
+    <p>Define the grade bands used to convert marks to grades and GPA.</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Min %</th><th>Max %</th><th>Grade</th><th>GPA</th><th>Remark</th></tr></thead>
+      <tbody>
+        <tr><td>80</td><td>100</td><td><strong>A</strong></td><td>4.0</td><td><span class="chip chip-green">Distinction</span></td></tr>
+        <tr><td>70</td><td>79</td><td><strong>B</strong></td><td>3.0</td><td><span class="chip chip-blue">Credit</span></td></tr>
+        <tr><td>60</td><td>69</td><td><strong>C</strong></td><td>2.0</td><td><span class="chip chip-yellow">Pass</span></td></tr>
+        <tr><td>50</td><td>59</td><td><strong>D</strong></td><td>1.0</td><td><span class="chip chip-gray">Bare Pass</span></td></tr>
+        <tr><td>0</td><td>49</td><td><strong>F</strong></td><td>0.0</td><td><span class="chip chip-red">Fail</span></td></tr>
+      </tbody>
+    </table></div>
+
+    <h2>Dashboard Widgets Editor</h2>
+    <p>Select which metric cards each role sees on the Dashboard. Use role tabs to switch, check/uncheck widgets, then <strong>Save Draft → Publish</strong>.</p>
+
+    <h2>Studio Users</h2>
+    <p>View all user accounts, change roles, activate/deactivate users, and create new accounts.</p>
+
+    <h2>Publishing Configuration</h2>
+    <ol class="steps">
+      <li>Make changes across any configuration sections.</li>
+      <li>Return to the <strong>Config Dashboard</strong>.</li>
+      <li>Click <strong>Validate</strong> — checks all schemas for errors.</li>
+      <li>Click <strong>Publish</strong> — new config goes live immediately.</li>
+      <li>If needed, click <strong>Rollback</strong> to revert to the previously published version.</li>
+    </ol>
+  </section>
+
+  <!-- ══ 22. PLATFORM ADMIN ════════════════════════════════════════════ -->
+  <section class="section" id="s-platform" data-roles="admin">
+    <div class="section-header">
+      <div class="section-icon" style="background:#eff6ff">🌐</div>
+      <div>
+        <div class="section-title">Platform Admin</div>
+        <div class="section-desc">Multi-tenant management for hosting administrators</div>
+      </div>
+      <div class="section-num">Section 22</div>
+    </div>
+    <div class="roles-row"><span class="role-badge role-admin">Platform Superadmin Only</span></div>
+    <p>Navigate to <code>/platform-admin</code>.</p>
+    <h2>Provisioning a New Institution</h2>
+    <ol class="steps">
+      <li>Navigate to <strong>Platform Admin → Provision</strong>.</li>
+      <li>Enter: Institution name, Slug (e.g., <code>kti</code>), Admin email, Region/country.</li>
+      <li>Click <strong>Provision</strong> — creates the tenant, initialises the database schema, and sends a welcome email to the admin.</li>
+    </ol>
+  </section>
+
+  <!-- ══ 23. PUBLIC PORTAL ═════════════════════════════════════════════ -->
+  <section class="section" id="s-public-portal" data-roles="all">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef3c7">🌍</div>
+      <div>
+        <div class="section-title">Public Application Portal</div>
+        <div class="section-desc">How prospective students apply online — no login required</div>
+      </div>
+      <div class="section-num">Section 23</div>
+    </div>
+    <div class="roles-row"><span class="role-badge role-all">Public — No Login Required</span></div>
+    <p>Prospective students can apply online at:</p>
+    <div class="workflow"><code>https://[your-domain]/apply/[institution-slug]</code>
+e.g. <code>https://amis.example.com/apply/kti</code></div>
+    <h2>How to Apply</h2>
+    <ol class="steps">
+      <li>Open the application URL in any browser.</li>
+      <li>Fill in: First Name, Last Name, Programme (dropdown), Intake year, Email (optional), Phone (optional).</li>
+      <li>Click <strong>Submit Application</strong>.</li>
+      <li>Note the <strong>Reference Number</strong> shown on the success screen for follow-up.</li>
+    </ol>
+    <div class="callout callout-info"><span class="callout-icon">ℹ️</span><span>Submitted applications appear in <strong>Admissions</strong> in DRAFT state, ready for staff review.</span></div>
+  </section>
+
+  <!-- ══ 24. ROLES ══════════════════════════════════════════════════════ -->
+  <section class="section" id="s-roles" data-roles="all">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f3e8ff">🔐</div>
+      <div>
+        <div class="section-title">User Roles & Permissions</div>
+        <div class="section-desc">Summary of what each role can see and do</div>
+      </div>
+      <div class="section-num">Section 24</div>
+    </div>
+    <div class="roles-row"><span class="role-badge role-all">All Users</span></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Role</th><th>Module Access</th></tr></thead>
+      <tbody>
+        <tr><td><span class="role-badge role-admin">admin</span></td><td>Full access to all modules + Admin Studio configuration</td></tr>
+        <tr><td><span class="role-badge role-registrar">registrar</span></td><td>Students, Admissions, Term Registrations, Programmes, Results, Academic Calendar, Users (read)</td></tr>
+        <tr><td><span class="role-badge role-finance">finance</span></td><td>Finance (full), Fee Structures (read), Students (read)</td></tr>
+        <tr><td><span class="role-badge role-principal">principal</span></td><td>All modules read-only + Analytics + Reports</td></tr>
+        <tr><td><span class="role-badge role-dean">dean</span></td><td>Term Registrations (sign-off), Students (view), Clearance (Dean step)</td></tr>
+        <tr><td><span class="role-badge role-hod">hod</span></td><td>Marks (review/approve), Courses, Staff (view), Clearance (HOD step)</td></tr>
+        <tr><td><span class="role-badge role-instructor">instructor</span></td><td>Marks (own submissions only), Attendance, Timetable (view), IT Records</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout callout-info"><span class="callout-icon">💡</span><span>Roles are assigned by an Admin via <strong>Users</strong> or <strong>Admin Studio → Studio Users</strong>.</span></div>
+  </section>
+
+  <!-- ══ 25. TROUBLESHOOTING ══════════════════════════════════════════ -->
+  <section class="section" id="s-troubleshoot" data-roles="all">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fce7f3">🛠️</div>
+      <div>
+        <div class="section-title">Troubleshooting</div>
+        <div class="section-desc">Common issues and how to resolve them</div>
+      </div>
+      <div class="section-num">Section 25</div>
+    </div>
+    <div class="roles-row"><span class="role-badge role-all">All Users</span></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Problem</th><th>Cause</th><th>Solution</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>"Failed to load" / blank list</strong></td>
+          <td>Network or server issue</td>
+          <td>Check internet connection. Refresh the page (Ctrl+R). Contact admin if persistent.</td>
+        </tr>
+        <tr>
+          <td><strong>422 Unprocessable Entity</strong></td>
+          <td>Invalid form field value</td>
+          <td>Check all required fields are filled. Ensure numbers are in valid ranges. Dates must be YYYY-MM-DD.</td>
+        </tr>
+        <tr>
+          <td><strong>Login fails "Invalid credentials"</strong></td>
+          <td>Wrong org slug, email, or password</td>
+          <td>Verify the org slug. Use <em>Forgot Password</em> to reset. Contact admin if account is deactivated.</td>
+        </tr>
+        <tr>
+          <td><strong>Config changes not taking effect</strong></td>
+          <td>Draft not published</td>
+          <td>Go to Admin Studio → Config Dashboard and click <strong>Publish</strong>.</td>
+        </tr>
+        <tr>
+          <td><strong>Marks not in Results</strong></td>
+          <td>Marks not yet PUBLISHED</td>
+          <td>Navigate to Marks, find the submission. Admin/Registrar must click <strong>Publish</strong>.</td>
+        </tr>
+        <tr>
+          <td><strong>Fee balance shows incorrectly</strong></td>
+          <td>Missing fee structure or wrong term</td>
+          <td>Check Fee Structure is set up in Admin Studio. Ensure payments are recorded for the correct term.</td>
+        </tr>
+        <tr>
+          <td><strong>Module not in sidebar</strong></td>
+          <td>Role restriction or module disabled</td>
+          <td>Contact Admin to check role permissions or re-enable the module in Admin Studio → Modules.</td>
+        </tr>
+      </tbody>
+    </table></div>
+    <div class="callout callout-tip"><span class="callout-icon">📞</span><span>For technical support, contact your system administrator or the AMIS support team.</span></div>
+  </section>
+
+</main>
+</div>
+
+<!-- Back to top -->
+<button id="btt" title="Back to top" aria-label="Back to top">↑</button>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Theme ────────────────────────────────────────────────────────────
+  const themeBtn = document.getElementById('theme-btn');
+  const saved = localStorage.getItem('amis-theme') || 'light';
+  if (saved === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); themeBtn.textContent = '☀️'; }
+  themeBtn.addEventListener('click', () => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+      document.documentElement.removeAttribute('data-theme');
+      themeBtn.textContent = '🌙';
+      localStorage.setItem('amis-theme', 'light');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      themeBtn.textContent = '☀️';
+      localStorage.setItem('amis-theme', 'dark');
+    }
+  });
+
+  // ── Mobile menu ──────────────────────────────────────────────────────
+  const sidebar  = document.getElementById('sidebar');
+  const menuBtn  = document.getElementById('menu-btn');
+  menuBtn.addEventListener('click', () => sidebar.classList.toggle('open'));
+  document.getElementById('content').addEventListener('click', () => {
+    if (window.innerWidth <= 768) sidebar.classList.remove('open');
+  });
+
+  // ── Sidebar navigation ───────────────────────────────────────────────
+  const sidebarLinks = document.querySelectorAll('.sidebar-link[data-target]');
+  sidebarLinks.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = document.getElementById(btn.dataset.target);
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (window.innerWidth <= 768) sidebar.classList.remove('open');
+      sidebarLinks.forEach(l => l.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // ── Active section tracking (IntersectionObserver) ───────────────────
+  const sections = document.querySelectorAll('.section');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        sidebarLinks.forEach(l => {
+          l.classList.toggle('active', l.dataset.target === id);
+        });
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  sections.forEach(s => obs.observe(s));
+
+  // ── Search ───────────────────────────────────────────────────────────
+  const searchInput  = document.getElementById('search-input');
+  const searchClear  = document.getElementById('search-clear');
+  const searchBanner = document.getElementById('search-banner');
+  const noResults    = document.getElementById('no-results');
+
+  function clearHighlights(el) {
+    el.querySelectorAll('mark').forEach(m => {
+      const parent = m.parentNode;
+      parent.replaceChild(document.createTextNode(m.textContent), m);
+      parent.normalize();
+    });
+  }
+
+  function highlightText(el, term) {
+    if (!term) return 0;
+    let count = 0;
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+    const nodes = [];
+    let node;
+    while ((node = walker.nextNode())) nodes.push(node);
+    const re = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    nodes.forEach(n => {
+      if (!re.test(n.textContent)) return;
+      re.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let last = 0, m;
+      while ((m = re.exec(n.textContent)) !== null) {
+        frag.appendChild(document.createTextNode(n.textContent.slice(last, m.index)));
+        const mark = document.createElement('mark');
+        mark.textContent = m[0];
+        frag.appendChild(mark);
+        last = re.lastIndex;
+        count++;
+      }
+      frag.appendChild(document.createTextNode(n.textContent.slice(last)));
+      n.parentNode.replaceChild(frag, n);
+    });
+    return count;
+  }
+
+  function doSearch(q) {
+    const term = q.trim().toLowerCase();
+    let visible = 0, total = 0;
+    sections.forEach(sec => {
+      clearHighlights(sec);
+      if (!term) {
+        sec.classList.remove('hidden');
+        visible++;
+        return;
+      }
+      const text = sec.textContent.toLowerCase();
+      if (text.includes(term)) {
+        sec.classList.remove('hidden');
+        highlightText(sec, term);
+        visible++;
+      } else {
+        sec.classList.add('hidden');
+      }
+      total++;
+    });
+    searchClear.style.display = term ? 'block' : 'none';
+    if (!term) {
+      searchBanner.style.display = 'none';
+      noResults.style.display = 'none';
+    } else if (visible === 0) {
+      searchBanner.style.display = 'none';
+      noResults.style.display = 'block';
+    } else {
+      searchBanner.style.display = 'block';
+      searchBanner.innerHTML = `🔍 Found <strong>${visible}</strong> section${visible !== 1 ? 's' : ''} matching "<strong>${q.trim()}</strong>"`;
+      noResults.style.display = 'none';
+    }
+  }
+
+  let searchTimer;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => doSearch(searchInput.value), 200);
+  });
+  searchClear.addEventListener('click', () => {
+    searchInput.value = '';
+    doSearch('');
+    searchInput.focus();
+  });
+
+  // ── Role filter ───────────────────────────────────────────────────────
+  const roleFilter = document.getElementById('role-filter');
+  roleFilter.addEventListener('change', () => {
+    const role = roleFilter.value;
+    sections.forEach(sec => {
+      if (!role) { sec.classList.remove('hidden'); return; }
+      const roles = sec.dataset.roles || '';
+      if (roles === 'all' || roles.includes(role)) {
+        sec.classList.remove('hidden');
+      } else {
+        sec.classList.add('hidden');
+      }
+    });
+    // Also reset search
+    if (searchInput.value) {
+      searchInput.value = '';
+      doSearch('');
+    }
+  });
+
+  // ── Back to top ───────────────────────────────────────────────────────
+  const btt = document.getElementById('btt');
+  window.addEventListener('scroll', () => {
+    btt.style.display = window.scrollY > 400 ? 'flex' : 'none';
+  });
+  btt.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+  // ── Quick card links (smooth scroll) ─────────────────────────────────
+  document.querySelectorAll('.quick-card[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+})();
+</script>
+</body>
+</html>
