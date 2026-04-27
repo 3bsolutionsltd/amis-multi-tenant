@@ -473,7 +473,7 @@ export function Badge({
   label: string;
   color?: BadgeColor;
 }) {
-  const { bg, color: fg } = BADGE_MAP[color];
+  const { bg, color: fg } = BADGE_MAP[color as BadgeColor] ?? BADGE_MAP.gray;
   return (
     <span
       style={{

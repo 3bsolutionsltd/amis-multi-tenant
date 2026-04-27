@@ -5,6 +5,7 @@ import { TenantSwitcher } from "./TenantSwitcher";
 import { DevRoleSwitcher } from "./DevRoleSwitcher";
 import { useAuth } from "../auth/AuthContext";
 import { C, StatCard, ensureGlobalCss } from "../lib/ui";
+import { NotificationBell } from "../modules/notifications/NotificationBell";
 
 ensureGlobalCss();
 
@@ -114,6 +115,8 @@ const FALLBACK_NAV = [
   { label: "Attendance", route: "/attendance" },
   { label: "Alumni", route: "/alumni" },
   { label: "Users", route: "/users" },
+  { label: "Procurement", route: "/procurement" },
+  { label: "Inventory", route: "/inventory" },
 ];
 
 const NAV_ICONS: Record<string, string> = {
@@ -137,6 +140,8 @@ const NAV_ICONS: Record<string, string> = {
   "/timetable": "🗓️",
   "/attendance": "✅",
   "/alumni": "🎓",
+  "/procurement": "🛒",
+  "/inventory": "📦",
 };
 
 function Header() {
@@ -187,6 +192,7 @@ function Header() {
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         {import.meta.env.DEV && <TenantSwitcher />}
         {import.meta.env.DEV && <DevRoleSwitcher />}
+        <NotificationBell />
 
         {user && (
           <div

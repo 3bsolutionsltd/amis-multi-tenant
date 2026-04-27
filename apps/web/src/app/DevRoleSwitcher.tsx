@@ -7,6 +7,9 @@ const ROLES = [
   "instructor",
   "finance",
   "principal",
+  "dean",
+  "procurement_officer",
+  "inventory_manager",
 ];
 
 export function DevRoleSwitcher() {

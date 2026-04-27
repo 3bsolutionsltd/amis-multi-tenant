@@ -484,6 +484,9 @@
     .chip-red    { background:#fee2e2; color:#dc2626; }
     .chip-purple { background:#f3e8ff; color:#7c3aed; }
     .chip-gray   { background:#f1f5f9; color:#475569; }
+    .chip-grey   { background:#f1f5f9; color:#475569; }
+    .chip-orange { background:#ffedd5; color:#c2410c; }
+    .chip-teal   { background:#ccfbf1; color:#0f766e; }
 
     /* ── CODE ───────────────────────────────────────────────────────── */
     code {
@@ -671,6 +674,11 @@
     <button class="sidebar-link" data-target="s-reports">📑 Reports</button>
   </div>
   <div class="sidebar-group">
+    <div class="sidebar-group-label">Operations</div>
+    <button class="sidebar-link" data-target="s-procurement">🛒 Procurement</button>
+    <button class="sidebar-link" data-target="s-inventory">📦 Inventory & Stores</button>
+  </div>
+  <div class="sidebar-group">
     <div class="sidebar-group-label">Configuration</div>
     <button class="sidebar-link" data-target="s-admin-studio">⚙️ Admin Studio</button>
     <button class="sidebar-link" data-target="s-platform">🌐 Platform Admin</button>
@@ -692,7 +700,7 @@
     <div class="hero-meta">
       <span class="hero-meta-item">📅 Version 3.0</span>
       <span class="hero-meta-item">🏫 Multi-Tenant Edition</span>
-      <span class="hero-meta-item">📖 25 Sections</span>
+      <span class="hero-meta-item">📖 27 Sections</span>
       <span class="hero-meta-item">👤 7 Roles Covered</span>
     </div>
   </div>
@@ -706,6 +714,8 @@
     <a href="#s-results"      class="quick-card"><div class="qc-icon">📄</div><div class="qc-label">Results</div></a>
     <a href="#s-term-reg"     class="quick-card"><div class="qc-icon">📅</div><div class="qc-label">Registration</div></a>
     <a href="#s-admin-studio" class="quick-card"><div class="qc-icon">⚙️</div><div class="qc-label">Admin Studio</div></a>
+    <a href="#s-procurement"  class="quick-card"><div class="qc-icon">🛒</div><div class="qc-label">Procurement</div></a>
+    <a href="#s-inventory"    class="quick-card"><div class="qc-icon">📦</div><div class="qc-label">Inventory</div></a>
     <a href="#s-troubleshoot" class="quick-card"><div class="qc-icon">🛠️</div><div class="qc-label">Troubleshoot</div></a>
   </div>
 
@@ -1583,6 +1593,190 @@ e.g. <code>https://amis.example.com/apply/kti</code></div>
       </tbody>
     </table></div>
     <div class="callout callout-tip"><span class="callout-icon">📞</span><span>For technical support, contact your system administrator or the AMIS support team.</span></div>
+  </section>
+
+  <!-- ══ 26. PROCUREMENT ══════════════════════════════════════════════ -->
+  <section class="section" id="s-procurement" data-roles="admin registrar finance hod principal">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef9c3">🛒</div>
+      <div>
+        <div class="section-title">Procurement</div>
+        <div class="section-desc">Purchase Requisitions → LPOs → GRNs with multi-level approval</div>
+      </div>
+      <div class="section-num">Section 26</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-finance">Finance</span>
+      <span class="role-badge role-hod">HOD</span>
+      <span class="role-badge role-principal">Principal</span>
+    </div>
+
+    <h2>Procurement Workflow</h2>
+    <p>A Purchase Requisition (PR) passes through a mandatory approval chain before an LPO is raised:</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Status</th><th>Who acts</th><th>What it means</th></tr></thead>
+      <tbody>
+        <tr><td><span class="chip chip-grey">Draft</span></td><td>Creator</td><td>PR created — not yet sent for review</td></tr>
+        <tr><td><span class="chip chip-blue">Submitted</span></td><td>Registrar / Admin</td><td>Sent to HOD for departmental endorsement</td></tr>
+        <tr><td><span class="chip chip-purple">HOD Recommended</span></td><td>HOD</td><td>Department head has endorsed the purchase</td></tr>
+        <tr><td><span class="chip chip-green">Principal Approved</span></td><td>Principal</td><td>Institutional sign-off granted — ready for LPO</td></tr>
+        <tr><td><span class="chip chip-teal">Ordered</span></td><td>Finance / Admin</td><td>LPO raised; goods on order</td></tr>
+        <tr><td><span class="chip chip-grey">Closed</span></td><td>Any</td><td>Fully complete or administratively closed</td></tr>
+        <tr><td><span class="chip chip-red">Rejected</span></td><td>HOD / Principal</td><td>Declined — can only be closed, not reopened</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2>Creating a Purchase Requisition</h2>
+    <div class="roles-row"><span class="role-badge role-admin">Admin</span><span class="role-badge role-registrar">Registrar</span></div>
+    <ol class="steps">
+      <li>Navigate to <strong>Procurement → Requisitions → + New Requisition</strong>.</li>
+      <li>Fill in: PR Number (unique), Title, Department, Requested By, Priority, Academic Year, Required By date.</li>
+      <li>Under <strong>Requisition Items</strong>, click <strong>+ Add Item</strong>. Each line has:<ul style="margin-top:6px">
+        <li><strong>Particulars</strong> — description of the item required</li>
+        <li><strong>Vote/Item</strong> — budget vote code (e.g. <code>221001</code>) per Uganda Public Finance Management system</li>
+        <li>Qty, Unit, Estimated Unit Cost, Notes</li>
+      </ul></li>
+      <li>Click <strong>Save PR</strong> — created in <strong>Draft</strong> state.</li>
+    </ol>
+    <div class="callout callout-info"><span class="callout-icon">💡</span><span>The <strong>Vote/Item</strong> column corresponds to the budget vote/item code used on the physical Internal Requisition Form. It links each requested item to a specific budget line for accountability.</span></div>
+
+    <h2>Submitting for HOD Review</h2>
+    <ol class="steps">
+      <li>Open a PR in <strong>Draft</strong> state.</li>
+      <li>Click <strong>Submit to HOD</strong> — status changes to <strong>Submitted</strong>.</li>
+    </ol>
+
+    <h2>HOD Recommendation</h2>
+    <div class="roles-row"><span class="role-badge role-hod">HOD</span></div>
+    <ol class="steps">
+      <li>Open a PR in <strong>Submitted</strong> state.</li>
+      <li>Click <strong>HOD Recommend</strong> — status changes to <strong>HOD Recommended</strong>. The recommending user and timestamp are recorded on the detail page.</li>
+      <li>Or click <strong>Reject</strong> to decline.</li>
+    </ol>
+
+    <h2>Principal Approval</h2>
+    <div class="roles-row"><span class="role-badge role-principal">Principal</span></div>
+    <ol class="steps">
+      <li>Open a PR in <strong>HOD Recommended</strong> state.</li>
+      <li>Click <strong>Principal Approve</strong> — status changes to <strong>Principal Approved</strong>. The approving user and timestamp are recorded.</li>
+      <li>Or click <strong>Reject</strong> to decline.</li>
+    </ol>
+
+    <h2>Converting to a Local Purchase Order (LPO)</h2>
+    <div class="roles-row"><span class="role-badge role-admin">Admin</span><span class="role-badge role-finance">Finance</span></div>
+    <ol class="steps">
+      <li>Open a PR in <strong>Principal Approved</strong> state.</li>
+      <li>Click <strong>Convert to LPO</strong> — PR status changes to <strong>Ordered</strong>.</li>
+      <li>Navigate to <strong>Procurement → Orders → + New Local Purchase Order (LPO)</strong>.</li>
+      <li>Complete the LPO form: LPO Number, Supplier, Order Date, line items.</li>
+      <li>Click <strong>Save</strong>. The LPO detail page title reads <strong>LPO: {number}</strong>.</li>
+    </ol>
+    <div class="callout callout-info"><span class="callout-icon">💡</span><span>Purchase Orders are called <strong>Local Purchase Orders (LPO)</strong> throughout the system — not "PO".</span></div>
+
+    <h2>Goods Received Notes (GRNs)</h2>
+    <div class="roles-row"><span class="role-badge role-admin">Admin</span><span class="role-badge role-finance">Finance</span><span class="role-badge role-registrar">Registrar</span></div>
+    <ol class="steps">
+      <li>Navigate to <strong>Procurement → GRNs → + New GRN</strong>.</li>
+      <li>Select the LPO this delivery is against.</li>
+      <li>Enter received quantities, condition, and delivery date. Click <strong>Save</strong>.</li>
+    </ol>
+
+    <h2>Suppliers</h2>
+    <div class="roles-row"><span class="role-badge role-admin">Admin</span></div>
+    <p>Navigate to <strong>Procurement → Suppliers</strong> to add and manage suppliers (name, contact, phone, email, category). Suppliers are referenced when creating LPOs and GRNs.</p>
+  </section>
+
+  <!-- ══ 27. INVENTORY & STORES ════════════════════════════════════════ -->
+  <section class="section" id="s-inventory" data-roles="admin registrar finance hod principal">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f0fdf4">📦</div>
+      <div>
+        <div class="section-title">Inventory &amp; Stores</div>
+        <div class="section-desc">Stock items, issuances, transactions, and annual stock takes</div>
+      </div>
+      <div class="section-num">Section 27</div>
+    </div>
+    <div class="roles-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-registrar">Registrar</span>
+      <span class="role-badge role-finance">Finance</span>
+      <span class="role-badge role-hod">HOD</span>
+      <span class="role-badge role-principal">Principal</span>
+    </div>
+
+    <h2>Inventory Tabs</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Tab</th><th>What it shows</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Items</strong></td><td>All stock items with current quantities and reorder alerts</td></tr>
+        <tr><td><strong>Issuances</strong></td><td>Items issued out of the store to staff or departments</td></tr>
+        <tr><td><strong>Transactions</strong></td><td>Every stock movement (receipts, issues, adjustments)</td></tr>
+        <tr><td><strong>Low Stock ⚠️</strong></td><td>Items at or below their configured reorder level</td></tr>
+        <tr><td><strong>Stock Takes</strong></td><td>Annual physical verification records</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2>Creating an Inventory Item</h2>
+    <div class="roles-row"><span class="role-badge role-admin">Admin</span><span class="role-badge role-registrar">Registrar</span></div>
+    <ol class="steps">
+      <li>Go to the <strong>Items</strong> tab → click <strong>+ New Item</strong>.</li>
+      <li>Fill in: Item Code (unique), Name, Category, Unit of Measure, Reorder Level, Unit Cost (optional).</li>
+      <li>Click <strong>Save</strong>. Items at or below reorder level show a ⚠️ badge and appear in the <strong>Low Stock</strong> tab.</li>
+    </ol>
+
+    <h2>Goods Issue Notes (GIN)</h2>
+    <div class="roles-row"><span class="role-badge role-admin">Admin</span><span class="role-badge role-registrar">Registrar</span><span class="role-badge role-finance">Finance</span></div>
+    <p>A <strong>Goods Issue Note (GIN)</strong> records items released from the store to a person or department. It corresponds to the physical <em>Goods Issue Note</em> form used at the institution.</p>
+    <ol class="steps">
+      <li>Go to the <strong>Issuances</strong> tab → click <strong>+ New Issuance</strong> (opens the <strong>New Goods Issue Note</strong> form).</li>
+      <li>Fill in the header fields:<ul style="margin-top:6px">
+        <li><strong>GIN Number</strong> — unique serial (e.g. <code>GIN-2025-001</code>)</li>
+        <li><strong>Issue Date</strong></li>
+        <li><strong>Issued To (Received By)</strong> — name of the person collecting the items</li>
+        <li><strong>Inventory Officer (Issued By)</strong> — stores staff member releasing the items</li>
+        <li><strong>Department</strong> — department receiving the goods (e.g. Science Lab)</li>
+        <li><strong>Requisition No.</strong> — reference back to the originating Purchase Requisition (e.g. <code>PR-2025-042</code>)</li>
+        <li><strong>Purpose</strong> — brief description of use</li>
+      </ul></li>
+      <li>Under <strong>Items to Issue</strong>, click <strong>+ Add Item</strong>: select item, enter Qty Requested and Qty Issued.</li>
+      <li>Click <strong>Save Goods Issue Note</strong> — created in <strong>Draft</strong> status.</li>
+      <li>In the Issuances tab, click <strong>Issue</strong> on the draft — status changes to <strong>Issued</strong> and stock levels are decremented automatically.</li>
+    </ol>
+    <div class="callout callout-info"><span class="callout-icon">💡</span><span>The GIN list table shows <strong>GIN #</strong>, <strong>Issued To</strong>, <strong>Department</strong>, and <strong>Req. No.</strong> columns — matching the header fields of the physical Goods Issue Note form.</span></div>
+
+    <h2>Annual Stock Take (Physical Verification)</h2>
+    <p>A stock take is a formal documented count of physical inventory, typically conducted at the end of a financial year.</p>
+
+    <h3 style="margin:16px 0 8px; font-size:14px; font-weight:600; color:var(--text-muted);">Creating a Stock Take</h3>
+    <ol class="steps">
+      <li>Go to the <strong>Stock Takes</strong> tab → click <strong>+ New Stock Take</strong>.</li>
+      <li>Fill in: Reference (unique, e.g. <code>ST-2025/2026</code>), Financial Year, Take Date, Title, Conducted By, Notes.</li>
+      <li>Under <strong>Item Counts</strong>, click <strong>+ Add Item</strong>: select item — <strong>Expected Qty auto-populates</strong> from current stock — enter Department, Counted Qty, and Condition.</li>
+      <li>Click <strong>Save Stock Take</strong> — created in <strong>In Progress</strong> status. You are redirected to the detail page.</li>
+    </ol>
+
+    <h3 style="margin:16px 0 8px; font-size:14px; font-weight:600; color:var(--text-muted);">Variance Colour Coding</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Variance</th><th>Colour</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td><span class="chip chip-green">Green ✓</span></td><td>Counts match — no discrepancy</td></tr>
+        <tr><td>Negative (e.g. −3)</td><td><span class="chip chip-red">Red</span></td><td>Shortage — fewer items found than expected</td></tr>
+        <tr><td>Positive (e.g. +2)</td><td><span class="chip chip-orange">Orange</span></td><td>Surplus — more items found than expected</td></tr>
+        <tr><td>Not yet counted</td><td><span class="chip chip-grey">Grey</span></td><td>Item not counted in this session</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 style="margin:16px 0 8px; font-size:14px; font-weight:600; color:var(--text-muted);">Completing a Stock Take</h3>
+    <ol class="steps">
+      <li>Once all items are counted, click <strong>Mark as Completed</strong> (visible only when status is <strong>In Progress</strong>).</li>
+      <li>Status changes to <strong>Completed</strong> (green badge). The button disappears — record is locked for review.</li>
+    </ol>
+    <div class="callout callout-tip"><span class="callout-icon">✅</span><span>A completed stock take is reviewed by the Principal. The <strong>Approved</strong> status is recorded once the principal formally authorises the printed report.</span></div>
+
+    <h2>Low Stock Alerts</h2>
+    <p>The <strong>Low Stock ⚠️</strong> tab lists items whose current stock is at or below their reorder level. The <strong>Deficit</strong> column shows how far below. Click a row to open Item Detail and record a restocking receipt. Review this tab regularly before raising a Purchase Requisition.</p>
   </section>
 
 </main>

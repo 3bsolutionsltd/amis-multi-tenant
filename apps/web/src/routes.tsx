@@ -11,6 +11,8 @@ import { ApplicationDetailPage } from "./modules/admissions/ApplicationDetailPag
 import { AdmissionsImportPage } from "./modules/admissions/AdmissionsImportPage";
 import { UsersListPage } from "./modules/users/UsersListPage";
 import { UserCreatePage } from "./modules/users/UserCreatePage";
+import { UserDetailPage } from "./modules/users/UserDetailPage";
+import { ProfilePage } from "./modules/users/ProfilePage";
 import { FeesPage } from "./modules/fees/FeesPage";
 import { FeeEntryPage } from "./modules/fees/FeeEntryPage";
 import { FeesImportPage } from "./modules/fees/FeesImportPage";
@@ -78,6 +80,20 @@ import { ResultsSlipPage } from "./modules/results/ResultsSlipPage";
 import { TranscriptPage } from "./modules/results/TranscriptPage";
 import { ClearancePage } from "./modules/clearance/ClearancePage";
 import { BulkRegistrationPage } from "./modules/term-registrations/BulkRegistrationPage";
+import ProcurementPage from "./modules/procurement/ProcurementPage";
+import RequisitionCreatePage from "./modules/procurement/RequisitionCreatePage";
+import RequisitionDetailPage from "./modules/procurement/RequisitionDetailPage";
+import PurchaseOrderCreatePage from "./modules/procurement/PurchaseOrderCreatePage";
+import PurchaseOrderDetailPage from "./modules/procurement/PurchaseOrderDetailPage";
+import GRNCreatePage from "./modules/procurement/GRNCreatePage";
+import GRNDetailPage from "./modules/procurement/GRNDetailPage";
+import InventoryPage from "./modules/inventory/InventoryPage";
+import InventoryItemCreatePage from "./modules/inventory/InventoryItemCreatePage";
+import InventoryItemDetailPage from "./modules/inventory/InventoryItemDetailPage";
+import IssuanceCreatePage from "./modules/inventory/IssuanceCreatePage";
+import StockTakeCreatePage from "./modules/inventory/StockTakeCreatePage";
+import StockTakeDetailPage from "./modules/inventory/StockTakeDetailPage";
+import StockReceiptPage from "./modules/inventory/StockReceiptPage";
 
 export const router = createBrowserRouter([
   {
@@ -123,6 +139,8 @@ export const router = createBrowserRouter([
       { path: "admissions/:id", element: <ApplicationDetailPage /> },
       { path: "users", element: <UsersListPage /> },
       { path: "users/new", element: <UserCreatePage /> },
+      { path: "users/:id", element: <UserDetailPage /> },
+      { path: "my-profile", element: <ProfilePage /> },
       { path: "finance", element: <FeesPage /> },
       { path: "finance/entry", element: <FeeEntryPage /> },
       { path: "finance/import", element: <FeesImportPage /> },
@@ -165,6 +183,20 @@ export const router = createBrowserRouter([
       { path: "results/slip", element: <ResultsSlipPage /> },
       { path: "results/transcript", element: <TranscriptPage /> },
       { path: "clearance", element: <ClearancePage /> },
+      { path: "procurement", element: <ProcurementPage /> },
+      { path: "procurement/requisitions/new", element: <RequisitionCreatePage /> },
+      { path: "procurement/requisitions/:id", element: <RequisitionDetailPage /> },
+      { path: "procurement/orders/new", element: <PurchaseOrderCreatePage /> },
+      { path: "procurement/orders/:id", element: <PurchaseOrderDetailPage /> },
+      { path: "procurement/grns/new", element: <GRNCreatePage /> },
+      { path: "procurement/grns/:id", element: <GRNDetailPage /> },
+      { path: "inventory", element: <InventoryPage /> },
+      { path: "inventory/items/new", element: <InventoryItemCreatePage /> },
+      { path: "inventory/items/:id", element: <InventoryItemDetailPage /> },
+      { path: "inventory/issuances/new", element: <IssuanceCreatePage /> },
+      { path: "inventory/receipts/new", element: <StockReceiptPage /> },
+      { path: "inventory/stock-takes/new", element: <StockTakeCreatePage /> },
+      { path: "inventory/stock-takes/:id", element: <StockTakeDetailPage /> },
     ],
   },
   {

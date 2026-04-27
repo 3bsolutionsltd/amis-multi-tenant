@@ -122,7 +122,7 @@ export async function tenantsRoutes(app: FastifyInstance) {
    */
   app.get(
     "/tenants/me",
-    { preHandler: requireRole("admin", "registrar", "hod", "instructor", "finance", "principal", "dean") },
+    { preHandler: requireRole("admin", "registrar", "hod", "instructor", "finance", "principal", "dean", "procurement_officer", "inventory_manager") },
     async (req, reply) => {
       const tenantId = req.user.tenantId;
       if (!tenantId) {

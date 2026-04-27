@@ -111,6 +111,21 @@ const SEED_WORKFLOWS: Record<string, WorkflowDef> = {
       { action: "reject",    from: "interview",   to: "rejected",    required_role: "principal" },
     ],
   },
+  purchase_requisition: {
+    initial_state: "draft",
+    states: ["draft", "submitted", "hod_recommended", "principal_approved", "ordered", "rejected", "closed"],
+    transitions: [
+      { action: "submit",             from: "draft",              to: "submitted"          },
+      { action: "hod_recommend",      from: "submitted",          to: "hod_recommended",      required_role: "hod"       },
+      { action: "hod_reject",         from: "submitted",          to: "rejected",             required_role: "hod"       },
+      { action: "principal_approve",  from: "hod_recommended",    to: "principal_approved",   required_role: "principal" },
+      { action: "principal_reject",   from: "hod_recommended",    to: "rejected",             required_role: "principal" },
+      { action: "convert_to_lpo",     from: "principal_approved", to: "ordered",              required_role: "finance"   },
+      { action: "procurement_reject", from: "principal_approved", to: "rejected",             required_role: "finance"   },
+      { action: "close",              from: "rejected",           to: "closed"                },
+      { action: "close_lpo",          from: "ordered",            to: "closed"                },
+    ],
+  },
 };
 
 /* ---------------------------------------------------------------- component */

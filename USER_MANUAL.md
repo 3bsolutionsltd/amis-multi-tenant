@@ -34,6 +34,8 @@
 23. [Public Application Portal](#23-public-application-portal)
 24. [User Roles & Permissions](#24-user-roles--permissions)
 25. [Troubleshooting](#25-troubleshooting)
+26. [Procurement](#26-procurement)
+27. [Inventory & Stores](#27-inventory--stores)
 
 ---
 
@@ -1086,3 +1088,297 @@ Marks must be in **PUBLISHED** state to appear in results processing.
 ---
 
 *For technical support, contact your system administrator or the AMIS support team.*
+
+---
+
+## 26. Procurement
+
+**Who can access:** Admin, Registrar, Finance, HOD, Principal
+
+Navigate to **Procurement** (🛒 in the sidebar).
+
+The Procurement module manages the full purchasing cycle: Purchase Requisitions (PRs) → Local Purchase Orders (LPOs) → Goods Received Notes (GRNs), with a multi-level approval workflow gated by role.
+
+---
+
+### 26.1 Procurement Workflow Overview
+
+```
+draft → submitted → hod_recommended → principal_approved → ordered → closed
+                  ↘ rejected (from any stage) ↘ closed
+```
+
+| Status | What it means |
+|--------|---------------|
+| **Draft** | PR created but not yet sent for review |
+| **Submitted** | Sent to the HOD for departmental recommendation |
+| **HOD Recommended** | HOD has endorsed the purchase |
+| **Principal Approved** | Principal has given final institutional approval |
+| **Ordered** | An LPO has been raised against the PR |
+| **Closed** | PR is fully complete or administratively closed |
+| **Rejected** | Declined at any stage |
+
+---
+
+### 26.2 Purchase Requisitions
+
+#### Creating a PR
+
+**Who:** Admin, Registrar
+
+1. Navigate to **Procurement → Requisitions**.
+2. Click **+ New Requisition**.
+3. Fill in:
+   - **PR Number** (unique, e.g. `PR-2026/001`)
+   - **Title** — brief description of what is being purchased
+   - **Department** requesting the items
+   - **Requested By** — name of the requesting officer
+   - **Priority** — Low / Medium / High / Urgent
+   - **Academic Year**
+   - **Required By** — date needed
+   - **Notes** (optional)
+4. Add requisition **line items**: click **+ Add Item** for each item to purchase.
+   - **Particulars** — description of the item
+   - **Vote/Item** — budget vote/item code (e.g. `221001`) per Uganda Public Finance Management. Links the purchase to a specific budget line.
+   - **Qty**, **Unit**, **Estimated Unit Cost**, **Notes**
+5. Click **Save PR** — the PR is created in **Draft** state.
+
+#### Submitting a PR for Review
+
+1. Open a PR in Draft state.
+2. Click **Submit to HOD** — status changes to **Submitted**.
+
+#### HOD Recommendation
+
+**Who:** HOD
+
+1. Open a PR in Submitted state.
+2. Review the requisition details and line items.
+3. Click **HOD Recommend** — status changes to **HOD Recommended**.
+   - The detail page records the recommending user and timestamp.
+4. If the purchase is not appropriate, click **Reject** instead.
+
+#### Principal Approval
+
+**Who:** Principal
+
+1. Open a PR in HOD Recommended state.
+2. Click **Principal Approve** — status changes to **Principal Approved**.
+   - The detail page records the approving user and timestamp.
+3. Click **Reject** to decline.
+
+#### Converting to a Local Purchase Order (LPO)
+
+**Who:** Admin, Finance
+
+1. Open a PR in Principal Approved state.
+2. Click **Convert to LPO** — PR status changes to **Ordered**.
+3. Navigate to **Procurement → Orders → + New Local Purchase Order (LPO)**.
+4. Complete the LPO form (LPO Number, Supplier, Order Date, line items).
+5. Click **Save**.
+
+> **Terminology note:** Purchase Orders are referred to as **Local Purchase Orders (LPO)** throughout the system.
+
+#### Rejection & Closure
+
+- Any authorised user can click **Reject** at the Submitted, HOD Recommended, or Principal Approved stage.
+- A rejected PR can only be **Closed** — it cannot be reopened.
+- An ordered PR can also be closed once fulfillment is complete.
+
+---
+
+### 26.3 Local Purchase Orders (LPOs)
+
+**Who:** Admin, Finance
+
+1. Navigate to **Procurement → Orders**.
+2. Click **+ New Local Purchase Order (LPO)**.
+3. Fill in:
+   - **LPO Number** (unique)
+   - **Supplier** (select from registered suppliers)
+   - **Order Date**
+   - Line items with quantities and unit prices
+4. Click **Save**.
+
+The LPO detail page title reads **LPO: {number}**.
+
+---
+
+### 26.4 Goods Received Notes (GRNs)
+
+**Who:** Admin, Finance, Registrar
+
+A GRN records goods actually received against an LPO.
+
+1. Navigate to **Procurement → GRNs → + New GRN**.
+2. Select the LPO this delivery is against.
+3. Enter received quantities, condition, and delivery date.
+4. Click **Save**.
+
+---
+
+### 26.5 Suppliers
+
+**Who:** Admin
+
+Navigate to **Procurement → Suppliers** to manage the supplier register:
+- Add new suppliers (name, contact person, phone, email, category)
+- Edit or deactivate existing suppliers
+
+Suppliers are referenced when creating LPOs and GRNs.
+
+---
+
+## 27. Inventory & Stores
+
+**Who can access:** Admin, Registrar, Finance (create issuances); HOD, Principal (view)
+
+Navigate to **Inventory** (📦 in the sidebar).
+
+The Inventory module manages the institution's physical store: items in stock, issuances to departments, all stock movements, and annual stock verification (stock takes).
+
+---
+
+### 27.1 Inventory Tabs
+
+| Tab | What it shows |
+|-----|---------------|
+| **Items** | All stock items with current quantities and reorder alerts |
+| **Issuances** | Items issued out of the store to staff or departments |
+| **Transactions** | Every stock movement (receipts, issues, adjustments) |
+| **Low Stock ⚠️** | Items at or below their reorder level |
+| **Stock Takes** | Annual physical verification records |
+
+---
+
+### 27.2 Managing Inventory Items
+
+#### Creating an Item
+
+1. Go to the **Items** tab → click **+ New Item**.
+2. Fill in:
+   - **Item Code** (unique, e.g. `CHEM-001`)
+   - **Item Name**
+   - **Category** (e.g. Laboratory, Office, Furniture)
+   - **Unit of Measure** (pieces, litres, boxes, etc.)
+   - **Reorder Level** — quantity that triggers a low-stock alert
+   - **Unit Cost** (optional)
+3. Click **Save**.
+
+Items at or below their reorder level show a ⚠️ badge and appear on the **Low Stock** tab.
+
+#### Viewing Item Details
+
+Click any item row to see its full profile: current stock balance, transaction history, and all linked issuances.
+
+---
+
+### 27.3 Goods Issue Notes (GIN)
+
+A **Goods Issue Note (GIN)** records items released from the store to a person or department. It corresponds to the official physical Goods Issue Note form used at the institution.
+
+#### Creating a GIN
+
+1. Go to the **Issuances** tab → click **+ New Issuance** (opens the **New Goods Issue Note** form).
+2. Fill in the header:
+   - **GIN Number** (required, e.g. `GIN-2025-001`)
+   - **Issue Date**
+   - **Issued To (Received By)** — name of the person collecting the items
+   - **Inventory Officer (Issued By)** — stores officer releasing the items
+   - **Department** — the department receiving the goods (e.g. Science Lab, Library, Admin Office)
+   - **Requisition No.** — reference to the originating Purchase Requisition (e.g. `PR-2025-042`)
+   - **Purpose** — reason for the issuance
+   - **Notes** (optional)
+3. Under **Items to Issue**, click **+ Add Item**:
+   - Select the item (current stock shown in dropdown)
+   - Enter **Qty Requested** and **Qty Issued**
+4. Click **Save Goods Issue Note** — created in **Draft** status.
+
+#### Issuing a Draft GIN
+
+1. In the Issuances tab, find the Draft GIN.
+2. Click **Issue** — status changes to **Issued**.
+3. Stock levels are decremented automatically; the movement appears in the **Transactions** tab.
+
+#### GIN Table
+
+The table shows **GIN #**, **Issued To**, **Department**, and **Req. No.** columns — matching the header fields of the physical Goods Issue Note form.
+
+---
+
+### 27.4 Stock Transactions
+
+The **Transactions** tab records every stock movement automatically:
+
+| Type | Trigger |
+|------|---------|
+| **Receipt** | Items added (via GRN or manual receipt) |
+| **Issue** | Items removed via an issuance |
+| **Adjustment** | Manual stock correction (Admin only) |
+
+Each row shows: date, item, movement type, quantity (+ or −), reference document, and resulting balance.
+
+---
+
+### 27.5 Annual Stock Take (Physical Verification)
+
+A stock take is a formal documented count of all physical inventory, usually conducted at the end of a financial year.
+
+#### Creating a Stock Take
+
+1. Go to the **Stock Takes** tab → click **+ New Stock Take**.
+2. Fill in:
+   - **Reference** (required, unique — e.g. `ST-2025/2026`)
+   - **Financial Year** (e.g. `2025/2026`)
+   - **Take Date** (defaults to today)
+   - **Title** (e.g. "Annual Stock Verification 2025/2026")
+   - **Conducted By** — name of the officer leading the count
+   - **Notes** (optional)
+3. Under **Item Counts**, click **+ Add Item** for each item:
+   - Select the item — **Expected Qty auto-populates** from the current stock balance
+   - Enter the **Department** where the item is held
+   - Adjust **Expected Qty** if needed
+   - Enter the physical **Counted Qty**
+   - Set **Condition**: Good / Fair / Damaged / Missing
+4. Click **Save Stock Take** — created in **In Progress** status. You are redirected to the detail page.
+
+#### Stock Take Detail Page
+
+| Section | Description |
+|---------|-------------|
+| Summary header | Reference, Financial Year, Take Date, Conducted By, status badge |
+| Stats cards | Total Items, Counted, Discrepancies |
+| Items table | Item, Department, Expected Qty, Counted Qty, Variance, Condition, Notes |
+
+**Variance colour coding:**
+
+| Variance | Colour | Meaning |
+|----------|--------|---------|
+| 0 | Green ✓ | Counts match |
+| Negative (e.g. −3) | Red | Shortage — fewer items found than expected |
+| Positive (e.g. +2) | Orange | Surplus — more items found than expected |
+| Not yet counted | Grey | Item not counted in this session |
+
+#### Completing a Stock Take
+
+1. Once all items are counted, click **Mark as Completed** (visible only when status is **In Progress**).
+2. Status changes to **Completed** (green badge). The button disappears — the record is locked.
+
+> A completed stock take is reviewed by the Principal. The **Approved** status is recorded once the principal formally authorises the printed report.
+
+#### Stock Takes List
+
+From the **Stock Takes** tab:
+- Filter by **Financial Year**
+- Status badges: **In Progress** (blue), **Completed** (green), **Approved** (purple)
+- Click **View** to open the detail page
+
+---
+
+### 27.6 Low Stock Alerts
+
+The **Low Stock ⚠️** tab lists items whose stock is at or below their configured reorder level.
+
+- The **Deficit** column shows how far below the reorder level the item currently is.
+- Click a row to open the Item Detail page and record a restocking receipt.
+- Review this tab regularly before raising a Purchase Requisition to get accurate reorder quantities.
