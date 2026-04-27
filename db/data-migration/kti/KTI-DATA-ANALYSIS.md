@@ -437,7 +437,7 @@ PDF receipt exists — details its layout (receipt number, student name, amount,
 
 | # | Gap | Owner | Priority |
 |---|-----|-------|----------|
-| G1 | NCBC, NCPL, NCAM full course catalogues missing | KTI to provide | High |
+| G1 | kti, NCPL, NCAM full course catalogues missing | KTI to provide | High |
 | G2 | DOB, NIN mostly blank for 189 students | KTI to complete | Medium |
 | G3 | Fee records use name-only (no reg no) | Manual review after import | High |
 | G4 | ~~NCBC CAD marks (21 rows): UVTAB 2024-cohort students not in 2025-intake register~~ | **RESOLVED** — 26 students added as 2024/2025 cohort; 21 marks imported | ✅ |

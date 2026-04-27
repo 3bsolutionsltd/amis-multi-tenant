@@ -27,12 +27,15 @@ const VALID_ROLES = [
   "finance",
   "principal",
   "dean",
+  "procurement_officer",
+  "inventory_manager",
 ] as const;
 
 // ------------------------------------------------------------------ schemas
 
 const UsersQuerySchema = z.object({
   role: z.string().optional(),
+  search: z.string().optional(),
   isActive: z
     .string()
     .optional()
@@ -80,6 +83,7 @@ interface UserPublic {
   role: string;
   isActive: boolean;
   createdAt: string;
+  lastLoginAt: string | null;
 }
 
 // ------------------------------------------------------------------ helper
@@ -92,6 +96,25 @@ async function revokeAllRefreshTokens(userId: string): Promise<void> {
   );
 }
 
+/** Write a row to the IAM audit log (fire-and-forget; never throws). */
+function writeAuditLog(
+  tenantId: string,
+  actorId: string | null,
+  targetId: string,
+  action: string,
+  oldValue: string | null,
+  newValue: string | null,
+): void {
+  pool
+    .query(
+      `INSERT INTO platform.iam_audit_log
+         (tenant_id, actor_id, target_id, action, old_value, new_value)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [tenantId, actorId ?? null, targetId, action, oldValue ?? null, newValue ?? null],
+    )
+    .catch((err: unknown) => console.error("[iam_audit_log] write failed:", err));
+}
+
 /** Map a DB row to the public user shape (no password_hash). */
 function toPublic(row: {
   id: string;
@@ -99,6 +122,7 @@ function toPublic(row: {
   role: string;
   is_active: boolean;
   created_at: string;
+  last_login_at: string | null;
 }): UserPublic {
   return {
     id: row.id,
@@ -106,6 +130,7 @@ function toPublic(row: {
     role: row.role,
     isActive: row.is_active,
     createdAt: row.created_at,
+    lastLoginAt: row.last_login_at,
   };
 }
 
@@ -119,7 +144,7 @@ export async function usersRoutes(app: FastifyInstance) {
    */
   app.get(
     "/users",
-    { preHandler: requireRole("admin") },
+    { preHandler: requireRole("admin", "registrar") },
     async (req, reply) => {
       const { tenantId } = req.user;
 
@@ -130,7 +155,7 @@ export async function usersRoutes(app: FastifyInstance) {
           .send({ statusCode: 400, message: "Invalid query parameters" });
       }
 
-      const { role, isActive, page, limit } = parsed.data;
+      const { role, search, isActive, page, limit } = parsed.data;
       const offset = (page - 1) * limit;
 
       // Build WHERE clauses dynamically
@@ -140,6 +165,10 @@ export async function usersRoutes(app: FastifyInstance) {
       if (role !== undefined) {
         params.push(role);
         conditions.push(`role = $${params.length}`);
+      }
+      if (search !== undefined && search.length > 0) {
+        params.push(`%${search.toLowerCase()}%`);
+        conditions.push(`lower(email) LIKE $${params.length}`);
       }
       if (isActive !== undefined) {
         params.push(isActive);
@@ -155,8 +184,9 @@ export async function usersRoutes(app: FastifyInstance) {
           role: string;
           is_active: boolean;
           created_at: string;
+          last_login_at: string | null;
         }>(
-          `SELECT id, email, role, is_active, created_at
+          `SELECT id, email, role, is_active, created_at, last_login_at
            FROM platform.users
            WHERE ${where}
            ORDER BY created_at DESC
@@ -225,14 +255,18 @@ export async function usersRoutes(app: FastifyInstance) {
         role: string;
         is_active: boolean;
         created_at: string;
+        last_login_at: string | null;
       }>(
         `INSERT INTO platform.users (tenant_id, email, password_hash, role)
          VALUES ($1, $2, $3, $4)
-         RETURNING id, email, role, is_active, created_at`,
+         RETURNING id, email, role, is_active, created_at, last_login_at`,
         [tenantId, email, passwordHash, role],
       );
 
-      return reply.status(201).send(toPublic(rows[0]));
+      const created = rows[0];
+      writeAuditLog(tenantId, req.user.userId, created.id, "created", null, role);
+
+      return reply.status(201).send(toPublic(created));
     },
   );
 
@@ -298,12 +332,13 @@ export async function usersRoutes(app: FastifyInstance) {
         email: string;
         role: string;
         is_active: boolean;
+        last_login_at: string | null;
         created_at: string;
       }>(
         `UPDATE platform.users
          SET ${setClauses.join(", ")}
          WHERE id = ${idParam}
-         RETURNING id, email, role, is_active, created_at`,
+         RETURNING id, email, role, is_active, created_at, last_login_at`,
         params,
       );
 
@@ -312,7 +347,23 @@ export async function usersRoutes(app: FastifyInstance) {
         await revokeAllRefreshTokens(id);
       }
 
-      return reply.status(200).send(toPublic(rows[0]));
+      const updated = rows[0];
+      // Write audit entries for each changed field
+      if (role !== undefined) {
+        writeAuditLog(
+          tenantId, req.user.userId, id, "role_changed",
+          existing[0].role, role,
+        );
+      }
+      if (isActive !== undefined) {
+        writeAuditLog(
+          tenantId, req.user.userId, id,
+          isActive ? "activated" : "deactivated",
+          null, null,
+        );
+      }
+
+      return reply.status(200).send(toPublic(updated));
     },
   );
 
@@ -362,7 +413,97 @@ export async function usersRoutes(app: FastifyInstance) {
 
       await revokeAllRefreshTokens(id);
 
+      writeAuditLog(tenantId, req.user.userId, id, "password_reset", null, null);
+
       return reply.status(200).send({ message: "Password updated" });
+    },
+  );
+
+  // ---------------------------------------------------------------- GET /users/:id
+
+  app.get<{ Params: { id: string } }>(
+    "/users/:id",
+    { preHandler: requireRole("admin", "registrar") },
+    async (req, reply) => {
+      const { tenantId } = req.user;
+      const { id } = req.params;
+
+      const { rows } = await pool.query<{
+        id: string;
+        email: string;
+        role: string;
+        is_active: boolean;
+        created_at: string;
+        last_login_at: string | null;
+      }>(
+        `SELECT id, email, role, is_active, created_at, last_login_at
+         FROM platform.users
+         WHERE id = $1 AND tenant_id = $2`,
+        [id, tenantId],
+      );
+
+      if (rows.length === 0) {
+        return reply.status(404).send({ message: "User not found" });
+      }
+
+      return reply.status(200).send(toPublic(rows[0]));
+    },
+  );
+
+  // ---------------------------------------------------------------- GET /users/:id/audit-log
+
+  app.get<{ Params: { id: string } }>(
+    "/users/:id/audit-log",
+    { preHandler: requireRole("admin") },
+    async (req, reply) => {
+      const { tenantId } = req.user;
+      const { id } = req.params;
+
+      // Verify user belongs to this tenant
+      const { rows: check } = await pool.query<{ id: string }>(
+        `SELECT id FROM platform.users WHERE id = $1 AND tenant_id = $2`,
+        [id, tenantId],
+      );
+      if (check.length === 0) {
+        return reply.status(404).send({ message: "User not found" });
+      }
+
+      const { rows } = await pool.query<{
+        id: string;
+        actor_id: string | null;
+        actor_email: string | null;
+        action: string;
+        old_value: string | null;
+        new_value: string | null;
+        created_at: string;
+      }>(
+        `SELECT
+           a.id,
+           a.actor_id,
+           u.email AS actor_email,
+           a.action,
+           a.old_value,
+           a.new_value,
+           a.created_at
+         FROM platform.iam_audit_log a
+         LEFT JOIN platform.users u ON u.id = a.actor_id
+         WHERE a.target_id = $1 AND a.tenant_id = $2
+         ORDER BY a.created_at DESC
+         LIMIT 100`,
+        [id, tenantId],
+      );
+
+      return reply.status(200).send({
+        data: rows.map((r) => ({
+          id: r.id,
+          actorId: r.actor_id,
+          actorEmail: r.actor_email,
+          action: r.action,
+          oldValue: r.old_value,
+          newValue: r.new_value,
+          createdAt: r.created_at,
+        })),
+      });
     },
   );
 }

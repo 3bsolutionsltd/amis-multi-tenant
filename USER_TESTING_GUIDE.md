@@ -798,7 +798,373 @@ Workflow: `submitted → shortlisted → interview → accepted / rejected`
 
 ---
 
-## 25. Quick Smoke Test Sequence (15 minutes)
+## 26. Procurement
+
+**URLs:** `/procurement`, `/procurement/requisitions/new`, `/procurement/requisitions/:id`, `/procurement/orders/new`, `/procurement/orders/:id`, `/procurement/grns/new`, `/procurement/grns/:id`, `/procurement/suppliers`
+
+**Who participates:**
+
+| Role | What they do |
+|------|-------------|
+| `admin` / `registrar` | Create PRs, manage suppliers, view all records |
+| `hod` | Recommend (approve at department level) a submitted PR |
+| `principal` | Give final institutional approval on HOD-recommended PRs |
+| `finance` | Convert approved PRs to LPOs; record GRNs |
+
+All roles can view PRs. Only specific transitions are gated.
+
+---
+
+### 26.1 Purchase Requisition (PR) Workflow
+
+The PR passes through these states in order:
+
+```
+draft → submitted → hod_recommended → principal_approved → ordered → closed
+                                   ↘ rejected (at any stage)        ↘ closed
+```
+
+**State labels shown in the UI:**
+
+| Status | Badge label | Colour |
+|--------|-------------|--------|
+| draft | Draft | Grey |
+| submitted | Submitted | Blue |
+| hod_recommended | HOD Recommended | Purple |
+| principal_approved | Principal Approved | Green |
+| ordered | Ordered | Teal |
+| closed | Closed | Grey |
+| rejected | Rejected | Red |
+
+---
+
+### 26.2 Creating a PR
+
+**Log in as:** `admin@tenant-a.test` or `registrar@tenant-a.test`
+
+1. Navigate to **Procurement → Requisitions** (🛒 in sidebar)
+2. Click **+ New Requisition**
+3. Fill in:
+   - **PR Number** (e.g. `PR-2026/001`) — required, must be unique
+   - **Title** (e.g. "Lab chemicals for Term 2")
+   - **Department** (e.g. "Science")
+   - **Requested By** (your name)
+   - **Priority** — Low / Medium / High / Urgent
+   - **Academic Year** (e.g. `2025/2026`)
+   - **Required By** (date)
+   - **Notes** (optional)
+4. Click **Save PR** — created in `draft` state
+5. Navigate back to the PR list — the new PR appears with a **Draft** badge
+
+---
+
+### 26.3 Submitting a PR for HOD Review
+
+**Log in as:** any role (including the creator)
+
+1. Open a PR in `draft` state
+2. The action panel shows:
+   - **Submit to HOD** button
+   - **Reject** button
+3. Click **Submit to HOD** → status changes to `submitted`
+4. Badge on list page updates to **Submitted** (blue)
+
+---
+
+### 26.4 HOD Recommendation
+
+**Log in as:** `hod@tenant-a.test`
+
+1. Navigate to **Procurement → Requisitions**
+2. Filter by status `submitted` (or scroll to find the PR)
+3. Open the PR — action panel now shows:
+   - **HOD Recommend** button
+   - **Reject** button
+4. Click **HOD Recommend** → status changes to `hod_recommended`
+5. The detail page info grid now shows:
+   - **Recommended By:** `hod@tenant-a.test`
+   - **Recommended At:** current timestamp
+6. Badge updates to **HOD Recommended** (purple)
+
+> If you try to click "Submit to HOD" on a PR already in `submitted` state, the API returns 422 — invalid transition.
+
+---
+
+### 26.5 Principal Approval
+
+**Log in as:** `principal@tenant-a.test`
+
+1. Open a PR in `hod_recommended` state
+2. Action panel shows:
+   - **Principal Approve** button
+   - **Reject** button
+3. Click **Principal Approve** → status changes to `principal_approved`
+4. Info grid now shows:
+   - **Approved By:** `principal@tenant-a.test`
+   - **Approved At:** current timestamp
+5. Badge updates to **Principal Approved** (green)
+
+---
+
+### 26.6 Converting an Approved PR to an LPO
+
+**Log in as:** `admin@tenant-a.test` or `finance@tenant-a.test`
+
+1. Open a PR in `principal_approved` state
+2. Click **Convert to LPO** → status changes to `ordered`
+3. Navigate to **Procurement → Orders**
+4. Click **+ New Local Purchase Order (LPO)**
+5. Fill in:
+   - **LPO Number** (e.g. `LPO-2026/001`) — note the UI now says "LPO", not "PO"
+   - **Supplier**
+   - **Order Date**
+   - Link back to the PR if needed
+6. Click **Save** — LPO created
+7. The LPO Detail page title reads **LPO: LPO-2026/001** (not "PO:")
+
+---
+
+### 26.7 Rejection at Any Stage
+
+Any authorised user can reject at any transition point:
+
+1. Open a PR in any non-`closed` / non-`ordered` state
+2. Click **Reject** — status changes to `rejected` (red badge)
+3. From `rejected`, the only available action is **Close** → `closed`
+
+---
+
+### 26.8 Invalid Transition Guard
+
+The API enforces a strict state machine. To test the guard:
+
+1. Create a PR and note its ID
+2. Using browser DevTools (Network tab → Fetch/XHR), manually send:
+   ```
+   PATCH /procurement/requisitions/:id/transition
+   Body: { "status": "principal_approved" }
+   ```
+   (attempting to skip from `draft` straight to `principal_approved`)
+3. Expected response: **422 Unprocessable Entity** — `"Invalid transition from draft to principal_approved"`
+
+---
+
+### 26.9 Goods Received Notes (GRN)
+
+**Log in as:** `admin@tenant-a.test` or `finance@tenant-a.test`
+
+1. Navigate to **Procurement → GRNs**
+2. Click **+ New GRN**
+3. Link to an LPO, record received quantities and condition
+4. GRN list shows status badges and supplier names
+
+---
+
+### 26.10 Suppliers
+
+1. Navigate to **Procurement → Suppliers**
+2. Manage supplier records (name, contact, category)
+3. Suppliers are referenced when creating LPOs and GRNs
+
+---
+
+## 27. Inventory & Stores
+
+**URLs:** `/inventory`, `/inventory/items/new`, `/inventory/items/:id`, `/inventory/issuances/new`, `/inventory/stock-takes/new`, `/inventory/stock-takes/:id`
+
+**Who participates:**
+
+| Role | What they do |
+|------|-------------|
+| `admin` / `registrar` | Full access — create items, issuances, stock takes |
+| `finance` | View inventory; create issuances |
+| `hod` | View items and issuances for their department |
+| `principal` | Read-only overview |
+
+---
+
+### 27.1 Inventory Page Tabs
+
+Navigate to **Inventory** (📦 in sidebar). Five tabs:
+
+| Tab | Content |
+|-----|---------|
+| **Items** | All stock items with current stock levels and reorder alerts |
+| **Issuances** | Store issuances (items issued to departments/persons) |
+| **Transactions** | All stock movements (receipts, issues, adjustments) |
+| **Low Stock ⚠️** | Items at or below reorder level |
+| **Stock Takes** | Annual stock verification records |
+
+---
+
+### 27.2 Creating an Inventory Item
+
+**Log in as:** `admin@tenant-a.test`
+
+1. Go to the **Items** tab → click **+ New Item**
+2. Fill in:
+   - Item Code (e.g. `CHEM-001`)
+   - Name (e.g. "Hydrochloric Acid 1L")
+   - Category (Laboratory)
+   - Unit of Measure (bottles)
+   - Reorder Level (e.g. `5`)
+   - Unit Cost (optional)
+3. Click **Save**
+4. Item appears in list. If Current Stock ≤ Reorder Level, a ⚠️ icon shows and the item appears in the **Low Stock** tab
+
+---
+
+### 27.3 Creating a Store Issuance (with Department)
+
+**Log in as:** `admin@tenant-a.test`
+
+1. Go to the **Issuances** tab → click **+ New Issuance**
+2. Fill in:
+   - **Issuance Number** (required, e.g. `ISS-2026/001`)
+   - **Issue Date**
+   - **Issued To** (required — person receiving)
+   - **Issued By** (store officer name)
+   - **Department** ← **new field** — e.g. "Science Lab", "Library", "Admin"
+   - **Purpose**
+   - **Notes**
+3. Under **Items to Issue**, click **+ Add Item**:
+   - Select item from dropdown (shows item code + current stock)
+   - Enter Qty Requested and Qty Issued
+4. Click **Save Issuance**
+5. Navigate to **Issuances** tab — new issuance shows the **Department** column
+
+> The Department field makes it easy to track which department received what — a key requirement from the Inventory Management Officer interview.
+
+---
+
+### 27.4 Issuing a Draft Issuance
+
+1. Find an issuance in **Draft** status in the Issuances tab
+2. Click the **Issue** button on that row
+3. Status changes to **Issued** (green badge)
+4. Stock levels of the issued items decrease accordingly — check the **Transactions** tab to see the movement
+
+---
+
+### 27.5 Annual Stock Take — Create
+
+**Log in as:** `admin@tenant-a.test`
+
+1. Go to the **Stock Takes** tab → click **+ New Stock Take**
+2. Fill in:
+   - **Reference** (required, e.g. `ST-2025/2026`) — must be unique per tenant
+   - **Financial Year** (e.g. `2025/2026`)
+   - **Take Date** (defaults to today)
+   - **Title** (e.g. "Annual Stock Verification 2025/2026")
+   - **Conducted By** (officer name)
+   - **Notes**
+3. Under **Item Counts**, click **+ Add Item**:
+   - Select an inventory item — **Expected Qty auto-fills** from current stock
+   - Enter **Department** (e.g. "Science Lab")
+   - Adjust **Expected Qty** if needed
+   - Enter **Counted Qty** after physical count
+   - Set **Condition**: Good / Fair / Damaged / Missing
+4. Click **Save Stock Take** — created in `in_progress` status
+5. Redirected to the Stock Take Detail page
+
+---
+
+### 27.6 Annual Stock Take — Detail & Variance Analysis
+
+On the Stock Take Detail page:
+
+1. **Summary header** shows: Reference, Financial Year, Take Date, Conducted By, Status badge
+2. **Stats cards** show: Total Items, Counted, Discrepancies
+3. **Items table** columns:
+   - Item name and code
+   - Department
+   - Expected Qty
+   - Counted Qty (shows "Not counted" in grey if missing)
+   - **Variance** = Counted − Expected:
+     - Positive variance → orange (surplus)
+     - Negative variance → **red** (shortage ← important for audit)
+     - Zero → green ✓
+   - Condition, Notes
+
+**Variance test cases:**
+
+| Expected | Counted | Variance display |
+|----------|---------|-----------------|
+| 10 | 10 | 0 (green) |
+| 10 | 8 | −2 (red) |
+| 10 | 12 | +2 (orange) |
+| 10 | — | — (not counted yet) |
+
+---
+
+### 27.7 Completing a Stock Take
+
+**Log in as:** `admin@tenant-a.test`
+
+1. Open a Stock Take in `in_progress` state
+2. The **Actions** bar (only visible when status = `in_progress`) shows **Mark as Completed**
+3. Click **Mark as Completed** → status changes to `completed` (green badge)
+4. The action bar disappears — no further transitions available from the UI (approval is done out-of-band by the principal)
+
+> **Note:** The `approved` status is set directly on the backend when the principal authorises the stock take report. UI support for principal approval can be added in a future iteration.
+
+---
+
+### 27.8 Stock Takes Tab — List View
+
+From the **Stock Takes** tab on the Inventory page:
+
+1. Filter by **Financial Year** (text input)
+2. Columns: Reference, Title, Financial Year, Date, Conducted By, Status, Actions
+3. Click **View** → opens Stock Take Detail page
+4. Status badge colours:
+   - **In Progress** → blue
+   - **Completed** → green
+   - **Approved** → purple
+
+---
+
+### 27.9 Low Stock Alerts
+
+1. Go to the **Low Stock ⚠️** tab
+2. Items at or below reorder level appear highlighted in red
+3. The **Deficit** column shows how many units short of the reorder level the item is
+4. Click a row → opens Item Detail page to record a receipt/restock
+
+---
+
+## 28. Updated Quick Smoke Test — Procurement & Inventory (10 minutes)
+
+### Procurement flow (end-to-end)
+
+1. Log in as `admin@tenant-a.test`
+2. Navigate to 🛒 **Procurement → Requisitions** → click **+ New Requisition**
+3. Fill PR Number, Title, Department → **Save PR** → status: `draft` ✓
+4. Click **Submit to HOD** → status: `submitted` ✓
+5. Log out → log in as `hod@tenant-a.test`
+6. Open the same PR → click **HOD Recommend** → status: `hod_recommended`, info grid shows Recommended By ✓
+7. Log out → log in as `principal@tenant-a.test`
+8. Open the PR → click **Principal Approve** → status: `principal_approved`, info grid shows Approved By ✓
+9. Log out → log in as `admin@tenant-a.test`
+10. Open the PR → click **Convert to LPO** → status: `ordered` ✓
+11. Navigate to **Orders** → click **+ New Local Purchase Order (LPO)** → verify title says "LPO Details" and field label says "LPO Number *" ✓
+12. Open any LPO detail page → verify title reads "LPO: {number}" (not "PO:") ✓
+
+### Inventory flow (end-to-end)
+
+1. Log in as `admin@tenant-a.test`
+2. Navigate to 📦 **Inventory** → **Items** tab → click **+ New Item** → save ✓
+3. Go to **Issuances** tab → click **+ New Issuance** → fill in Department field → add items → **Save Issuance** ✓
+4. In the Issuances table, verify **Department** column shows the value ✓
+5. Click **Issue** on the draft issuance → status changes to Issued ✓
+6. Go to **Stock Takes** tab → click **+ New Stock Take** → fill reference + financial year → add items → **Save Stock Take** ✓
+7. On the Stock Take Detail page:
+   - Verify variance column colours (red for shortage, green for match) ✓
+   - Click **Mark as Completed** → status changes to Completed ✓
+   - Action bar disappears ✓
+8. Return to **Stock Takes** tab → verify status badge shows green "Completed" ✓
+
+
 
 For a fast end-to-end check:
 
@@ -820,3 +1186,370 @@ For a fast end-to-end check:
 16. Switch role to **instructor** (header dropdown) → sidebar shrinks to Dashboard + Students + Marks + Reports only ✓
 17. Navigate to `/results` → select a term → click Process Results → GPA rankings table appears ✓
 18. Switch role back to **admin** → navigate to `/analytics` → KPI tiles + breakdown tables load ✓
+
+---
+
+## 29. Full Role-Based E2E Procurement Test
+
+**Estimated time: ~25 minutes**
+**Tenant:** Greenfield VTI
+
+This walks through the complete procurement lifecycle as four different users. Follow the steps in order.
+
+---
+
+### User Accounts
+
+| Role | Email | Password |
+|------|-------|----------|
+| Finance Officer | `finance@tenant-a.test` | `Password123!` |
+| Head of Department | `hod@tenant-a.test` | `Password123!` |
+| Principal | `principal@tenant-a.test` | `Password123!` |
+| Admin | `admin@tenant-a.test` | `Password123!` |
+
+---
+
+### Prerequisites — Create Test Data First
+
+Do these two setup steps before beginning the workflow. Log in as `admin@tenant-a.test`.
+
+#### A. Create a Supplier
+
+1. Navigate to **Procurement → Suppliers**
+2. Click **+ New Supplier** and fill in:
+
+| Field | Value |
+|-------|-------|
+| Name | `ABC Office Supplies` |
+| Contact Person | `John Banda` |
+| Email | `john.banda@abcsupplies.test` |
+| Phone | `+267-71-111-001` |
+| Address | `Plot 123, Main Mall, Gaborone` |
+
+3. Save → supplier appears in the Suppliers list
+
+#### B. Create an Inventory Item
+
+1. Navigate to **Inventory → Items** tab
+2. Click **+ New Item** and fill in:
+
+| Field | Value |
+|-------|-------|
+| Item Code | `STAT-A4-001` |
+| Name | `A4 Paper Reams` |
+| Category | `stationery` |
+| Unit of Measure | `ream` |
+| Reorder Level | `10` |
+| Unit Cost (UGX) | `45` |
+
+3. Save → item appears with **Current Stock: 0** and a ⚠️ Low Stock warning
+
+---
+
+### Dummy Requisition Values
+
+Use these exact values when filling the PR form in Step 1:
+
+| Field | Value |
+|-------|-------|
+| PR Number | `PR-2026/MT-001` |
+| Title | `Stationery for ICT Department Q2` |
+| Department | `ICT` |
+| Requested By | `Finance Officer` |
+| Priority | `Medium` |
+| Academic Year | `2025/2026` |
+| Required By | 14 days from today |
+
+Line item to add:
+
+| Field | Value |
+|-------|-------|
+| Description | `A4 Paper Reams` |
+| Quantity | `20` |
+| Unit | `ream` |
+| Unit Price | `45.00` |
+
+---
+
+### Step 1 — Finance Creates the PR
+
+**Log in as:** `finance@tenant-a.test`
+
+1. Navigate to **Procurement → Requisitions**
+2. Click **+ New Requisition**
+3. Fill in all fields from the table above
+4. Under **Items**, click **+ Add Item** and enter the line item values from the table above
+5. Click **Save PR**
+6. ✅ PR appears with status **Draft** (grey badge)
+
+---
+
+### Step 2 — Finance Submits the PR
+
+*(Still logged in as Finance, on the same PR detail page)*
+
+1. Click **Submit to HOD**
+2. ✅ Status changes to **Submitted** (blue badge)
+3. Note the PR number (`PR-2026/MT-001`) for the next steps
+
+---
+
+### Step 3 — HOD Recommends
+
+**Log in as:** `hod@tenant-a.test`
+
+1. Navigate to **Procurement → Requisitions**
+2. Find `PR-2026/MT-001` (filter by status **Submitted** if needed)
+3. Click to open the PR
+4. Click **HOD Recommend**
+5. ✅ Status changes to **HOD Recommended** (purple badge)
+6. ✅ The info grid shows **Recommended By: hod@tenant-a.test** and a timestamp
+
+---
+
+### Step 4 — Principal Approves
+
+**Log in as:** `principal@tenant-a.test`
+
+1. Navigate to **Procurement → Requisitions**
+2. Find `PR-2026/MT-001` (status: HOD Recommended)
+3. Click to open the PR
+4. Click **Principal Approve**
+5. ✅ Status changes to **Principal Approved** (green badge)
+6. ✅ The info grid shows **Approved By: principal@tenant-a.test** and a timestamp
+
+---
+
+### Step 5 — Finance Converts PR to LPO
+
+**Log in as:** `finance@tenant-a.test`
+
+1. Navigate to **Procurement → Requisitions**
+2. Open `PR-2026/MT-001` (status: Principal Approved)
+3. Click **Convert to LPO**
+4. ✅ PR status changes to **Ordered (LPO Issued)** (teal badge)
+5. ✅ A linked LPO button appears on the detail page (the PR is now locked for editing)
+
+---
+
+### Step 6 — Finance Creates the LPO
+
+*(Still logged in as Finance)*
+
+1. Navigate to **Procurement → Orders**
+2. Click **+ New Local Purchase Order (LPO)**
+3. Fill in:
+
+| Field | Value |
+|-------|-------|
+| LPO Number | `LPO-2026/MT-001` |
+| Title | `Stationery Purchase — ICT Dept Q2` |
+| Supplier | `ABC Office Supplies` (select from dropdown) |
+| Order Date | today |
+| Expected Delivery | 7 days from today |
+
+4. Under **Items**, click **+ Add Item**:
+
+| Field | Value |
+|-------|-------|
+| Description | `A4 Paper Reams` |
+| Quantity | `20` |
+| Unit | `ream` |
+| Unit Price | `45.00` |
+
+5. Click **Save LPO**
+6. ✅ LPO created with status **Draft**
+7. ✅ Page title reads **LPO: LPO-2026/MT-001** (not "PO:")
+8. ✅ Supplier field shows `ABC Office Supplies`
+
+---
+
+### Step 7 — Finance Issues the LPO
+
+*(Still on the LPO detail page)*
+
+1. Click **→ issued** (in the Transition Status bar)
+2. ✅ LPO status changes to **issued** (blue badge)
+3. ✅ The transition bar now shows options: **→ partial_received**, **→ received**, **→ cancelled**
+
+---
+
+### Step 8 — Finance Creates a GRN
+
+*(Still logged in as Finance)*
+
+1. Navigate to **Procurement → GRNs**
+2. Click **+ New GRN**
+3. Fill in:
+
+| Field | Value |
+|-------|-------|
+| GRN Number | `GRN-2026/MT-001` |
+| Received By | `Finance Officer` |
+| Received Date | today |
+
+4. Under **Items Received**, click **+ Add Item**:
+
+| Field | Value |
+|-------|-------|
+| Description | `A4 Paper Reams` |
+| Qty Received | `20` |
+| Qty Ordered | `20` |
+| Condition | `Good` |
+
+5. Click **Save GRN**
+6. ✅ GRN created with status **Draft** (grey badge)
+7. ✅ Redirected to the GRN detail page showing the **✓ Confirm GRN** button
+
+---
+
+### Step 9 — Admin Confirms the GRN
+
+**Log in as:** `admin@tenant-a.test`
+
+1. Navigate to **Procurement → GRNs**
+2. Find `GRN-2026/MT-001` (status: Draft)
+3. Click to open it
+4. Click **✓ Confirm GRN**
+5. ✅ Status changes to **confirmed** (green badge)
+6. ✅ The Confirm button disappears (no further transitions)
+
+---
+
+### Step 10 — Admin Records Stock Receipt
+
+> **Note:** The UI does not yet have a "Record Receipt" form. Use the browser console to call the API directly.
+
+1. Press **F12** to open DevTools → go to the **Console** tab
+2. Paste and run the following script (it finds the item ID and records the receipt):
+
+```js
+const token = localStorage.getItem('amis_access_token');
+
+// Find the inventory item
+const resp = await fetch('/api/inventory/items?search=A4+Paper', {
+  headers: { Authorization: `Bearer ${token}` }
+});
+const { data: items } = await resp.json();
+const itemId = items[0].id;
+console.log('Item ID:', itemId);
+
+// Record the receipt
+const txResp = await fetch('/api/inventory/transactions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    item_id: itemId,
+    transaction_type: 'receipt',
+    quantity: 20,
+    reference: 'GRN-2026/MT-001',
+    notes: 'Received per confirmed GRN-2026/MT-001'
+  })
+});
+const tx = await txResp.json();
+console.log('Transaction created:', tx);
+```
+
+3. ✅ Console prints `Transaction created: { id: ..., transaction_type: "receipt", quantity: 20, balance_after: 20, ... }`
+4. Navigate to **Inventory → Items** tab
+5. ✅ `A4 Paper Reams` now shows **Current Stock: 20** (green, ⚠️ warning gone)
+6. Click the item row → **Recent Transactions** table shows a `receipt` +20 entry
+
+---
+
+### Step 11 — Admin Creates a Store Issuance
+
+*(Still logged in as Admin)*
+
+1. Navigate to **Inventory → Issuances** tab
+2. Click **+ New Issuance**
+3. Fill in:
+
+| Field | Value |
+|-------|-------|
+| Issuance Number | `ISS-2026/MT-001` |
+| Issue Date | today |
+| Issued To | `Moses Khumalo` |
+| Issued By | `Admin Officer` |
+| Department | `ICT` |
+| Purpose | `Term 2 stationery supplies for ICT Lab` |
+| Requisition Ref | `PR-2026/MT-001` |
+
+4. Under **Items to Issue**, click **+ Add Item**:
+
+| Field | Value |
+|-------|-------|
+| Item | `A4 Paper Reams (STAT-A4-001)` (select from dropdown) |
+| Qty Requested | `15` |
+| Qty Issued | `15` |
+
+5. Click **Save Goods Issue Note**
+6. ✅ Issuance created with status **Draft** (grey badge)
+7. ✅ Visible in the Issuances tab with an **Issue** button
+
+---
+
+### Step 12 — Admin Dispatches the Issuance
+
+1. In the **Issuances** tab, find `ISS-2026/MT-001` (status: Draft)
+2. Click the **Issue** button on that row
+3. ✅ Status changes to **Issued** (green badge)
+4. ✅ The **Issue** button disappears
+5. Navigate to **Inventory → Items** → `A4 Paper Reams`:
+   - **Current Stock: 5** (20 received − 15 issued)
+6. ✅ Navigate to **Inventory → Transactions** tab — two entries are visible:
+   - `receipt` **+20** (green badge) — from Step 10
+   - `issue` **−15** (red badge) — from this step
+
+---
+
+### Expected End State
+
+| Record | Status |
+|--------|--------|
+| `PR-2026/MT-001` | Ordered (LPO Issued) |
+| `LPO-2026/MT-001` | issued |
+| `GRN-2026/MT-001` | confirmed |
+| `ISS-2026/MT-001` | Issued |
+| `A4 Paper Reams (STAT-A4-001)` | Current Stock: **5** |
+
+---
+
+### Bonus — Test Rejection Path
+
+1. Log in as `finance@tenant-a.test` → create a **new** PR with number `PR-2026/REJECT-001` (same fields)
+2. Click **Submit to HOD** → status: Submitted
+3. Log in as `hod@tenant-a.test` → open the PR → click **Reject**
+4. ✅ Status: **Rejected** (red badge)
+5. Click **Close** → ✅ Status: **Closed** (grey badge)
+6. No further action buttons appear
+
+### Bonus — Invalid Transition Guard
+
+1. Open any PR in `draft` state and note its URL (contains the UUID)
+2. Open DevTools → Console and run:
+
+```js
+const token = localStorage.getItem('amis_access_token');
+const prId = '<paste-pr-uuid-here>';
+const r = await fetch(`/api/procurement/requisitions/${prId}/transition`, {
+  method: 'PATCH',
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  body: JSON.stringify({ status: 'principal_approved' })
+});
+console.log(r.status, await r.json());
+```
+
+3. ✅ Response: **422** — `"Invalid transition from draft to principal_approved"`
+
+---
+
+### Multi-Tenant Isolation Check
+
+1. Switch to **Riverside Tech College** using the header tenant dropdown
+2. Navigate to **Procurement → Requisitions** → `PR-2026/MT-001` is **not visible** ✅
+3. Navigate to **Inventory → Items** → `A4 Paper Reams (STAT-A4-001)` is **not visible** ✅
+4. Switch back to **Greenfield VTI** → all records reappear ✅

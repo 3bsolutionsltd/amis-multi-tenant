@@ -28,6 +28,7 @@ export function UsersListPage() {
 
   const [params, setParams] = useSearchParams();
   const roleFilter = params.get("role") ?? "";
+  const searchFilter = params.get("search") ?? "";
   const page = Number(params.get("page") ?? "1");
 
   function setRoleFilter(v: string) {
@@ -35,6 +36,15 @@ export function UsersListPage() {
       const n = new URLSearchParams(p);
       if (v) n.set("role", v);
       else n.delete("role");
+      n.set("page", "1");
+      return n;
+    });
+  }
+  function setSearchFilter(v: string) {
+    setParams((p) => {
+      const n = new URLSearchParams(p);
+      if (v) n.set("search", v);
+      else n.delete("search");
       n.set("page", "1");
       return n;
     });
@@ -52,9 +62,9 @@ export function UsersListPage() {
   const [editError, setEditError] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["users", { roleFilter, page }],
+    queryKey: ["users", { roleFilter, searchFilter, page }],
     queryFn: () =>
-      listUsers({ role: roleFilter || undefined, page, limit: 20 }),
+      listUsers({ role: roleFilter || undefined, search: searchFilter || undefined, page, limit: 20 }),
   });
 
   const updateMut = useMutation({
@@ -90,7 +100,7 @@ export function UsersListPage() {
   }
 
   function toggleActive(user: User) {
-    updateMut.mutate({ id: user.id, body: { isActive: !user.is_active } });
+    updateMut.mutate({ id: user.id, body: { isActive: !user.isActive } });
   }
 
   const isEmpty = !isLoading && !error && (data?.data.length ?? 0) === 0;
@@ -109,6 +119,19 @@ export function UsersListPage() {
       {error && <ErrorBanner message="Failed to load users." />}
 
       <FilterBar>
+        <input
+          type="text"
+          placeholder="Search by email…"
+          value={searchFilter}
+          onChange={(e) => setSearchFilter(e.target.value)}
+          style={{
+            padding: "6px 12px",
+            border: "1px solid #d1d5db",
+            borderRadius: 6,
+            fontSize: 14,
+            minWidth: 220,
+          }}
+        />
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
@@ -135,7 +158,10 @@ export function UsersListPage() {
         {data?.data.map((user) => (
           <TR key={user.id}>
             <TD>
-              <span style={{ fontWeight: 600, color: "#111827" }}>
+              <span
+                style={{ fontWeight: 600, color: "#2563eb", cursor: "pointer" }}
+                onClick={() => navigate(`/users/${user.id}`)}
+              >
                 {user.email}
               </span>
             </TD>
@@ -144,17 +170,17 @@ export function UsersListPage() {
             </TD>
             <TD>
               <Badge
-                label={user.is_active ? "Active" : "Inactive"}
-                color={user.is_active ? "green" : "gray"}
+                label={user.isActive ? "Active" : "Inactive"}
+                color={user.isActive ? "green" : "gray"}
               />
             </TD>
-            <TD muted>{new Date(user.created_at).toLocaleDateString()}</TD>
+            <TD muted>{new Date(user.createdAt).toLocaleDateString()}</TD>
             <TD>
               <div style={{ display: "flex", gap: 8 }}>
                 <SecondaryBtn onClick={() => openEdit(user)}>
                   Edit Role
                 </SecondaryBtn>
-                {user.is_active ? (
+                {user.isActive ? (
                   <DangerBtn onClick={() => toggleActive(user)}>
                     Deactivate
                   </DangerBtn>

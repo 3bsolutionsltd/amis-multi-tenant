@@ -77,6 +77,35 @@ export const DEFAULT_WORKFLOWS: Record<string, WorkflowDefinition> = {
       { action: "reject", from: "interview", to: "rejected", required_role: "principal" },
     ],
   },
+  purchase_requisition: {
+    key: "purchase_requisition",
+    initial_state: "draft",
+    states: [
+      "draft",
+      "submitted",
+      "hod_recommended",
+      "principal_approved",
+      "ordered",
+      "rejected",
+      "closed",
+    ],
+    transitions: [
+      // Any authenticated staff can submit a draft PR for review
+      { action: "submit", from: "draft", to: "submitted" },
+      // HOD reviews submission and recommends or rejects
+      { action: "hod_recommend", from: "submitted", to: "hod_recommended", required_role: "hod" },
+      { action: "hod_reject", from: "submitted", to: "rejected", required_role: "hod" },
+      // Principal reviews HOD-recommended PR and approves or rejects
+      { action: "principal_approve", from: "hod_recommended", to: "principal_approved", required_role: "principal" },
+      { action: "principal_reject", from: "hod_recommended", to: "rejected", required_role: "principal" },
+      // Finance/Procurement converts approved PR to an LPO or rejects
+      { action: "convert_to_lpo", from: "principal_approved", to: "ordered", required_role: "finance" },
+      { action: "procurement_reject", from: "principal_approved", to: "rejected", required_role: "finance" },
+      // Close out the PR (admin or finance can close)
+      { action: "close", from: "rejected", to: "closed" },
+      { action: "close_lpo", from: "ordered", to: "closed" },
+    ],
+  },
 };
 
 /**

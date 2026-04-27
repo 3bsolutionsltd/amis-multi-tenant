@@ -8,6 +8,8 @@ export const VALID_ROLES = [
   "finance",
   "principal",
   "dean",
+  "procurement_officer",
+  "inventory_manager",
 ] as const;
 
 export type UserRole = (typeof VALID_ROLES)[number];
@@ -16,8 +18,9 @@ export interface User {
   id: string;
   email: string;
   role: UserRole;
-  is_active: boolean;
-  created_at: string;
+  isActive: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
 }
 
 export interface CreateUserBody {
@@ -33,6 +36,7 @@ export interface UpdateUserBody {
 
 export interface ListUsersParams {
   role?: string;
+  search?: string;
   isActive?: boolean;
   page?: number;
   limit?: number;
@@ -48,6 +52,7 @@ export interface ListUsersResult {
 export function listUsers(params?: ListUsersParams): Promise<ListUsersResult> {
   const q = new URLSearchParams();
   if (params?.role) q.set("role", params.role);
+  if (params?.search) q.set("search", params.search);
   if (params?.isActive != null) q.set("isActive", String(params.isActive));
   if (params?.page != null) q.set("page", String(params.page));
   if (params?.limit != null) q.set("limit", String(params.limit));
@@ -76,5 +81,46 @@ export function resetUserPassword(
   return apiFetch<{ ok: boolean }>(`/users/${id}/password`, {
     method: "PUT",
     body: JSON.stringify({ newPassword }),
+  });
+}
+
+export function getUser(id: string): Promise<User> {
+  return apiFetch<User>(`/users/${id}`);
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actorId: string | null;
+  actorEmail: string | null;
+  action: string;
+  oldValue: string | null;
+  newValue: string | null;
+  createdAt: string;
+}
+
+export function getIamAuditLog(userId: string): Promise<{ data: AuditLogEntry[] }> {
+  return apiFetch<{ data: AuditLogEntry[] }>(`/users/${userId}/audit-log`);
+}
+
+export interface MeProfile {
+  id: string;
+  email: string;
+  role: string;
+  tenantId: string;
+  isActive: boolean;
+  lastLoginAt: string | null;
+}
+
+export function getMe(): Promise<MeProfile> {
+  return apiFetch<MeProfile>("/auth/me");
+}
+
+export function changeMyPassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/auth/change-password", {
+    method: "PUT",
+    body: JSON.stringify({ currentPassword, newPassword }),
   });
 }

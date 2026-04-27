@@ -239,6 +239,16 @@ async function seed() {
                 { label: "Analytics", route: "/analytics" },
                 { label: "Reports", route: "/reports/it" },
               ],
+              procurement_officer: [
+                { label: "Dashboard", route: "/" },
+                { label: "Procurement", route: "/procurement" },
+                { label: "Inventory", route: "/inventory" },
+              ],
+              inventory_manager: [
+                { label: "Dashboard", route: "/" },
+                { label: "Inventory", route: "/inventory" },
+                { label: "Procurement", route: "/procurement" },
+              ],
             },
             dashboards: {
               admin: [
@@ -293,6 +303,12 @@ async function seed() {
                   label: "Enrolled This Month",
                   metricKey: "enrolled_this_month",
                 },
+              ],
+              procurement_officer: [
+                { type: "KPI", label: "Active PRs", metricKey: "active_prs" },
+              ],
+              inventory_manager: [
+                { type: "KPI", label: "Low Stock Items", metricKey: "low_stock_items" },
               ],
             },
             forms: {
@@ -468,6 +484,16 @@ async function seed() {
                 { label: "Analytics", route: "/analytics" },
                 { label: "Reports", route: "/reports/it" },
               ],
+              procurement_officer: [
+                { label: "Dashboard", route: "/" },
+                { label: "Procurement", route: "/procurement" },
+                { label: "Inventory", route: "/inventory" },
+              ],
+              inventory_manager: [
+                { label: "Dashboard", route: "/" },
+                { label: "Inventory", route: "/inventory" },
+                { label: "Procurement", route: "/procurement" },
+              ],
             },
             dashboards: {
               admin: [
@@ -495,6 +521,12 @@ async function seed() {
                   label: "Total Students",
                   metricKey: "total_students",
                 },
+              ],
+              procurement_officer: [
+                { type: "KPI", label: "Active PRs", metricKey: "active_prs" },
+              ],
+              inventory_manager: [
+                { type: "KPI", label: "Low Stock Items", metricKey: "low_stock_items" },
               ],
             },
             forms: {
@@ -600,6 +632,8 @@ async function seed() {
       { role: "finance", idSuffix: "5" },
       { role: "principal", idSuffix: "6" },
       { role: "dean", idSuffix: "7" },
+      { role: "procurement_officer", idSuffix: "8" },
+      { role: "inventory_manager", idSuffix: "9" },
     ];
 
     const DEV_PASSWORD = "Password123!";

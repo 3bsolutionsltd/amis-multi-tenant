@@ -175,6 +175,11 @@ export async function authRoutes(app: FastifyInstance) {
     });
     const refreshToken = await issueRefreshToken(user.id);
 
+    // Fire-and-forget — never block the login response for this
+    pool
+      .query(`UPDATE platform.users SET last_login_at = now() WHERE id = $1`, [user.id])
+      .catch((err: unknown) => console.error("[login] last_login_at update failed:", err));
+
     return reply.status(200).send({
       accessToken,
       refreshToken,
@@ -296,8 +301,8 @@ export async function authRoutes(app: FastifyInstance) {
         .send({ statusCode: 401, message: "Invalid or expired token" });
     }
 
-    const { rows } = await pool.query<Omit<UserRow, "password_hash">>(
-      `SELECT id, tenant_id, email, role, is_active
+    const { rows } = await pool.query<Omit<UserRow, "password_hash"> & { last_login_at: string | null }>(
+      `SELECT id, tenant_id, email, role, is_active, last_login_at
        FROM platform.users WHERE id = $1`,
       [payload.sub],
     );
@@ -315,6 +320,7 @@ export async function authRoutes(app: FastifyInstance) {
       role: user.role,
       tenantId: user.tenant_id,
       isActive: user.is_active,
+      lastLoginAt: user.last_login_at,
     });
   });
 

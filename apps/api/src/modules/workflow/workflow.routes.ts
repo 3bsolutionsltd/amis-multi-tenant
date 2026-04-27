@@ -284,7 +284,7 @@ export async function workflowRoutes(app: FastifyInstance) {
     Params: { workflowKey: string };
   }>(
     "/workflows/:workflowKey",
-    { preHandler: requireRole("admin", "registrar", "hod") },
+    { preHandler: requireRole("admin", "registrar", "hod", "principal", "finance", "dean", "instructor") },
     async (req, reply) => {
       const tid = getTenantId(req);
       if (!tid)
