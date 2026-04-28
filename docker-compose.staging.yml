@@ -57,6 +57,7 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:?required}
+        VITE_APP_ENV: ${VITE_APP_ENV:-staging}
     # Published on 8096 so native Nginx can proxy_pass to localhost:8096
     ports:
       - "127.0.0.1:8096:80"
