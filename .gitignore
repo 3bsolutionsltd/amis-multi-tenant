@@ -1,5 +1,7 @@
 node_modules
 .env
+.env.staging
+.env.*.local
 dist
 
 # Raw migration source data — never commit institution files
