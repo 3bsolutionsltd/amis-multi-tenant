@@ -20,6 +20,9 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 
+ARG VITE_APP_ENV
+ENV VITE_APP_ENV=$VITE_APP_ENV
+
 WORKDIR /app/apps/web
 RUN npx vite build
 
