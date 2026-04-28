@@ -1,0 +1,81 @@
+# ── AMIS Staging Stack ────────────────────────────────────────────────────────
+# Domains : pre.amis.institute  /  api.pre.amis.institute
+# Ports   : web → 127.0.0.1:8096   api → 127.0.0.1:3002
+#
+# Usage on VPS (from /opt/amis):
+#   docker compose -f docker-compose.staging.yml --project-name amis-staging up -d --build
+#   docker compose -f docker-compose.staging.yml --project-name amis-staging run --rm migrate
+#
+# Uses a separate .env.staging file — copy .env.staging.example → .env.staging
+# and fill in real secrets before first run.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-amis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      POSTGRES_DB: ${POSTGRES_DB:-amis_staging}
+    # No host port published — only reachable by other containers on this network
+    volumes:
+      - pgdata_staging:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-amis}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis_staging}
+      APP_DATABASE_URL: postgres://app_user:${APP_DB_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis_staging}
+      JWT_SECRET: ${JWT_SECRET:?required}
+      CORS_ORIGIN: ${CORS_ORIGIN:?required}
+    # Published on 3002 so native Nginx can proxy_pass to localhost:3002
+    ports:
+      - "127.0.0.1:3002:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:?required}
+    # Published on 8096 so native Nginx can proxy_pass to localhost:8096
+    ports:
+      - "127.0.0.1:8096:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  migrate:
+    image: ghcr.io/amacneil/dbmate:latest
+    command: up
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis_staging}?sslmode=disable
+    volumes:
+      - ./db/migrations:/db/migrations:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  pgdata_staging:
