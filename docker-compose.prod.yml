@@ -23,7 +23,6 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}
-      APP_DATABASE_URL: postgres://app_user:${APP_DB_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}
       JWT_SECRET: ${JWT_SECRET:?required}
       CORS_ORIGIN: ${CORS_ORIGIN:?required}
     # Published on 3001 so native Nginx can proxy_pass to localhost:3001
