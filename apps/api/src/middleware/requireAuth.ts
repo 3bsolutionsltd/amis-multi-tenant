@@ -17,6 +17,7 @@ import { verifyToken } from "../lib/jwt.js";
 /** Routes that never require authentication. */
 const PUBLIC_PATHS = new Set([
   "POST /auth/login",
+  "POST /auth/platform-login",
   "POST /auth/refresh",
   "POST /auth/logout",
   "POST /auth/forgot-password",

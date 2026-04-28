@@ -45,6 +45,7 @@ import { PlatformTenantManager } from "./platform-admin/PlatformTenantManager";
 import { ProvisionVtiPage } from "./platform-admin/ProvisionVtiPage";
 import { DashboardPage } from "./modules/dashboard/DashboardPage";
 import { LoginPage } from "./auth/LoginPage";
+import { PlatformLoginPage } from "./auth/PlatformLoginPage";
 import { ForgotPasswordPage } from "./auth/ForgotPasswordPage";
 import { ResetPasswordPage } from "./auth/ResetPasswordPage";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
@@ -99,6 +100,10 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginPage />,
+  },
+  {
+    path: "/platform-login",
+    element: <PlatformLoginPage />,
   },
   {
     path: "/forgot-password",

@@ -431,6 +431,11 @@ export function LoginPage() {
         <p style={{ position: "fixed", bottom: 16, left: 0, right: 0, textAlign: "center", fontSize: 11, color: "#d1d5db", pointerEvents: "none" }}>
           {APP_NAME} · Academic Management Information System
         </p>
+        <p style={{ position: "fixed", bottom: 36, left: 0, right: 0, textAlign: "center", fontSize: 11 }}>
+          <Link to="/platform-login" style={{ color: "#9ca3af", textDecoration: "none" }}>
+            Platform Administrator?
+          </Link>
+        </p>
       </div>
     </div>
   );
