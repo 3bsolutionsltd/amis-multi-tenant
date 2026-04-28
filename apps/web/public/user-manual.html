@@ -639,6 +639,7 @@
 <nav id="sidebar">
   <div class="sidebar-group">
     <div class="sidebar-group-label">Getting Started</div>
+    <button class="sidebar-link" data-target="s-setup">🏁 Initial Setup</button>
     <button class="sidebar-link" data-target="s-intro">📖 Introduction</button>
     <button class="sidebar-link" data-target="s-getting-started">🚀 Login & Navigation</button>
     <button class="sidebar-link" data-target="s-dashboard">🏠 Dashboard</button>
@@ -700,7 +701,7 @@
     <div class="hero-meta">
       <span class="hero-meta-item">📅 Version 3.0</span>
       <span class="hero-meta-item">🏫 Multi-Tenant Edition</span>
-      <span class="hero-meta-item">📖 27 Sections</span>
+      <span class="hero-meta-item">📖 28 Sections</span>
       <span class="hero-meta-item">👤 7 Roles Covered</span>
     </div>
   </div>
@@ -725,6 +726,92 @@
     <h3>No results found</h3>
     <p>Try different search terms or clear the filter.</p>
   </div>
+
+  <!-- ══ 0. INITIAL SETUP ══════════════════════════════════════════════ -->
+  <section class="section" id="s-setup" data-roles="admin platform_admin">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f0fdf4">🏁</div>
+      <div>
+        <div class="section-title">Initial Setup — New Institution</div>
+        <div class="section-desc">Register your institution and complete first-time configuration</div>
+      </div>
+      <div class="section-num">Setup Guide</div>
+    </div>
+    <div class="roles-row"><span class="role-badge role-admin">Admin</span> <span class="role-badge" style="background:#ede9fe;color:#5b21b6">Platform Admin</span></div>
+    <p>This guide covers everything needed to get a new institution live on AMIS — from registration through to the first published configuration.</p>
+
+    <h2>Step 1 — Register the Institution</h2>
+    <p>There are two ways to create a new institution on AMIS:</p>
+
+    <h3>Option A: Self-Registration (VTI Technical Team)</h3>
+    <p>The institution's technical team registers directly without needing a platform administrator.</p>
+    <ol class="steps">
+      <li>Open <a href="https://amis.institute/setup" target="_blank">https://amis.institute/setup</a> (or <a href="https://pre.amis.institute/setup" target="_blank">pre.amis.institute/setup</a> for staging).</li>
+      <li><strong>Step 1 — Institute Info:</strong> Enter the institution name, slug (e.g. <code>kti</code>), contact email, phone, and address. The slug is auto-suggested from the institution name — it becomes the organisation code used at login.</li>
+      <li><strong>Step 2 — TVET Compliance:</strong> Select ownership type (<em>Public / Private / Faith-Based / Community</em>), and optionally enter the UVTAB Centre Code, license number, license date, and license status.</li>
+      <li><strong>Step 3 — Admin Account:</strong> Set the first admin's email address and a secure password (minimum 8 characters).</li>
+      <li><strong>Step 4 — Review &amp; Launch:</strong> Confirm all details and click <strong>Register Institute</strong>. You will be logged in immediately as the Admin.</li>
+    </ol>
+    <div class="callout callout-info"><span class="callout-icon">💡</span><span>The <strong>slug</strong> cannot be changed after registration. Choose a short, lowercase, hyphenated identifier — e.g., <code>kti</code> for Kasese Technical Institute. Users will type this to log in.</span></div>
+
+    <h3>Option B: Platform Administrator Provisions the VTI</h3>
+    <p>A platform administrator can set up the institution on behalf of the VTI team and hand over credentials.</p>
+    <ol class="steps">
+      <li>The platform admin signs in at <a href="https://amis.institute/platform-login" target="_blank">/platform-login</a> (email + password only — no org slug required).</li>
+      <li>Navigate to <strong>Platform Admin → Provision New VTI</strong>.</li>
+      <li>Enter: Institution Name, Slug, Contact Email, Phone/Address, and the Admin Email for the new institution.</li>
+      <li>Click <strong>Provision</strong>. A temporary password is generated and displayed — copy it immediately.</li>
+      <li>Share the slug and temporary credentials with the institution's admin. They log in and change the password on first use.</li>
+    </ol>
+    <div class="callout callout-warning"><span class="callout-icon">⚠️</span><span>The temporary password is shown <strong>once</strong> and is not stored in plain text. Record it before closing the page and pass it to the admin securely.</span></div>
+
+    <h2>Step 2 — First Login as Institution Admin</h2>
+    <ol class="steps">
+      <li>Go to <a href="https://amis.institute" target="_blank">https://amis.institute</a> and enter your institution's <strong>Organisation code</strong> (slug).</li>
+      <li>Enter your admin <strong>email</strong> and <strong>password</strong>, then click <strong>Sign In</strong>.</li>
+      <li>If you received a temporary password, change it immediately: click your avatar → <strong>Change Password</strong>.</li>
+    </ol>
+
+    <h2>Step 3 — Complete Admin Studio Configuration</h2>
+    <p>Before staff can use the system, the Admin must complete the following setup checklist in <strong>Admin Studio</strong> (⚙️ icon in the top navigation). After making changes in each section, return to the <strong>Config Dashboard</strong> and click <strong>Validate → Publish</strong> to go live.</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>#</th><th>Section</th><th>What to do</th><th>Required?</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>Institute Profile</strong></td><td>Set full institution name, short name, logo URL, address, contact email/phone, website.</td><td><span class="chip chip-red">Required</span></td></tr>
+        <tr><td>2</td><td><strong>Branding &amp; Theme</strong></td><td>Set primary colour (hex), secondary colour, and font. Changes preview live.</td><td><span class="chip chip-yellow">Recommended</span></td></tr>
+        <tr><td>3</td><td><strong>Academic Calendar</strong></td><td>Create the current Academic Year and add at least one Term (start date, end date). Click <strong>Mark as Current</strong>.</td><td><span class="chip chip-red">Required</span></td></tr>
+        <tr><td>4</td><td><strong>Programmes</strong></td><td>Add all programmes offered (code, title, department, duration, level). Required before enrolments or marks can be entered.</td><td><span class="chip chip-red">Required</span></td></tr>
+        <tr><td>5</td><td><strong>Grading Scale</strong></td><td>Verify or adjust the default grade bands (A/B/C/D/F). Changes affect GPA and transcript calculations.</td><td><span class="chip chip-yellow">Recommended</span></td></tr>
+        <tr><td>6</td><td><strong>Fee Structures</strong></td><td>Define fees per programme, academic year, term, and student category (Boarding / Day Scholar).</td><td><span class="chip chip-yellow">Recommended</span></td></tr>
+        <tr><td>7</td><td><strong>Module Toggles</strong></td><td>Disable modules your institution does not use (e.g., Procurement, Industrial Training).</td><td>Optional</td></tr>
+        <tr><td>8</td><td><strong>Studio Users</strong></td><td>Create accounts for all staff members and assign the correct role to each.</td><td><span class="chip chip-red">Required</span></td></tr>
+        <tr><td>9</td><td><strong>Publish</strong></td><td>Return to Config Dashboard → click <strong>Validate</strong>, then <strong>Publish</strong>. Configuration goes live immediately.</td><td><span class="chip chip-red">Required</span></td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="callout callout-tip"><span class="callout-icon">✅</span><span><strong>Setup complete!</strong> Once published, staff can log in with their credentials and the system is ready for student enrolment, admissions, and all other modules.</span></div>
+
+    <h2>Creating Staff Accounts</h2>
+    <ol class="steps">
+      <li>In Admin Studio, go to <strong>Studio Users</strong>.</li>
+      <li>Click <strong>+ New User</strong>.</li>
+      <li>Enter the staff member's email, name, and assign the appropriate role.</li>
+      <li>Set a temporary password and share it securely. The staff member should change it on first login.</li>
+    </ol>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Role</th><th>Typical person</th></tr></thead>
+      <tbody>
+        <tr><td><span class="role-badge role-admin">admin</span></td><td>IT officer or system administrator</td></tr>
+        <tr><td><span class="role-badge role-registrar">registrar</span></td><td>Academic Registrar</td></tr>
+        <tr><td><span class="role-badge role-finance">finance</span></td><td>Bursar / Finance Officer</td></tr>
+        <tr><td><span class="role-badge role-principal">principal</span></td><td>Principal / Director</td></tr>
+        <tr><td><span class="role-badge role-dean">dean</span></td><td>Dean of Students</td></tr>
+        <tr><td><span class="role-badge role-hod">hod</span></td><td>Head of Department</td></tr>
+        <tr><td><span class="role-badge role-instructor">instructor</span></td><td>Lecturer / Teacher</td></tr>
+      </tbody>
+    </table></div>
+  </section>
 
   <!-- ══ 1. INTRODUCTION ══════════════════════════════════════════════ -->
   <section class="section" id="s-intro" data-roles="all">
