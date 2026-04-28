@@ -1,10 +1,11 @@
 /**
  * Auth routes — Prompt 17
  *
- * POST /auth/login   — verify credentials, return JWT + refresh token
- * POST /auth/refresh — rotate refresh token, return new JWT pair
- * POST /auth/logout  — revoke refresh token (always 204)
- * GET  /auth/me      — return current user from Bearer JWT
+ * POST /auth/login            — verify credentials (VTI users), return JWT + refresh token
+ * POST /auth/platform-login   — verify credentials (platform admins only, no tenant slug required)
+ * POST /auth/refresh          — rotate refresh token, return new JWT pair
+ * POST /auth/logout           — revoke refresh token (always 204)
+ * GET  /auth/me               — return current user from Bearer JWT
  *
  * All auth DB queries use the superuser pool (DATABASE_URL) so they bypass
  * RLS. This is intentional: login/refresh must read platform.users before a
@@ -66,6 +67,11 @@ const LoginSchema = z.object({
   (d) => d.tenantId !== undefined || d.tenantSlug !== undefined,
   { message: "Either tenantId or tenantSlug must be provided" },
 );
+
+const PlatformLoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
 
 const RefreshSchema = z.object({
   refreshToken: z.string().min(1),
@@ -247,6 +253,76 @@ export async function authRoutes(app: FastifyInstance) {
       role: user.role,
     });
     const refreshToken = await issueRefreshToken(user.id);
+
+    return reply.status(200).send({
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        tenantId: user.tenant_id,
+      },
+    });
+  });
+
+  /**
+   * POST /auth/platform-login
+   * Body: { email, password }
+   *
+   * Dedicated endpoint for platform administrators. No tenant slug required.
+   * Only succeeds for users with role = 'platform_admin'.
+   */
+  app.post("/auth/platform-login", {
+    config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+  }, async (req, reply) => {
+    const parsed = PlatformLoginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        statusCode: 400,
+        message: "Invalid request body",
+        errors: parsed.error.flatten(),
+      });
+    }
+
+    const { email, password } = parsed.data;
+
+    const { rows } = await pool.query<UserRow>(
+      `SELECT id, tenant_id, email, role, password_hash, is_active
+       FROM platform.users
+       WHERE email = $1 AND role = 'platform_admin'`,
+      [email],
+    );
+
+    const user = rows[0];
+
+    // Constant-time path: verify password even on not-found to prevent timing attacks
+    const passwordOk = user
+      ? await verifyPasswordAsync(password, user.password_hash)
+      : false;
+
+    if (!user || !passwordOk) {
+      return reply
+        .status(401)
+        .send({ statusCode: 401, message: INVALID_CREDS });
+    }
+
+    if (!user.is_active) {
+      return reply
+        .status(401)
+        .send({ statusCode: 401, message: ACCOUNT_DISABLED });
+    }
+
+    const accessToken = signToken({
+      sub: user.id,
+      tenantId: user.tenant_id,
+      role: user.role,
+    });
+    const refreshToken = await issueRefreshToken(user.id);
+
+    pool
+      .query(`UPDATE platform.users SET last_login_at = now() WHERE id = $1`, [user.id])
+      .catch((err: unknown) => console.error("[platform-login] last_login_at update failed:", err));
 
     return reply.status(200).send({
       accessToken,
