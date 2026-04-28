@@ -682,17 +682,16 @@ async function seed() {
       `Seeded ${devUsers.length} dev users (7 roles × 2 tenants, password: ${DEV_PASSWORD})`,
     );
 
-    // Seed one platform_admin — linked to Tenant A (arbitrary; not used for auth)
+    // Seed one platform_admin — no tenant_id (platform admins are cross-tenant)
     // Login: platform_admin@amis.local / Password123!  at /platform-login
     await client.query(
-      `INSERT INTO platform.users (id, tenant_id, email, password_hash, role)
-       VALUES ('00000000-0000-0000-0000-000000000099', $1, 'platform_admin@amis.local', $2, 'platform_admin')
+      `INSERT INTO platform.users (id, email, password_hash, role)
+       VALUES ('00000000-0000-0000-0000-000000000099', $1, $2, 'platform_admin')
        ON CONFLICT (id) DO UPDATE
-         SET tenant_id     = EXCLUDED.tenant_id,
-             email         = EXCLUDED.email,
+         SET email         = EXCLUDED.email,
              password_hash = EXCLUDED.password_hash,
              role          = EXCLUDED.role`,
-      [idA, pwHash],
+      ['platform_admin@amis.local', pwHash],
     );
     console.log(
       `Seeded platform_admin: platform_admin@amis.local (password: ${DEV_PASSWORD}) — login at /platform-login`,
