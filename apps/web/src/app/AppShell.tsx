@@ -456,7 +456,7 @@ function DefaultConfigBanner() {
             <strong>Default configuration is active.</strong> This institution has no published
             configuration — workflows, branding and navigation are using built-in defaults.{" "}
             <Link
-              to="/admin-studio/config"
+              to="/admin-studio"
               style={{ color: "#b45309", fontWeight: 600, textDecoration: "underline" }}
             >
               Set up configuration →
