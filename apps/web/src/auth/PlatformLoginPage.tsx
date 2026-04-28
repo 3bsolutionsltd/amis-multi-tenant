@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch";
 import { setTokens, type AuthUser } from "../lib/auth";
 import { ApiError } from "../lib/apiFetch";
@@ -57,7 +56,6 @@ function LabeledInput(props: {
 }
 
 export function PlatformLoginPage() {
-  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -78,7 +76,7 @@ export function PlatformLoginPage() {
         body: JSON.stringify({ email, password }),
       });
       setTokens(res.accessToken, res.refreshToken, res.user);
-      navigate("/platform-admin", { replace: true });
+      window.location.href = "/platform-admin";
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError("Invalid email or password.");

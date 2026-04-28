@@ -31,6 +31,7 @@ import { timetableRoutes } from "./modules/timetable/timetable.routes.js";
 import { studentDocumentsRoutes } from "./modules/student-documents/student-documents.routes.js";
 import { attendanceRoutes } from "./modules/attendance/attendance.routes.js";
 import { onboardingRoutes } from "./modules/onboarding/onboarding.routes.js";
+import { platformRoutes } from "./modules/platform/platform.routes.js";
 import { procurementRoutes } from "./modules/procurement/procurement.routes.js";
 import { inventoryRoutes } from "./modules/inventory/inventory.routes.js";
 import { notificationsRoutes } from "./modules/notifications/notifications.routes.js";
@@ -130,6 +131,7 @@ export function buildApp() {
   app.register(studentDocumentsRoutes);
   app.register(attendanceRoutes);
   app.register(onboardingRoutes);
+  app.register(platformRoutes);
   app.register(procurementRoutes);
   app.register(inventoryRoutes);
   app.register(notificationsRoutes);

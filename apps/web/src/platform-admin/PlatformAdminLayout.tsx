@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
 const NAV_BASE: React.CSSProperties = {
@@ -30,7 +30,7 @@ function navStyle({ isActive }: { isActive: boolean }): React.CSSProperties {
 }
 
 export function PlatformAdminLayout() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const role = user?.role ?? "none";
   const navigate = useNavigate();
 
@@ -55,12 +55,19 @@ export function PlatformAdminLayout() {
           borderBottom: "1px solid #2d1559",
         }}
       >
-        <Link
-          to="/"
-          style={{ color: "#a78bfa", textDecoration: "none", fontSize: 13 }}
+        <button
+          onClick={() => logout()}
+          style={{
+            color: "#a78bfa",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontSize: 13,
+            padding: 0,
+          }}
         >
-          ← App
-        </Link>
+          ← Sign Out
+        </button>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 20 }}>🏛️</span>
           <strong style={{ fontSize: 17, letterSpacing: 0.5 }}>

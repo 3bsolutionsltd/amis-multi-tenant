@@ -43,6 +43,7 @@ import { PlatformAdminLayout } from "./platform-admin/PlatformAdminLayout";
 import { PlatformOverview } from "./platform-admin/PlatformOverview";
 import { PlatformTenantManager } from "./platform-admin/PlatformTenantManager";
 import { ProvisionVtiPage } from "./platform-admin/ProvisionVtiPage";
+import { PlatformUsersPage } from "./platform-admin/PlatformUsersPage";
 import { DashboardPage } from "./modules/dashboard/DashboardPage";
 import { LoginPage } from "./auth/LoginPage";
 import { PlatformLoginPage } from "./auth/PlatformLoginPage";
@@ -215,6 +216,7 @@ export const router = createBrowserRouter([
       { index: true, element: <PlatformOverview /> },
       { path: "tenants", element: <PlatformTenantManager /> },
       { path: "provision", element: <ProvisionVtiPage /> },
+      { path: "users", element: <PlatformUsersPage /> },
     ],
   },
   {
