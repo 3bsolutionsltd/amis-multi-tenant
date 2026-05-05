@@ -28,6 +28,8 @@ services:
     # Published on 3001 so native Nginx can proxy_pass to localhost:3001
     ports:
       - "127.0.0.1:3001:3000"
+    volumes:
+      - uploads:/app/apps/api/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -66,3 +68,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:
