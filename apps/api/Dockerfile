@@ -35,5 +35,7 @@ COPY apps/api/package.json ./apps/api/
 WORKDIR /app/apps/api
 EXPOSE 3000
 
+RUN mkdir -p /app/apps/api/uploads && chown node:node /app/apps/api/uploads
+
 USER node
 CMD ["node", "dist/index.js"]
