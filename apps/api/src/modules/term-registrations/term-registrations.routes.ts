@@ -18,6 +18,7 @@ const WORKFLOW_KEY = "term_registration";
 
 const REG_SELECT = `
   r.id, r.tenant_id, r.student_id, r.academic_year, r.term,
+  r.academic_year_id, r.term_id,
   r.extension, r.created_by, r.created_at, r.updated_at,
   s.first_name, s.last_name, s.admission_number, s.programme AS student_programme,
   wi.current_state
@@ -60,17 +61,29 @@ export async function termRegistrationsRoutes(app: FastifyInstance) {
           return { notFound: true, message: "student not found" } as const;
         }
 
+        // Resolve FK references from text labels
+        const { rows: ayRows } = await client.query<{ id: string }>(
+          `SELECT id FROM app.academic_years WHERE tenant_id = $1 AND name = $2 LIMIT 1`,
+          [tid, academic_year],
+        );
+        const { rows: tRows } = await client.query<{ id: string }>(
+          `SELECT id FROM app.terms WHERE tenant_id = $1 AND name = $2 LIMIT 1`,
+          [tid, term],
+        );
+
         // Insert registration
         const { rows: regRows } = await client.query(
           `INSERT INTO app.term_registrations
-             (tenant_id, student_id, academic_year, term, extension, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6)
+             (tenant_id, student_id, academic_year, term, academic_year_id, term_id, extension, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            RETURNING *`,
           [
             tid,
             student_id,
             academic_year,
             term,
+            ayRows[0]?.id ?? null,
+            tRows[0]?.id ?? null,
             JSON.stringify(extension ?? {}),
             actorUserId,
           ],
@@ -248,6 +261,18 @@ export async function termRegistrationsRoutes(app: FastifyInstance) {
           } as const;
         }
 
+        // Resolve FK IDs once for all students in the batch
+        const { rows: ayRows } = await client.query<{ id: string }>(
+          `SELECT id FROM app.academic_years WHERE tenant_id = $1 AND name = $2 LIMIT 1`,
+          [tid, academic_year],
+        );
+        const { rows: tRows } = await client.query<{ id: string }>(
+          `SELECT id FROM app.terms WHERE tenant_id = $1 AND name = $2 LIMIT 1`,
+          [tid, term],
+        );
+        const academicYearId = ayRows[0]?.id ?? null;
+        const termFkId = tRows[0]?.id ?? null;
+
         let created = 0;
         let skipped = 0;
         const errors: { student_id: string; error: string }[] = [];
@@ -277,10 +302,10 @@ export async function termRegistrationsRoutes(app: FastifyInstance) {
           // Insert registration
           const { rows: regRows } = await client.query(
             `INSERT INTO app.term_registrations
-               (tenant_id, student_id, academic_year, term, extension, created_by)
-             VALUES ($1, $2, $3, $4, '{}', $5)
+               (tenant_id, student_id, academic_year, term, academic_year_id, term_id, extension, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, '{}', $7)
              RETURNING id`,
-            [tid, student_id, academic_year, term, actorUserId],
+            [tid, student_id, academic_year, term, academicYearId, termFkId, actorUserId],
           );
           const regId = regRows[0].id;
 

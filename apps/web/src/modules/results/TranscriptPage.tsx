@@ -1,6 +1,7 @@
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getTranscript, type TranscriptTerm } from "./results.api";
+import { formatStudentName } from "../../lib/formatStudentName";
 import { useConfig } from "../../app/ConfigProvider";
 import {
   ensureGlobalCss,
@@ -95,7 +96,7 @@ export function TranscriptPage() {
             fontSize: 13,
           }}
         >
-          <div><strong>Student:</strong> {student.first_name} {student.last_name}</div>
+          <div><strong>Student:</strong> {formatStudentName(student)}</div>
           <div><strong>Admission No:</strong> {student.admission_number ?? "—"}</div>
           <div><strong>Programme:</strong> {student.programme ?? "—"}</div>
           {student.year_of_study != null && (

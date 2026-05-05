@@ -2,6 +2,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getStudentTermResults, type StudentTermResult } from "./results.api";
 import { getStudent } from "../students/students.api";
+import { formatStudentName } from "../../lib/formatStudentName";
 import { apiFetch } from "../../lib/apiFetch";
 import { useConfig } from "../../app/ConfigProvider";
 import {
@@ -123,7 +124,7 @@ export function ResultsSlipPage() {
           }}
         >
           <div>
-            <strong>Student:</strong> {student.first_name} {student.last_name}
+            <strong>Student:</strong> {formatStudentName(student)}
           </div>
           <div>
             <strong>Admission No:</strong> {student.admission_number ?? "—"}

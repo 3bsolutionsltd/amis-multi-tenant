@@ -15,6 +15,7 @@ import {
 import { useAuth } from "../../auth/AuthContext";
 import { useConfig } from "../../app/ConfigProvider";
 import { createIssuance, listInventoryItems } from "./inventory.api";
+import { listSRQs } from "../stores/stores.api";
 
 ensureGlobalCss();
 
@@ -45,6 +46,12 @@ export default function IssuanceCreatePage() {
     issuance_number: "", issued_to: "",
     issued_by: user?.email ?? "",
     department: "", requisition_ref: "", purpose: "", issue_date: "", notes: "",
+    srq_id: "",
+  });
+
+  const { data: approvedSRQs = [] } = useQuery({
+    queryKey: ["srqs", "hod_approved"],
+    queryFn: () => listSRQs({ status: "hod_approved" }),
   });
   const [items, setItems] = useState<IssuanceItemRow[]>([emptyItem()]);
 
@@ -66,6 +73,7 @@ export default function IssuanceCreatePage() {
         issued_by: form.issued_by || undefined,
         department: form.department || undefined,
         requisition_ref: form.requisition_ref || undefined,
+        srq_id: form.srq_id || undefined,
         purpose: form.purpose || undefined,
         issue_date: form.issue_date || undefined,
         notes: form.notes || undefined,
@@ -117,8 +125,31 @@ export default function IssuanceCreatePage() {
                 <input value={form.department} onChange={(e) => setF("department", e.target.value)} style={inputCss} placeholder="e.g. Science, Admin, Library" />
               )}
             </Field>
+            <Field label="Link to Store Requisition (SRQ)">
+              <select
+                value={form.srq_id}
+                onChange={(e) => {
+                  const selected = approvedSRQs.find((s) => s.id === e.target.value);
+                  setForm((f) => ({
+                    ...f,
+                    srq_id: e.target.value,
+                    requisition_ref: selected ? selected.srq_number : f.requisition_ref,
+                    department: selected?.department ?? f.department,
+                    purpose: selected?.purpose ?? f.purpose,
+                  }));
+                }}
+                style={selectCss}
+              >
+                <option value="">— None —</option>
+                {approvedSRQs.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.srq_number}{s.department ? ` · ${s.department}` : ""}{s.purpose ? ` — ${s.purpose}` : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="Requisition No.">
-              <input value={form.requisition_ref} onChange={(e) => setF("requisition_ref", e.target.value)} style={inputCss} placeholder="e.g. PR-2025-042" />
+              <input value={form.requisition_ref} onChange={(e) => setF("requisition_ref", e.target.value)} style={inputCss} placeholder="e.g. SRQ-2026-001 or PR-2025-042" />
             </Field>
             <Field label="Purpose" style={{ gridColumn: "1 / -1" }}>
               <input value={form.purpose} onChange={(e) => setF("purpose", e.target.value)} style={inputCss} />

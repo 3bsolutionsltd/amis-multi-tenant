@@ -27,7 +27,7 @@ import {
   type DayOfWeek,
   type TimetableFilters,
 } from "./timetable.api";
-import { listAcademicYears } from "../academic-calendar/academic-calendar.api";
+import { listAcademicYears, listTerms } from "../academic-calendar/academic-calendar.api";
 import { listProgrammes } from "../programmes/programmes.api";
 import { listCourses } from "../courses/courses.api";
 
@@ -152,6 +152,14 @@ function SlotForm({
     queryFn: () => listProgrammes(),
   });
 
+  const selectedYear = academicYears.find((y) => y.name === form.academic_year);
+
+  const { data: terms = [] } = useQuery({
+    queryKey: ["terms", selectedYear?.id],
+    queryFn: () => listTerms({ academic_year_id: selectedYear?.id }),
+    enabled: !!selectedYear,
+  });
+
   const selectedProgramme = programmes.find((p) => p.code === form.programme);
 
   const { data: courses = [] } = useQuery({
@@ -267,8 +275,8 @@ function SlotForm({
             }
           >
             <option value="">— any —</option>
-            {[1, 2, 3, 4].map((n) => (
-              <option key={n} value={n}>Term {n}</option>
+            {terms.map((t) => (
+              <option key={t.id} value={t.term_number}>{t.name}</option>
             ))}
           </select>
         </Field>
@@ -307,11 +315,28 @@ export function TimetablePage() {
 
   const [filters, setFilters] = useState<TimetableFilters>({});
   const [applied, setApplied] = useState<TimetableFilters>({});
+  const [filterYearId, setFilterYearId] = useState<string | undefined>();
 
   // Modal state
   const [modalSlot, setModalSlot] = useState<TimetableSlot | null>(null); // editing existing
   const [modalOpen, setModalOpen] = useState(false);
   const [formError, setFormError] = useState<string | undefined>();
+
+  const { data: filterAcademicYears = [] } = useQuery({
+    queryKey: ["academic-years"],
+    queryFn: () => listAcademicYears(),
+  });
+
+  const { data: filterProgrammes = [] } = useQuery({
+    queryKey: ["programmes"],
+    queryFn: () => listProgrammes(),
+  });
+
+  const { data: filterTerms = [] } = useQuery({
+    queryKey: ["terms", filterYearId],
+    queryFn: () => listTerms({ academic_year_id: filterYearId }),
+    enabled: !!filterYearId,
+  });
 
   const { data: slots = [], isLoading, error } = useQuery({
     queryKey: ["timetable", applied],
@@ -400,24 +425,35 @@ export function TimetablePage() {
 
       <FilterBar>
         <Field label="Programme">
-          <input
-            style={inputCss}
-            placeholder="e.g. BCS"
+          <select
+            style={selectCss}
             value={filters.programme ?? ""}
             onChange={(e) =>
               setFilters((f) => ({ ...f, programme: e.target.value }))
             }
-          />
+          >
+            <option value="">All Programmes</option>
+            {filterProgrammes.map((p) => (
+              <option key={p.id} value={p.code}>{p.code} — {p.title}</option>
+            ))}
+          </select>
         </Field>
         <Field label="Academic Year">
-          <input
-            style={inputCss}
-            placeholder="e.g. 2025/2026"
+          <select
+            style={selectCss}
             value={filters.academic_year ?? ""}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, academic_year: e.target.value }))
-            }
-          />
+            onChange={(e) => {
+              const name = e.target.value;
+              const yr = filterAcademicYears.find((y) => y.name === name);
+              setFilterYearId(yr?.id);
+              setFilters((f) => ({ ...f, academic_year: name, term_number: undefined }));
+            }}
+          >
+            <option value="">All Years</option>
+            {filterAcademicYears.map((y) => (
+              <option key={y.id} value={y.name}>{y.name}</option>
+            ))}
+          </select>
         </Field>
         <Field label="Term">
           <select
@@ -426,15 +462,13 @@ export function TimetablePage() {
             onChange={(e) =>
               setFilters((f) => ({
                 ...f,
-                term_number: e.target.value
-                  ? Number(e.target.value)
-                  : undefined,
+                term_number: e.target.value ? Number(e.target.value) : undefined,
               }))
             }
           >
             <option value="">All Terms</option>
-            {[1, 2, 3, 4].map((n) => (
-              <option key={n} value={n}>Term {n}</option>
+            {filterTerms.map((t) => (
+              <option key={t.id} value={t.term_number}>{t.name}</option>
             ))}
           </select>
         </Field>
@@ -446,6 +480,7 @@ export function TimetablePage() {
             onClick={() => {
               setFilters({});
               setApplied({});
+              setFilterYearId(undefined);
             }}
           >
             Reset

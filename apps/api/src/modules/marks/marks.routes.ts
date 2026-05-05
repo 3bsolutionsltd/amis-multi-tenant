@@ -129,9 +129,9 @@ export async function marksRoutes(app: FastifyInstance) {
       const actorUserId = req.user?.userId ?? null;
 
       const result = await withTenant(tid, async (client) => {
-        // Check submission exists + get workflow state
+        // Check submission exists + get workflow state and term context
         const { rows: subRows } = await client.query(
-          `SELECT s.id, wi.current_state
+          `SELECT s.id, s.programme, s.intake, s.term, wi.current_state
            FROM app.mark_submissions s
            LEFT JOIN app.workflow_instances wi
              ON wi.entity_type = $2 AND wi.entity_id = s.id
@@ -143,9 +143,28 @@ export async function marksRoutes(app: FastifyInstance) {
         if (submission.current_state === PUBLISHED_STATE)
           return { published: true } as const;
 
+        // Resolve the term label to check registrations
+        // mark_submissions.term is the same text label used in term_registrations
+        const submissionTerm: string | null = submission.term ?? null;
+
         const updatedEntries: object[] = [];
+        const enrollmentErrors: string[] = [];
 
         for (const { student_id, score } of entries) {
+          // Enrolment verification (#90): student must have a term_registration
+          // for the same term as the submission. Warn but don't hard-block so
+          // corrections can still be entered (configurable in future).
+          if (submissionTerm) {
+            const { rows: regRows } = await client.query<{ id: string }>(
+              `SELECT id FROM app.term_registrations
+               WHERE student_id = $1 AND term = $2`,
+              [student_id, submissionTerm],
+            );
+            if (regRows.length === 0) {
+              enrollmentErrors.push(student_id);
+            }
+          }
+
           // Read existing entry for audit log (old_score)
           const { rows: existing } = await client.query<{
             id: string;
@@ -183,7 +202,7 @@ export async function marksRoutes(app: FastifyInstance) {
           updatedEntries.push(entry);
         }
 
-        return { entries: updatedEntries };
+        return { entries: updatedEntries, unenrolledStudents: enrollmentErrors };
       });
 
       if ("notFound" in result)
@@ -289,9 +308,13 @@ export async function marksRoutes(app: FastifyInstance) {
         if (!submission) return null;
 
         const { rows: entries } = await client.query(
-          `SELECT * FROM app.mark_entries
-           WHERE submission_id = $1
-           ORDER BY updated_at`,
+          `SELECT me.id, me.student_id, me.score, me.updated_by, me.updated_at,
+                  me.evidence_files,
+                  s.first_name, s.last_name
+           FROM app.mark_entries me
+           LEFT JOIN app.students s ON s.id = me.student_id
+           WHERE me.submission_id = $1
+           ORDER BY me.updated_at`,
           [id],
         );
 
@@ -338,6 +361,74 @@ export async function marksRoutes(app: FastifyInstance) {
 
       if (rows === null) return reply.status(404).send({ error: "not found" });
       return rows;
+    },
+  );
+
+  // ==========================================================================
+  // EVIDENCE ATTACHMENTS
+  // ==========================================================================
+
+  // PATCH /marks/entries/:entryId/evidence — append file refs to evidence_files
+  app.patch<{ Params: { entryId: string } }>(
+    "/marks/entries/:entryId/evidence",
+    { preHandler: requireRole("admin", "registrar", "hod", "instructor") },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid) return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const body = req.body as { files?: unknown[] };
+      if (!Array.isArray(body?.files) || body.files.length === 0) {
+        return reply.status(422).send({ error: "files array is required" });
+      }
+
+      const { entryId } = req.params;
+      const row = await withTenant(tid, async (client) => {
+        const { rows } = await client.query(
+          `UPDATE app.mark_entries
+           SET evidence_files = evidence_files || $1::jsonb,
+               updated_at = now()
+           WHERE id = $2
+           RETURNING id, evidence_files`,
+          [JSON.stringify(body.files), entryId],
+        );
+        return rows[0] ?? null;
+      });
+
+      if (!row) return reply.status(404).send({ error: "Mark entry not found" });
+      return row;
+    },
+  );
+
+  // DELETE /marks/entries/:entryId/evidence — remove one file ref by URL
+  app.delete<{ Params: { entryId: string } }>(
+    "/marks/entries/:entryId/evidence",
+    { preHandler: requireRole("admin", "registrar", "hod", "instructor") },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid) return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const body = req.body as { url?: string };
+      if (!body?.url) return reply.status(422).send({ error: "url is required" });
+
+      const { entryId } = req.params;
+      const row = await withTenant(tid, async (client) => {
+        const { rows } = await client.query(
+          `UPDATE app.mark_entries
+           SET evidence_files = (
+             SELECT jsonb_agg(f)
+             FROM jsonb_array_elements(evidence_files) AS f
+             WHERE f->>'url' <> $1
+           ),
+               updated_at = now()
+           WHERE id = $2
+           RETURNING id, evidence_files`,
+          [body.url, entryId],
+        );
+        return rows[0] ?? null;
+      });
+
+      if (!row) return reply.status(404).send({ error: "Mark entry not found" });
+      return row;
     },
   );
 }

@@ -92,6 +92,7 @@ export const CreateIssuanceSchema = z.object({
   issued_by: z.string().optional(),
   department: z.string().optional(),
   requisition_ref: z.string().optional(),
+  srq_id: z.string().uuid().optional(),
   purpose: z.string().optional(),
   issue_date: z.string().optional(),
   notes: z.string().optional(),
@@ -105,6 +106,7 @@ export const UpdateIssuanceSchema = z.object({
   issue_date: z.string().optional(),
   return_date: z.string().optional(),
   notes: z.string().optional(),
+  student_project_id: z.string().uuid().optional().nullable(),
 });
 
 export const IssuanceQuerySchema = z.object({

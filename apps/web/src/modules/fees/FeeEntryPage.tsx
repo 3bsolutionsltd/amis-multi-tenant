@@ -47,7 +47,7 @@ export function FeeEntryPage() {
 
   const { data: searchResults } = useQuery({
     queryKey: ["students-search-fee", search],
-    queryFn: () => listStudents({ search, page: 1, per_page: 10 }),
+    queryFn: () => listStudents({ search, page: 1, limit: 10 }),
     enabled: search.length >= 2,
   });
 
@@ -110,7 +110,7 @@ export function FeeEntryPage() {
               />
               {showDropdown &&
                 searchResults &&
-                searchResults.students.length > 0 && (
+                searchResults.length > 0 && (
                   <div
                     style={{
                       position: "absolute",
@@ -126,7 +126,7 @@ export function FeeEntryPage() {
                       boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                     }}
                   >
-                    {searchResults.students.map((s) => (
+                    {searchResults.map((s) => (
                       <div
                         key={s.id}
                         onMouseDown={() => selectStudent(s)}
@@ -145,7 +145,7 @@ export function FeeEntryPage() {
                         }
                       >
                         {s.first_name} {s.last_name}
-                        {s.student_id && (
+                        {s.admission_number && (
                           <span
                             style={{
                               color: "#6b7280",
@@ -153,7 +153,7 @@ export function FeeEntryPage() {
                               fontSize: 12,
                             }}
                           >
-                            {s.student_id}
+                            {s.admission_number}
                           </span>
                         )}
                       </div>

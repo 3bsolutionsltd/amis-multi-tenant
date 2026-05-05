@@ -2,11 +2,13 @@ import { z } from "zod";
 
 // Manual fee entry body
 export const FeeEntrySchema = z.object({
-  student_id: z.string().uuid(),
-  amount: z.number().positive(),
-  currency: z.string().min(1).default("ZAR"),
-  reference: z.string().min(1),
-  paid_at: z.string().min(1),
+  student_id:        z.string().uuid(),
+  amount:            z.number().positive(),
+  currency:          z.string().min(1).default("UGX"),
+  reference:         z.string().min(1),
+  paid_at:           z.string().min(1),
+  academic_year_id:  z.string().uuid().optional(),
+  term_id:           z.string().uuid().optional(),
 });
 
 // One row in a bulk import

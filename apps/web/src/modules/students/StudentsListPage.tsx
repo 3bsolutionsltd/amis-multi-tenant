@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listStudents } from "./students.api";
+import { formatStudentName } from "../../lib/formatStudentName";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -176,7 +177,7 @@ export function StudentsListPage() {
             <TD muted>{s.admission_number ?? "—"}</TD>
             <TD>
               <span style={{ fontWeight: 600, color: "#111827" }}>
-                {s.first_name} {s.last_name}
+                {formatStudentName(s)}
               </span>
             </TD>
             <TD muted>{s.programme ?? "—"}</TD>

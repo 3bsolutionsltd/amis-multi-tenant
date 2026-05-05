@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listStudents } from "../modules/students/students.api";
 import { C, inputCss } from "./ui";
+import { formatStudentName } from "./formatStudentName";
 
 interface Props {
   value: string;           // currently selected student_id
@@ -77,7 +78,7 @@ export function StudentPickerInput({
             <div
               key={s.id}
               onMouseDown={() =>
-                pick(s.id, `${s.first_name} ${s.last_name}`)
+                pick(s.id, formatStudentName(s))
               }
               style={{
                 padding: "8px 12px",
@@ -94,7 +95,7 @@ export function StudentPickerInput({
               }}
             >
               <span style={{ fontWeight: 500 }}>
-                {s.first_name} {s.last_name}
+                {formatStudentName(s)}
               </span>
               {s.admission_number && (
                 <span

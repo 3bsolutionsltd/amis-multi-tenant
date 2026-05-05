@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
+import { pool } from "../../db/pool.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { getTenantId } from "../../lib/tenantId.js";
 import {
@@ -10,6 +11,7 @@ import {
   CreateInstructorReportSchema,
   UpdateInstructorReportSchema,
   InstructorReportQuerySchema,
+  UvtabExportQuerySchema,
 } from "./reports.schema.js";
 
 const ALL_ROLES = [
@@ -858,6 +860,92 @@ export async function reportsRoutes(app: FastifyInstance) {
         grand_total: grandTotal,
         filters: { academic_year, term },
       });
+    },
+  );
+
+  // ─── UVTAB EIMS CSV Export ─────────────────────────────────────────────────
+  // GET /reports/uvtab-eims-export?academic_year=2026/2027&term=Term+1
+  // Returns a CSV file in the standard 11-column UVTAB EIMS registration format.
+  app.get(
+    "/reports/uvtab-eims-export",
+    { preHandler: requireRole(...MANAGEMENT_ROLES) },
+    async (req, reply) => {
+      const tenantId = getTenantId(req) ?? "";
+
+      const parsed = UvtabExportQuerySchema.safeParse(req.query);
+      if (!parsed.success)
+        return reply.status(422).send({ error: parsed.error.flatten() });
+
+      const { academic_year, term } = parsed.data;
+
+      // Retrieve tenant's UVTAB centre code
+      const tenantRow = await pool.query<{ uvtab_centre_code: string | null }>(
+        `SELECT uvtab_centre_code FROM platform.tenants WHERE id = $1`,
+        [tenantId],
+      );
+      const centre_code = tenantRow.rows[0]?.uvtab_centre_code ?? null;
+      if (!centre_code) {
+        return reply.status(422).send({
+          error:
+            "This institution does not have a UVTAB centre code configured. " +
+            "Set uvtab_centre_code on the tenant before exporting.",
+        });
+      }
+
+      const { rows: uvtabRows } = await withTenant(tenantId, (client) =>
+        client.query<Record<string, unknown>>(
+          `SELECT
+             $2                                                             AS center_code,
+             COALESCE(s.nin, '')                                           AS nin,
+             s.first_name,
+             s.last_name                                                   AS surname,
+             COALESCE(s.other_names, '')                                   AS other_names,
+             CASE
+               WHEN s.gender = 'male'   THEN 'M'
+               WHEN s.gender = 'female' THEN 'F'
+               ELSE ''
+             END                                                           AS gender,
+             COALESCE(TO_CHAR(s.date_of_birth, 'YYYY-MM-DD'), '')         AS dob,
+             COALESCE(s.programme_code, '')                               AS program_code,
+             COALESCE(s.assessment_level::text, '')                       AS assessment_level,
+             COALESCE(s.previous_index, '')                               AS previous_index,
+             COALESCE(s.phone, '')                                        AS contact_number
+           FROM app.term_registrations tr
+           JOIN app.students s ON s.id = tr.student_id
+           WHERE tr.tenant_id = $1
+             AND tr.academic_year = $3
+             AND tr.term         = $4
+           ORDER BY s.last_name, s.first_name`,
+          [tenantId, centre_code!, academic_year, term],
+        ),
+      );
+
+      const HEADERS = [
+        "center_code",
+        "nin",
+        "first_name",
+        "surname",
+        "other_names",
+        "gender",
+        "dob",
+        "program_code",
+        "assessment_level",
+        "previous_index",
+        "contact_number",
+      ];
+
+      const escape = (v: unknown): string =>
+        `"${String(v ?? "").replace(/"/g, '""')}"`;
+
+      const lines = [
+        HEADERS.join(","),
+        ...uvtabRows.map((r: Record<string, unknown>) => HEADERS.map((h) => escape(r[h])).join(",")),
+      ];
+
+      const filename = `uvtab-eims-${academic_year.replace(/\//g, "-")}-${term.replace(/\s+/g, "-")}.csv`;
+      reply.header("Content-Type", "text/csv; charset=utf-8");
+      reply.header("Content-Disposition", `attachment; filename="${filename}"`);
+      return reply.send(lines.join("\n"));
     },
   );
 }

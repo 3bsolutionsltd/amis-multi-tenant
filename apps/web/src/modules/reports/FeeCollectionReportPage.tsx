@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getFeeCollectionReport, type FeeCollectionParams } from "./reports.api";
+import { formatStudentName } from "../../lib/formatStudentName";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -234,7 +235,7 @@ export function FeeCollectionReportPage() {
               <TR key={p.id}>
                 <TD>{p.admission_number ?? "—"}</TD>
                 <TD>
-                  {p.first_name} {p.last_name}
+                  {formatStudentName(p)}
                 </TD>
                 <TD>{p.programme ?? "—"}</TD>
                 <TD>{p.term ?? "—"}</TD>

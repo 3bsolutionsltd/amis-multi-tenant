@@ -112,6 +112,14 @@ export function StudentCreatePage() {
     guardian_email: "",
     guardian_relationship: "",
   });
+  const [uvtabForm, setUvtabForm] = useState({
+    nin: "",
+    other_names: "",
+    gender: "",
+    programme_code: "",
+    assessment_level: "",
+    previous_index: "",
+  });
   const [yearOfStudy, setYearOfStudy] = useState<string>("");
   const [classSection, setClassSection] = useState<string>("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -139,20 +147,49 @@ export function StudentCreatePage() {
       first_name: form.first_name ?? "",
       last_name: form.last_name ?? "",
     };
-    if (form.date_of_birth) payload.date_of_birth = form.date_of_birth;
+    // Map all known top-level columns that come from coreFields
+    const CORE_COLUMN_KEYS: Array<keyof CreateStudentBody> = [
+      "date_of_birth", "admission_number", "programme", "sponsorship_type",
+      "email", "phone", "other_names", "nin", "programme_code", "previous_index",
+    ];
+    for (const key of CORE_COLUMN_KEYS) {
+      const val = form[key];
+      if (val) (payload as Record<string, unknown>)[key] = val;
+    }
     if (yearOfStudy) payload.year_of_study = Number(yearOfStudy);
     if (classSection) payload.class_section = classSection;
+    // Extension fields — only keys NOT already mapped as top-level columns
+    const MAPPED_KEYS = new Set<string>([
+      "first_name", "last_name", ...CORE_COLUMN_KEYS,
+      "year_of_study", "class_section",
+    ]);
     if (extFields.length > 0) {
       const ext: Record<string, unknown> = {};
       for (const f of extFields) {
         if (extForm[f.key]) ext[f.key] = extForm[f.key];
       }
-      payload.extension = ext;
+      if (Object.keys(ext).length > 0) payload.extension = ext;
+    }
+    // Also catch any coreField values not in MAPPED_KEYS → extension
+    const extraExt: Record<string, unknown> = {};
+    for (const f of coreFields) {
+      if (!MAPPED_KEYS.has(f.key) && form[f.key]) {
+        extraExt[f.key] = form[f.key];
+      }
+    }
+    if (Object.keys(extraExt).length > 0) {
+      payload.extension = { ...payload.extension, ...extraExt };
     }
     if (guardianForm.guardian_name) payload.guardian_name = guardianForm.guardian_name;
     if (guardianForm.guardian_phone) payload.guardian_phone = guardianForm.guardian_phone;
     if (guardianForm.guardian_email) payload.guardian_email = guardianForm.guardian_email;
     if (guardianForm.guardian_relationship) payload.guardian_relationship = guardianForm.guardian_relationship;
+    if (uvtabForm.nin) payload.nin = uvtabForm.nin;
+    if (uvtabForm.other_names) payload.other_names = uvtabForm.other_names;
+    if (uvtabForm.gender) payload.gender = uvtabForm.gender as "male" | "female" | "other";
+    if (uvtabForm.programme_code) payload.programme_code = uvtabForm.programme_code;
+    if (uvtabForm.assessment_level) payload.assessment_level = Number(uvtabForm.assessment_level);
+    if (uvtabForm.previous_index) payload.previous_index = uvtabForm.previous_index;
     mutation.mutate(payload);
   }
 
@@ -349,6 +386,66 @@ export function StudentCreatePage() {
               value={guardianForm.guardian_email}
               onChange={(e) => setGuardianForm((p) => ({ ...p, guardian_email: e.target.value }))}
               placeholder="guardian@example.com"
+            />
+          </Field>
+
+          {/* UVTAB / Exam Registration section */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 8 }}>UVTAB / Exam Registration (optional)</div>
+          <Field label="NIN (National Identity Number)">
+            <input
+              style={inputCss}
+              value={uvtabForm.nin}
+              onChange={(e) => setUvtabForm((p) => ({ ...p, nin: e.target.value }))}
+              placeholder="e.g. CM12345678ABCDE"
+              maxLength={14}
+            />
+          </Field>
+          <Field label="Other Names">
+            <input
+              style={inputCss}
+              value={uvtabForm.other_names}
+              onChange={(e) => setUvtabForm((p) => ({ ...p, other_names: e.target.value }))}
+              placeholder="Middle or other given names"
+            />
+          </Field>
+          <Field label="Gender">
+            <select
+              style={selectCss}
+              value={uvtabForm.gender}
+              onChange={(e) => setUvtabForm((p) => ({ ...p, gender: e.target.value }))}
+            >
+              <option value="">— Select —</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </Field>
+          <Field label="Programme Code">
+            <input
+              style={inputCss}
+              value={uvtabForm.programme_code}
+              onChange={(e) => setUvtabForm((p) => ({ ...p, programme_code: e.target.value }))}
+              placeholder="e.g. NCES, NCBC"
+            />
+          </Field>
+          <Field label="Assessment Level (1–4)">
+            <select
+              style={selectCss}
+              value={uvtabForm.assessment_level}
+              onChange={(e) => setUvtabForm((p) => ({ ...p, assessment_level: e.target.value }))}
+            >
+              <option value="">— Select Level —</option>
+              {[1, 2, 3, 4].map((l) => (
+                <option key={l} value={l}>Level {l}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Previous Index (PLE/UCE)">
+            <input
+              style={inputCss}
+              value={uvtabForm.previous_index}
+              onChange={(e) => setUvtabForm((p) => ({ ...p, previous_index: e.target.value }))}
+              placeholder="e.g. U1234/5678"
             />
           </Field>
 

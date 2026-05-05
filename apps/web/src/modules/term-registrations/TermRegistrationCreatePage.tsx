@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createTermRegistration } from "./term-registrations.api";
 import { listStudents, type Student } from "../students/students.api";
+import { formatStudentName } from "../../lib/formatStudentName";
 import { listAcademicYears, listTerms } from "../academic-calendar/academic-calendar.api";
 import {
   ensureGlobalCss,
@@ -91,7 +92,7 @@ export function TermRegistrationCreatePage() {
 
   function selectStudent(s: Student) {
     setSelectedStudent(s);
-    setSearch(`${s.first_name} ${s.last_name}`);
+    setSearch(formatStudentName(s));
     setShowDropdown(false);
   }
 
@@ -158,7 +159,7 @@ export function TermRegistrationCreatePage() {
                           ((e.target as HTMLElement).style.background = "")
                         }
                       >
-                        {s.first_name} {s.last_name}
+                        {formatStudentName(s)}
                         {s.student_id && (
                           <span
                             style={{

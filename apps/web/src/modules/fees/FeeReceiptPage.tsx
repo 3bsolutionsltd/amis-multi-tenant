@@ -1,8 +1,9 @@
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getFeeSummary, getFeeTransactions, type Transaction } from "./fees.api";
 import { getStudent } from "../students/students.api";
 import { useConfig } from "../../app/ConfigProvider";
+import { apiFetch } from "../../lib/apiFetch";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -11,15 +12,29 @@ import {
   ErrorBanner,
 } from "../../lib/ui";
 
+interface TenantProfile {
+  id: string;
+  name: string;
+  contactEmail: string | null;
+  address: string | null;
+  phone: string | null;
+  logoUrl: string | null;
+}
+
 const print = () => window.print();
 
 export function FeeReceiptPage() {
   ensureGlobalCss();
-  const navigate = useNavigate();
   const [params] = useSearchParams();
   const studentId = params.get("student_id") ?? "";
   const txnId = params.get("txn_id"); // optional: focus on a single transaction
-  const { appName } = useConfig();
+  const { appName, logoUrl: brandingLogoUrl, primaryColor, receiptConfig } = useConfig();
+
+  const tenantQ = useQuery<TenantProfile>({
+    queryKey: ["tenants/me"],
+    queryFn: () => apiFetch<TenantProfile>("/tenants/me"),
+    staleTime: 60_000,
+  });
 
   const studentQ = useQuery({
     queryKey: ["students", studentId],
@@ -46,14 +61,26 @@ export function FeeReceiptPage() {
   const summary = summaryQ.data;
   const allTxns: Transaction[] = txnQ.data?.rows ?? [];
   const transactions = txnId ? allTxns.filter((t) => t.id === txnId) : allTxns;
+  const tenant = tenantQ.data;
 
   if (!student) return <ErrorBanner message="Student not found" />;
+
+  // Institution details: prefer tenant profile, fall back to branding config
+  const institutionName = tenant?.name ?? appName ?? "AMIS";
+  const logoSrc = tenant?.logoUrl ?? brandingLogoUrl ?? null;
+  const address = tenant?.address ?? null;
+  const phone = tenant?.phone ?? null;
+  const email = tenant?.contactEmail ?? null;
+
+  const { template, headerNote, footerNote, showBalance } = receiptConfig;
 
   const now = new Date().toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
+
+  const totalPaid = transactions.reduce((s, t) => s + Number(t.amount), 0);
 
   return (
     <>
@@ -88,18 +115,123 @@ export function FeeReceiptPage() {
           fontFamily: "'Segoe UI', system-ui, sans-serif",
         }}
       >
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <h1 style={{ fontSize: 20, margin: "0 0 4px", fontWeight: 700 }}>
-            {appName || "AMIS"}
-          </h1>
-          <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>
-            Official Fee Receipt
-          </p>
-          <p style={{ fontSize: 11, color: "#9ca3af", margin: "4px 0 0" }}>
-            Printed: {now}
-          </p>
-        </div>
+        {/* ── CLASSIC template ── */}
+        {template === "classic" && (
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
+            {logoSrc && (
+              <img
+                src={logoSrc}
+                alt="Institution logo"
+                style={{ height: 64, marginBottom: 10, objectFit: "contain" }}
+              />
+            )}
+            <h1 style={{ fontSize: 20, margin: "0 0 4px", fontWeight: 700, color: "#111827" }}>
+              {institutionName}
+            </h1>
+            {(address || phone || email) && (
+              <p style={{ fontSize: 12, color: "#6b7280", margin: "4px 0 0", lineHeight: 1.6 }}>
+                {[address, phone, email].filter(Boolean).join("  ·  ")}
+              </p>
+            )}
+            {headerNote && (
+              <p style={{ fontSize: 11, fontStyle: "italic", color: "#9ca3af", margin: "4px 0 0" }}>
+                {headerNote}
+              </p>
+            )}
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#374151", margin: "10px 0 0", textTransform: "uppercase", letterSpacing: 1 }}>
+              Official Fee Receipt
+            </p>
+            <p style={{ fontSize: 11, color: "#9ca3af", margin: "2px 0 0" }}>
+              Printed: {now}
+            </p>
+          </div>
+        )}
+
+        {/* ── MODERN template ── */}
+        {template === "modern" && (
+          <>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 20,
+                marginBottom: 0,
+              }}
+            >
+              {logoSrc && (
+                <img
+                  src={logoSrc}
+                  alt="Institution logo"
+                  style={{ height: 72, objectFit: "contain", flexShrink: 0 }}
+                />
+              )}
+              <div>
+                <h1 style={{ fontSize: 20, margin: "0 0 4px", fontWeight: 700, color: "#111827" }}>
+                  {institutionName}
+                </h1>
+                {(address || phone) && (
+                  <p style={{ fontSize: 12, color: "#6b7280", margin: "2px 0" }}>
+                    {[address, phone].filter(Boolean).join("  ·  ")}
+                  </p>
+                )}
+                {email && (
+                  <p style={{ fontSize: 12, color: "#6b7280", margin: "2px 0" }}>{email}</p>
+                )}
+                {headerNote && (
+                  <p style={{ fontSize: 11, fontStyle: "italic", color: "#9ca3af", margin: "4px 0 0" }}>
+                    {headerNote}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div
+              style={{
+                background: primaryColor,
+                color: "#fff",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "10px 16px",
+                borderRadius: 6,
+                margin: "16px 0 20px",
+                fontSize: 13,
+              }}
+            >
+              <span style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+                Official Fee Receipt
+              </span>
+              <span style={{ fontSize: 12, opacity: 0.9 }}>Printed: {now}</span>
+            </div>
+          </>
+        )}
+
+        {/* ── MINIMAL template ── */}
+        {template === "minimal" && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              {logoSrc && (
+                <img
+                  src={logoSrc}
+                  alt="Institution logo"
+                  style={{ height: 44, objectFit: "contain" }}
+                />
+              )}
+              <div>
+                <h1 style={{ fontSize: 17, margin: 0, fontWeight: 700, color: "#111827" }}>
+                  {institutionName}
+                </h1>
+                <p style={{ fontSize: 11, color: "#9ca3af", margin: "2px 0 0" }}>
+                  Official Fee Receipt — {now}
+                </p>
+              </div>
+            </div>
+            {headerNote && (
+              <p style={{ fontSize: 11, fontStyle: "italic", color: "#9ca3af", margin: "8px 0 0" }}>
+                {headerNote}
+              </p>
+            )}
+          </div>
+        )}
 
         <hr style={{ border: "none", borderTop: "2px solid #111827", margin: "0 0 20px" }} />
 
@@ -122,7 +254,7 @@ export function FeeReceiptPage() {
           <div>
             <strong>Programme:</strong> {student.programme ?? "—"}
           </div>
-          {summary && (
+          {showBalance && summary && (
             <div>
               <strong>Balance:</strong> UGX{" "}
               {Number(summary.balance).toLocaleString()}
@@ -174,10 +306,7 @@ export function FeeReceiptPage() {
               <td
                 style={{ ...td, textAlign: "right", fontWeight: 700, fontSize: 14 }}
               >
-                UGX{" "}
-                {transactions
-                  .reduce((s, t) => s + Number(t.amount), 0)
-                  .toLocaleString("en-UG")}
+                UGX {totalPaid.toLocaleString("en-UG")}
               </td>
             </tr>
           </tfoot>
@@ -193,7 +322,9 @@ export function FeeReceiptPage() {
             marginTop: 32,
           }}
         >
-          <span>This is a computer-generated receipt.</span>
+          <span>
+            {footerNote || "This is a computer-generated receipt."}
+          </span>
           <span>Page 1 of 1</span>
         </div>
       </div>

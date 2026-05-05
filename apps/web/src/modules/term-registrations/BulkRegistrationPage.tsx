@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../../lib/apiFetch";
 import {
   ensureGlobalCss,
@@ -12,6 +12,19 @@ import {
   inputCss,
   C,
 } from "../../lib/ui";
+
+interface AcademicYear {
+  id: string;
+  name: string;
+  is_current: boolean;
+}
+
+interface Term {
+  id: string;
+  name: string;
+  academic_year_id: string;
+  is_current: boolean;
+}
 
 function bulkRegister(body: {
   academic_year: string;
@@ -33,16 +46,32 @@ function promote(body: { academic_year: string; term: string }) {
 
 export function BulkRegistrationPage() {
   ensureGlobalCss();
-  const [academicYear, setAcademicYear] = useState("");
-  const [term, setTerm] = useState("");
+  const [selectedYearId, setSelectedYearId] = useState("");
+  const [selectedTermName, setSelectedTermName] = useState("");
   const [ids, setIds] = useState("");
   const [result, setResult] = useState<string | null>(null);
+
+  const yearsQ = useQuery({
+    queryKey: ["academic-years"],
+    queryFn: () => apiFetch<AcademicYear[]>("/academic-years"),
+  });
+
+  const selectedYear = yearsQ.data?.find((y) => y.id === selectedYearId);
+
+  const termsQ = useQuery({
+    queryKey: ["terms", selectedYearId],
+    queryFn: () => apiFetch<Term[]>(`/terms?academic_year_id=${selectedYearId}`),
+    enabled: !!selectedYearId,
+  });
+
+  // Derive the string values the API needs
+  const academicYearName = selectedYear?.name ?? "";
 
   const bulkMut = useMutation({
     mutationFn: () =>
       bulkRegister({
-        academic_year: academicYear,
-        term,
+        academic_year: academicYearName,
+        term: selectedTermName,
         student_ids: ids
           .split(/[\n,]+/)
           .map((s) => s.trim())
@@ -54,7 +83,7 @@ export function BulkRegistrationPage() {
   });
 
   const promoteMut = useMutation({
-    mutationFn: () => promote({ academic_year: academicYear, term }),
+    mutationFn: () => promote({ academic_year: academicYearName, term: selectedTermName }),
     onSuccess: (d) =>
       setResult(`Auto-promoted ${d.registered} active students`),
     onError: (e: Error) => setResult(`Error: ${e.message}`),
@@ -66,21 +95,37 @@ export function BulkRegistrationPage() {
 
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <SectionLabel>Term Info</SectionLabel>
-        <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-          <input
+        <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+          <select
             className={inputCss}
-            placeholder="Academic Year (e.g. 2025/2026)"
-            value={academicYear}
-            onChange={(e) => setAcademicYear(e.target.value)}
-            style={{ width: 220 }}
-          />
-          <input
+            value={selectedYearId}
+            onChange={(e) => {
+              setSelectedYearId(e.target.value);
+              setSelectedTermName("");
+            }}
+            style={{ width: 240 }}
+          >
+            <option value="">Select Academic Year…</option>
+            {(yearsQ.data ?? []).map((y) => (
+              <option key={y.id} value={y.id}>
+                {y.name}{y.is_current ? " (current)" : ""}
+              </option>
+            ))}
+          </select>
+          <select
             className={inputCss}
-            placeholder="Term (e.g. Term 1)"
-            value={term}
-            onChange={(e) => setTerm(e.target.value)}
-            style={{ width: 220 }}
-          />
+            value={selectedTermName}
+            onChange={(e) => setSelectedTermName(e.target.value)}
+            style={{ width: 200 }}
+            disabled={!selectedYearId}
+          >
+            <option value="">Select Term…</option>
+            {(termsQ.data ?? []).map((t) => (
+              <option key={t.id} value={t.name}>
+                {t.name}{t.is_current ? " (current)" : ""}
+              </option>
+            ))}
+          </select>
         </div>
 
         <SectionLabel>Option 1: Promote All Active Students</SectionLabel>
@@ -90,7 +135,7 @@ export function BulkRegistrationPage() {
         </p>
         <SecondaryBtn
           onClick={() => promoteMut.mutate()}
-          disabled={!academicYear || !term || promoteMut.isPending}
+          disabled={!academicYearName || !selectedTermName || promoteMut.isPending}
         >
           {promoteMut.isPending ? "Promoting…" : "Promote All Active"}
         </SecondaryBtn>
@@ -108,7 +153,7 @@ export function BulkRegistrationPage() {
         />
         <PrimaryBtn
           onClick={() => bulkMut.mutate()}
-          disabled={!academicYear || !term || !ids.trim() || bulkMut.isPending}
+          disabled={!academicYearName || !selectedTermName || !ids.trim() || bulkMut.isPending}
         >
           {bulkMut.isPending ? "Registering…" : "Register Selected"}
         </PrimaryBtn>

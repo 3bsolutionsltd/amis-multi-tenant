@@ -84,3 +84,80 @@ export function updateIndustrialTraining(
     body: JSON.stringify(body),
   });
 }
+
+// ---------- IT Logbook ----------
+
+export interface LogEntry {
+  id: string;
+  it_assignment_id: string;
+  student_id: string;
+  log_date: string;
+  task_description: string;
+  learning_points: string | null;
+  supervisor_verified: boolean;
+  verified_at: string | null;
+  verified_by_name: string | null;
+  verification_method: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateLogEntryBody {
+  log_date: string;
+  task_description: string;
+  learning_points?: string;
+}
+
+export interface UpdateLogEntryBody {
+  task_description?: string;
+  learning_points?: string | null;
+}
+
+export function listLogEntries(
+  assignmentId: string,
+  page = 1,
+): Promise<LogEntry[]> {
+  return apiFetch<LogEntry[]>(
+    `/industrial-training/${assignmentId}/logs?page=${page}&limit=50`,
+  );
+}
+
+export function createLogEntry(
+  assignmentId: string,
+  body: CreateLogEntryBody,
+): Promise<LogEntry> {
+  return apiFetch<LogEntry>(`/industrial-training/${assignmentId}/logs`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateLogEntry(
+  logId: string,
+  body: UpdateLogEntryBody,
+): Promise<LogEntry> {
+  return apiFetch<LogEntry>(`/industrial-training/logs/${logId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function verifyLogEntry(
+  logId: string,
+  pin: string,
+): Promise<LogEntry> {
+  return apiFetch<LogEntry>(`/industrial-training/logs/${logId}/verify`, {
+    method: "POST",
+    body: JSON.stringify({ pin }),
+  });
+}
+
+export function setSupervisorPin(
+  assignmentId: string,
+  pin: string,
+): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(
+    `/industrial-training/${assignmentId}/supervisor-pin`,
+    { method: "POST", body: JSON.stringify({ pin }) },
+  );
+}

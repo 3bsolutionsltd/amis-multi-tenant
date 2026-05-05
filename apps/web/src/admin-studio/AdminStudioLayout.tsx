@@ -148,6 +148,11 @@ export function AdminStudioLayout() {
           <NavLink to="/admin-studio/grading" style={studioNavStyle}>
             Grading Scales
           </NavLink>
+
+          <div style={NAV_SECTION}>Finance</div>
+          <NavLink to="/admin-studio/receipt-template" style={studioNavStyle}>
+            Receipt Template
+          </NavLink>
         </nav>
 
         <main

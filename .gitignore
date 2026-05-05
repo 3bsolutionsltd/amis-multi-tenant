@@ -6,3 +6,12 @@ dist
 
 # Raw migration source data — never commit institution files
 db/data-migration/*/raw/
+
+# Test output files
+apps/api/vitest_out*.txt
+
+# Seed/script output logs
+db/seed_out.txt
+
+# Binary/document files
+*.docx
