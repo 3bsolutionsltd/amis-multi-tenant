@@ -8,6 +8,7 @@ import {
   putEntries,
   getAuditLog,
 } from "./marks.api";
+import { EvidenceSection } from "./EvidenceSection";
 import { listStudents } from "../students/students.api";
 import {
   ensureGlobalCss,
@@ -274,6 +275,7 @@ export function MarkDetailPage() {
   const [draftRows, setDraftRows] = useState<DraftRow[]>([mkRow()]);
   const [entriesError, setEntriesError] = useState<string | null>(null);
   const [entriesSuccess, setEntriesSuccess] = useState(false);
+  const [evidenceEntryId, setEvidenceEntryId] = useState<string | null>(null);
 
   const { data: sub, isLoading } = useQuery({
     queryKey: ["submission", id],
@@ -477,11 +479,56 @@ export function MarkDetailPage() {
               <TD>
                 <span style={{ fontWeight: 600 }}>{entry.score}</span>
               </TD>
-              <TD muted>{new Date(entry.updated_at).toLocaleString()}</TD>
+              <TD muted>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span>{new Date(entry.updated_at).toLocaleString()}</span>
+                  <button
+                    onClick={() =>
+                      setEvidenceEntryId(
+                        evidenceEntryId === entry.id ? null : entry.id,
+                      )
+                    }
+                    style={{
+                      fontSize: 11,
+                      color: C.primary,
+                      background: "none",
+                      border: `1px solid ${C.gray200}`,
+                      borderRadius: 5,
+                      cursor: "pointer",
+                      padding: "2px 8px",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {entry.evidence_files?.length
+                      ? `Evidence (${entry.evidence_files.length})`
+                      : "Evidence"}
+                  </button>
+                </div>
+              </TD>
             </TR>
           ))}
         </DataTable>
       </Card>
+
+      {/* Evidence panel — shown when an entry's Evidence button is clicked */}
+      {evidenceEntryId && (() => {
+        const entry = sub.entries.find((e) => e.id === evidenceEntryId);
+        if (!entry) return null;
+        const studentName =
+          entry.first_name || entry.last_name
+            ? `${entry.first_name ?? ""} ${entry.last_name ?? ""}`.trim()
+            : entry.student_id;
+        return (
+          <Card padding="20px 24px" style={{ marginBottom: 20 }}>
+            <EvidenceSection
+              submissionId={id!}
+              entryId={entry.id}
+              studentName={studentName}
+              files={entry.evidence_files ?? []}
+            />
+          </Card>
+        );
+      })()}
 
       {/* Row-based entry editor */}
       {!isPublished && (

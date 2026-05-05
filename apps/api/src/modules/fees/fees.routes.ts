@@ -125,16 +125,17 @@ export async function feesRoutes(app: FastifyInstance) {
       if (!parsed.success)
         return reply.status(422).send({ error: parsed.error.flatten() });
 
-      const { student_id, amount, currency, reference, paid_at } = parsed.data;
+      const { student_id, amount, currency, reference, paid_at, academic_year_id, term_id } = parsed.data;
       const actorUserId = req.user?.userId ?? null;
 
       const result = await withTenant(tid, async (client) => {
         const { rows: payRows } = await client.query(
           `INSERT INTO app.payments
-             (tenant_id, student_id, amount, currency, reference, paid_at, source)
-           VALUES ($1, $2, $3, $4, $5, $6, 'manual')
+             (tenant_id, student_id, amount, currency, reference, paid_at, source, academic_year_id, term_id)
+           VALUES ($1, $2, $3, $4, $5, $6, 'manual', $7, $8)
            RETURNING *`,
-          [tid, student_id, amount, currency, reference, paid_at],
+          [tid, student_id, amount, currency, reference, paid_at,
+           academic_year_id ?? null, term_id ?? null],
         );
         const payment = payRows[0];
 

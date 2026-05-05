@@ -150,7 +150,7 @@ export function getIssuance(id: string): Promise<StoreIssuance & { items: Issuan
 
 export function createIssuance(body: {
   issuance_number: string; issued_to: string; issued_by?: string; department?: string; purpose?: string;
-  issue_date?: string; notes?: string;
+  issue_date?: string; notes?: string; srq_id?: string; requisition_ref?: string;
   items: Array<{ item_id: string; quantity_requested: number; quantity_issued?: number; notes?: string }>;
 }): Promise<StoreIssuance> {
   return apiFetch<StoreIssuance>("/inventory/issuances", { method: "POST", body: JSON.stringify(body) });

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { listTermRegistrations } from "./term-registrations.api";
+import { formatStudentName } from "../../lib/formatStudentName";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -165,7 +166,7 @@ export function TermRegistrationsListPage() {
           >
             <TD>
               <span style={{ fontWeight: 600, color: "#111827" }}>
-                {reg.first_name} {reg.last_name}
+                {formatStudentName(reg)}
               </span>
             </TD>
             <TD muted>{reg.admission_number ?? "—"}</TD>

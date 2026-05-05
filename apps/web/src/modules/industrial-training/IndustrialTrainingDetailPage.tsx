@@ -6,6 +6,7 @@ import {
   updateIndustrialTraining,
 } from "./industrial-training.api";
 import type { TrainingStatus } from "./industrial-training.api";
+import { ITLogbookTab } from "./ITLogbookTab";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -19,6 +20,7 @@ import {
   Spinner,
   Field,
   inputCss,
+  C,
 } from "../../lib/ui";
 
 const STATUSES: TrainingStatus[] = [
@@ -42,6 +44,7 @@ export function IndustrialTrainingDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
+  const [tab, setTab] = useState<"details" | "logbook">("details");
   const [editing, setEditing] = useState(false);
   const [patchError, setPatchError] = useState<string | null>(null);
 
@@ -118,7 +121,38 @@ export function IndustrialTrainingDetailPage() {
         }
       />
 
-      {!editing ? (
+      {/* Tab bar */}
+      <div
+        style={{
+          display: "flex",
+          gap: 0,
+          borderBottom: `2px solid ${C.gray200}`,
+          marginBottom: 20,
+        }}
+      >
+        {(["details", "logbook"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              background: "none",
+              border: "none",
+              padding: "10px 20px",
+              fontWeight: tab === t ? 600 : 400,
+              color: tab === t ? C.primary : C.gray500,
+              borderBottom: tab === t ? `2px solid ${C.primary}` : "2px solid transparent",
+              marginBottom: -2,
+              cursor: "pointer",
+              fontSize: 14,
+              textTransform: "capitalize",
+            }}
+          >
+            {t === "logbook" ? "Logbook" : "Details"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "details" && !editing ? (
         <Card padding="0 24px" style={{ marginBottom: 20 }}>
           <DetailRow label="Student">
             {data.first_name || data.last_name
@@ -214,6 +248,8 @@ export function IndustrialTrainingDetailPage() {
           </div>
         </Card>
       )}
+
+      {tab === "logbook" && <ITLogbookTab assignmentId={id!} />}
     </div>
   );
 }

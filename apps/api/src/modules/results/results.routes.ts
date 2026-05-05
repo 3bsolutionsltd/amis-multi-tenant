@@ -39,7 +39,11 @@ export async function resultsRoutes(app: FastifyInstance) {
         );
         if (termRows.length === 0) return { notFound: true } as const;
 
+        // Look up the term name so we can match against mark_submissions.term (text)
+        const termName = termRows[0].name;
+
         // Gather all published mark entries for this term
+        // mark_submissions.term stores the text label (e.g. "Term 1")
         const { rows: marks } = await client.query(
           `SELECT me.student_id, ms.course_id, me.score
            FROM app.mark_entries me
@@ -48,29 +52,29 @@ export async function resultsRoutes(app: FastifyInstance) {
              ON wi.entity_type = 'marks' AND wi.entity_id = ms.id
            WHERE ms.term = $1 AND wi.current_state = 'PUBLISHED'
            ORDER BY me.student_id, ms.course_id`,
-          [termId],
+          [termName],
         );
 
         if (marks.length === 0) {
-          return { processed: 0, message: "No published marks for this term" };
+          return { processed: 0, students: 0, termId, message: "No published marks for this term" };
         }
 
-        // Load grading scale boundaries (use first active scale)
+        // Load grading scale boundaries (use tenant default scale)
         const { rows: boundaries } = await client.query(
-          `SELECT gb.min_score, gb.max_score, gb.grade, gb.grade_point
+          `SELECT gb.min_score, gb.max_score, gb.grade_letter, gb.grade_point
            FROM app.grade_boundaries gb
-           JOIN app.grading_scales gs ON gs.id = gb.scale_id
-           WHERE gs.is_active = true
+           JOIN app.grading_scales gs ON gs.id = gb.grading_scale_id
+           WHERE gs.is_default = true
            ORDER BY gb.min_score DESC`,
         );
 
         function resolveGrade(score: number) {
           for (const b of boundaries) {
             if (score >= Number(b.min_score) && score <= Number(b.max_score)) {
-              return { grade: b.grade, gradePoint: Number(b.grade_point) };
+              return { grade: b.grade_letter as string, gradePoint: Number(b.grade_point) };
             }
           }
-          return { grade: null, gradePoint: null };
+          return { grade: null as string | null, gradePoint: null as number | null };
         }
 
         // Clear previous results for this term
@@ -252,11 +256,12 @@ export async function resultsRoutes(app: FastifyInstance) {
 
         // All terms with results for this student, ordered chronologically
         const { rows: termRows } = await client.query(
-          `SELECT DISTINCT t.id, t.name, t.academic_year, t.term_number
+          `SELECT DISTINCT t.id, t.name, ay.name AS academic_year, t.term_number
            FROM app.terms t
+           JOIN app.academic_years ay ON ay.id = t.academic_year_id
            JOIN app.term_results tr ON tr.term_id = t.id
            WHERE tr.student_id = $1
-           ORDER BY t.academic_year, t.term_number`,
+           ORDER BY ay.name, t.term_number`,
           [studentId],
         );
 

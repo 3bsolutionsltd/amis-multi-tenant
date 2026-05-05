@@ -2,6 +2,9 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
+import multipart from "@fastify/multipart";
+import fastifyStatic from "@fastify/static";
+import { resolve } from "path";
 import { pool } from "./db/pool.js";
 import { studentsRoutes } from "./modules/students/students.routes.js";
 import { configRoutes } from "./modules/config/config.routes.js";
@@ -35,6 +38,9 @@ import { platformRoutes } from "./modules/platform/platform.routes.js";
 import { procurementRoutes } from "./modules/procurement/procurement.routes.js";
 import { inventoryRoutes } from "./modules/inventory/inventory.routes.js";
 import { notificationsRoutes } from "./modules/notifications/notifications.routes.js";
+import { uploadsRoutes } from "./modules/uploads/uploads.routes.js";
+import { studentProjectsRoutes } from "./modules/student-projects/student-projects.routes.js";
+import { storesRoutes } from "./modules/stores/stores.routes.js";
 import { registerDevIdentity } from "./middleware/devIdentity.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 import { isUUID } from "./lib/uuid.js";
@@ -45,6 +51,18 @@ export function buildApp() {
   app.register(cors, {
     origin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  });
+
+  // File uploads — multipart plugin (must be registered before route handlers)
+  app.register(multipart, {
+    limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+  });
+
+  // Serve uploaded evidence files
+  app.register(fastifyStatic, {
+    root: resolve(process.cwd(), "uploads"),
+    prefix: "/uploads/",
+    decorateReply: false,
   });
 
   // Security headers
@@ -135,6 +153,9 @@ export function buildApp() {
   app.register(procurementRoutes);
   app.register(inventoryRoutes);
   app.register(notificationsRoutes);
+  app.register(uploadsRoutes);
+  app.register(studentProjectsRoutes);
+  app.register(storesRoutes);
 
   // Global error handler — structured errors, no stack traces in production
   app.setErrorHandler((error, _req, reply) => {

@@ -38,6 +38,7 @@ import { FeeStructureEditor } from "./admin-studio/FeeStructureEditor";
 import { GradingScaleEditor } from "./admin-studio/GradingScaleEditor";
 import { AcademicCalendarPage } from "./admin-studio/AcademicCalendarPage";
 import { DashboardWidgetsEditor } from "./admin-studio/DashboardWidgetsEditor";
+import { ReceiptTemplateEditor } from "./admin-studio/ReceiptTemplateEditor";
 import { VtiSetupPage } from "./setup/VtiSetupPage";
 import { PlatformAdminLayout } from "./platform-admin/PlatformAdminLayout";
 import { PlatformOverview } from "./platform-admin/PlatformOverview";
@@ -96,6 +97,12 @@ import IssuanceCreatePage from "./modules/inventory/IssuanceCreatePage";
 import StockTakeCreatePage from "./modules/inventory/StockTakeCreatePage";
 import StockTakeDetailPage from "./modules/inventory/StockTakeDetailPage";
 import StockReceiptPage from "./modules/inventory/StockReceiptPage";
+import { StudentProjectsListPage } from "./modules/student-projects/StudentProjectsListPage";
+import { StudentProjectDetailPage } from "./modules/student-projects/StudentProjectDetailPage";
+import { SRQListPage } from "./modules/stores/SRQListPage";
+import { SRQDetailPage } from "./modules/stores/SRQDetailPage";
+import { PCVListPage } from "./modules/stores/PCVListPage";
+import { PCVDetailPage } from "./modules/stores/PCVDetailPage";
 
 export const router = createBrowserRouter([
   {
@@ -203,6 +210,12 @@ export const router = createBrowserRouter([
       { path: "inventory/receipts/new", element: <StockReceiptPage /> },
       { path: "inventory/stock-takes/new", element: <StockTakeCreatePage /> },
       { path: "inventory/stock-takes/:id", element: <StockTakeDetailPage /> },
+      { path: "student-projects", element: <StudentProjectsListPage /> },
+      { path: "student-projects/:id", element: <StudentProjectDetailPage /> },
+      { path: "stores/requisitions", element: <SRQListPage /> },
+      { path: "stores/requisitions/:id", element: <SRQDetailPage /> },
+      { path: "stores/pcv", element: <PCVListPage /> },
+      { path: "stores/pcv/:id", element: <PCVDetailPage /> },
     ],
   },
   {
@@ -241,6 +254,7 @@ export const router = createBrowserRouter([
       { path: "grading", element: <GradingScaleEditor /> },
       { path: "academic-calendar", element: <AcademicCalendarPage /> },
       { path: "dashboards", element: <DashboardWidgetsEditor /> },
+      { path: "receipt-template", element: <ReceiptTemplateEditor /> },
     ],
   },
 ]);

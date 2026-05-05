@@ -62,3 +62,8 @@ export const InstructorReportQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
+
+export const UvtabExportQuerySchema = z.object({
+  academic_year: z.string().min(1, "academic_year is required"),
+  term: z.string().min(1, "term is required"),
+});

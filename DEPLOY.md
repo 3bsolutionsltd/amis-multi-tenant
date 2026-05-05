@@ -188,6 +188,77 @@ docker compose -f docker-compose.prod.yml run --rm migrate status
 
 ---
 
+## Part 5b — Staging Environment (pre.amis.institute)
+
+The staging stack runs on the **same VPS** as production, on separate ports (3002 / 8096)
+with a separate database (`amis_staging`).
+
+> **Critical:** Every `docker compose` command for staging **must** include
+> `--env-file .env.staging`. Omitting it causes Docker to fall back to `.env`
+> (production secrets), resulting in the wrong `CORS_ORIGIN` inside the container.
+
+### First-time staging setup
+
+```bash
+cd /opt/amis
+cp .env.staging.example .env.staging
+nano .env.staging   # fill in secrets — use DIFFERENT values from .env (prod)
+```
+
+Required values in `.env.staging`:
+
+| Variable | Value |
+|---|---|
+| `POSTGRES_PASSWORD` | Different from prod |
+| `JWT_SECRET` | Different from prod |
+| `CORS_ORIGIN` | `https://pre.amis.institute` |
+| `VITE_API_URL` | `https://api.pre.amis.institute` |
+| `VITE_APP_ENV` | `staging` |
+
+```bash
+# Install Nginx virtual host and issue TLS certs (first time only)
+cp nginx/amis-staging.conf /etc/nginx/sites-available/amis-staging.conf
+ln -s /etc/nginx/sites-available/amis-staging.conf /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+certbot --nginx -d pre.amis.institute -d api.pre.amis.institute
+
+# Start staging stack
+docker compose -f docker-compose.staging.yml --project-name amis-staging --env-file .env.staging up -d --build
+
+# Apply migrations
+docker compose -f docker-compose.staging.yml --project-name amis-staging --env-file .env.staging run --rm migrate
+```
+
+### Updating staging
+
+```bash
+cd /opt/amis
+git pull origin main
+
+# Always include --env-file .env.staging
+docker compose -f docker-compose.staging.yml --project-name amis-staging --env-file .env.staging run --rm migrate
+docker compose -f docker-compose.staging.yml --project-name amis-staging --env-file .env.staging up -d --build
+```
+
+### Useful staging commands
+
+```bash
+# Logs
+docker compose -f docker-compose.staging.yml --project-name amis-staging logs -f api
+
+# Verify running container has correct env (CORS_ORIGIN must be pre.amis.institute)
+docker inspect amis-staging-api-1 | grep CORS_ORIGIN
+
+# Health check
+curl -s https://api.pre.amis.institute/health
+# Expected: {"status":"ok"}
+
+# psql shell on staging DB
+docker compose -f docker-compose.staging.yml --project-name amis-staging exec db psql -U amis amis_staging
+```
+
+---
+
 ## Part 6 — KTI Tenant Setup (first production login)
 
 After migrations are complete, run the KTI data migration scripts via SSH tunnel:
@@ -202,6 +273,129 @@ node db/data-migration/kti/phase1-seed.js
 ```
 
 Or use the AMIS platform admin at `https://amis.institute` to create the KTI tenant via the onboarding flow.
+
+---
+
+## Part 7 — UTC Kyema On-Premises (Offline) Deployment
+
+Uganda Technical College — Kyema operates on a local LAN with no guaranteed internet access.
+AMIS is deployed as a **self-contained offline bundle** on an institutional server.
+
+### 7.1 Prerequisites (on the build machine — requires internet)
+
+- Docker Desktop running
+- Fixed LAN IP assigned to the UTC Kyema server (e.g. `192.168.1.100`)
+  - The IP is **baked into the web image at build time** — set it on the server before building
+
+### 7.2 Build the offline bundle (run on dev machine)
+
+```powershell
+# Default server IP: 192.168.1.100 — override with -ServerIp
+.\scripts\build-offline-bundle.ps1 -ServerIp 192.168.1.100
+```
+
+Output: `dist/offline-bundle/` (~600 MB)
+
+What it contains:
+```
+dist/offline-bundle/
+  images/
+    postgres.tar          ← postgres:16-alpine
+    amis-api.tar          ← API image
+    amis-web.tar          ← Web image (VITE_API_URL baked in)
+    dbmate.tar            ← migration runner
+  docker-compose.offline.yml
+  .env.offline.example
+  db/migrations/          ← all SQL migrations
+  db/data-migration/utc-kyema/
+  db/data-migration/lib/
+  load-images.ps1         ← helper script for the server
+```
+
+### 7.3 Transfer bundle to UTC Kyema server
+
+Copy `dist/offline-bundle/` to USB drive and transfer to the server, or rsync:
+```bash
+rsync -avz dist/offline-bundle/ administrator@192.168.1.100:/opt/amis-bundle/
+```
+
+### 7.4 First-time setup on the UTC Kyema server
+
+> Requires: Docker Desktop (Windows) or Docker Engine (Linux) installed on the server.
+
+```powershell
+# Load all Docker images (no internet needed)
+cd C:\amis-bundle   # or wherever the bundle was copied
+.\load-images.ps1
+```
+
+Configure environment:
+```powershell
+Copy-Item .env.offline.example .env.offline
+notepad .env.offline   # or edit with any text editor
+```
+
+Set these values in `.env.offline`:
+| Variable | What to put |
+|---|---|
+| `POSTGRES_PASSWORD` | Strong local password (min 16 chars, no `$` signs) |
+| `JWT_SECRET` | Run: `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"` |
+| `CORS_ORIGIN` | `http://192.168.1.100` (the server LAN IP — no trailing slash) |
+| `VITE_API_URL` | Already baked into the image — leave as `http://192.168.1.100:3001` |
+
+### 7.5 Start the stack
+
+```powershell
+# Start all services
+docker compose -f docker-compose.offline.yml --env-file .env.offline up -d
+
+# Apply migrations (first time only)
+docker compose -f docker-compose.offline.yml --env-file .env.offline run --rm migrate
+```
+
+Verify:
+```
+# API health check from the server
+curl http://localhost:3001/health
+# → {"status":"ok"}
+
+# Web from any LAN device
+# Open browser: http://192.168.1.100
+```
+
+### 7.6 Seed UTC Kyema master data (first time only)
+
+```bash
+# From the bundle directory — requires Node.js on the server
+# OR run from the dev machine with DATABASE_URL pointing to the server via SSH tunnel:
+ssh -L 5434:127.0.0.1:5432 administrator@192.168.1.100 -N &
+
+export DATABASE_URL="postgres://amis:<POSTGRES_PASSWORD>@localhost:5434/amis?sslmode=disable"
+node db/data-migration/utc-kyema/phase1-seed.js
+
+# Verify seed landed correctly
+node db/data-migration/utc-kyema/validate-dry-run.js
+```
+
+### 7.7 Updating the UTC Kyema deployment
+
+When a new version is available:
+1. Run `build-offline-bundle.ps1` again on the dev machine (same server IP)
+2. Transfer only the new `images/amis-api.tar` and `images/amis-web.tar` to the server
+3. On the server:
+   ```powershell
+   docker load -i images\amis-api.tar
+   docker load -i images\amis-web.tar
+   docker compose -f docker-compose.offline.yml --env-file .env.offline run --rm migrate
+   docker compose -f docker-compose.offline.yml --env-file .env.offline up -d
+   ```
+
+### 7.8 UTC Kyema Security Notes
+
+- Port `3001` (API) and port `80` (Web) are bound to `0.0.0.0` — accessible from any device on the LAN
+- No TLS in the initial offline setup — add a reverse proxy with a self-signed cert if required later
+- Keep `.env.offline` on the server only — never commit it to git
+- The `db` service does **not** expose port 5432 to the LAN — PostgreSQL is accessible only to containers
 
 ---
 

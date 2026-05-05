@@ -4,14 +4,20 @@ export interface Student {
   id: string;
   first_name: string;
   last_name: string;
+  other_names: string | null;
   date_of_birth: string | null;
+  gender: "male" | "female" | "other" | null;
+  nin: string | null;
   admission_number: string | null;
   sponsorship_type: string | null;
   programme: string | null;
+  programme_code: string | null;
   email: string | null;
   phone: string | null;
   year_of_study: number | null;
   class_section: string | null;
+  assessment_level: number | null;
+  previous_index: string | null;
   extension: Record<string, unknown>;
   // Guardian / Next-of-Kin (SR-F-002)
   guardian_name: string | null;
@@ -30,12 +36,18 @@ export interface Student {
 export interface CreateStudentBody {
   first_name: string;
   last_name: string;
+  other_names?: string;
   date_of_birth?: string;
+  gender?: "male" | "female" | "other";
+  nin?: string;
   admission_number?: string;
   sponsorship_type?: string;
   programme?: string;
+  programme_code?: string;
   year_of_study?: number;
   class_section?: string;
+  assessment_level?: number;
+  previous_index?: string;
   email?: string;
   phone?: string;
   extension?: Record<string, unknown>;
@@ -48,13 +60,19 @@ export interface CreateStudentBody {
 export interface UpdateStudentBody {
   first_name?: string;
   last_name?: string;
+  other_names?: string;
   date_of_birth?: string | null;
+  gender?: "male" | "female" | "other";
+  nin?: string;
   admission_number?: string;
   sponsorship_type?: string;
   programme?: string;
   programme_id?: string;
+  programme_code?: string;
   year_of_study?: number;
   class_section?: string;
+  assessment_level?: number;
+  previous_index?: string;
   email?: string;
   phone?: string;
   extension?: Record<string, unknown>;

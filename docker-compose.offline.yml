@@ -1,0 +1,93 @@
+# ── AMIS Offline / On-Premises Stack (UTC Kyema) ─────────────────────────────
+#
+# Designed for LAN-only deployment on an institutional server.
+# All images must be pre-loaded before running (no internet required).
+#
+# Usage:
+#   1. Load pre-built images from the offline bundle:
+#        docker load < bundle/images/amis-api.tar
+#        docker load < bundle/images/amis-web.tar
+#        docker load < bundle/images/postgres.tar
+#        docker load < bundle/images/dbmate.tar
+#
+#   2. Copy bundle/.env.offline.example → .env.offline and fill in values
+#
+#   3. Start:
+#        docker compose -f docker-compose.offline.yml --env-file .env.offline up -d
+#
+#   4. Apply migrations (first time only):
+#        docker compose -f docker-compose.offline.yml --env-file .env.offline run --rm migrate
+#
+#   5. Seed UTC Kyema master data (first time only):
+#        node db/data-migration/utc-kyema/phase1-seed.js
+#
+# API : http://<server-ip>:3001
+# Web : http://<server-ip>:80
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-amis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      POSTGRES_DB: ${POSTGRES_DB:-amis}
+    # Expose only to localhost on the server — app containers use internal network
+    expose:
+      - "5432"
+    volumes:
+      - pgdata_offline:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-amis}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: always
+
+  api:
+    image: amis-api:offline
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}
+      JWT_SECRET: ${JWT_SECRET:?required}
+      # Allow requests from the web container served at the server LAN IP
+      CORS_ORIGIN: ${CORS_ORIGIN:?required}
+    # Accessible from any device on the LAN at http://<server-ip>:3001
+    ports:
+      - "0.0.0.0:3001:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+  web:
+    image: amis-web:offline
+    # Accessible from any device on the LAN at http://<server-ip>
+    ports:
+      - "0.0.0.0:80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: always
+
+  migrate:
+    image: amis-dbmate:offline
+    command: up
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}?sslmode=disable
+    volumes:
+      - ./db/migrations:/db/migrations:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  pgdata_offline:

@@ -96,28 +96,64 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 
 const FALLBACK_NAV = [
   { label: "Dashboard", route: "/" },
+  // Students & Admissions
   { label: "Students", route: "/students" },
   { label: "Admissions", route: "/admissions" },
   { label: "Programmes", route: "/programmes" },
+  // Academic
   { label: "Term Registrations", route: "/term-registrations" },
   { label: "Bulk Registration", route: "/term-registrations/bulk" },
   { label: "Marks", route: "/marks" },
-  { label: "Finance", route: "/finance" },
-  { label: "Clearance", route: "/clearance" },
   { label: "Results", route: "/results" },
+  { label: "Clearance", route: "/clearance" },
+  // Finance
+  { label: "Finance", route: "/finance" },
+  { label: "Reconciliation", route: "/finance/reconciliation" },
+  // Training & Placements
   { label: "Industrial Training", route: "/industrial-training" },
   { label: "Field Placements", route: "/field-placements" },
-  { label: "Analytics", route: "/analytics" },
+  // Staff & HR
   { label: "Staff", route: "/staff" },
-  { label: "Reports", route: "/reports/it" },
-  { label: "Marks Analysis", route: "/reports/marks-analysis" },
+  // Operations
   { label: "Timetable", route: "/timetable" },
   { label: "Attendance", route: "/attendance" },
   { label: "Alumni", route: "/alumni" },
+  // Reports & Analytics
+  { label: "Analytics", route: "/analytics" },
+  { label: "Reports", route: "/reports/it" },
+  { label: "Marks Analysis", route: "/reports/marks-analysis" },
+  // Administration
   { label: "Users", route: "/users" },
   { label: "Procurement", route: "/procurement" },
   { label: "Inventory", route: "/inventory" },
 ];
+
+// Category label for each route. Routes not listed get no header.
+const NAV_GROUP: Record<string, string> = {
+  "/": "",
+  "/students": "Students & Admissions",
+  "/admissions": "",
+  "/programmes": "",
+  "/term-registrations": "Academic",
+  "/term-registrations/bulk": "",
+  "/marks": "",
+  "/results": "",
+  "/clearance": "",
+  "/finance": "Finance",
+  "/finance/reconciliation": "",
+  "/industrial-training": "Training & Placements",
+  "/field-placements": "",
+  "/staff": "Staff & HR",
+  "/timetable": "Operations",
+  "/attendance": "",
+  "/alumni": "",
+  "/analytics": "Reports & Analytics",
+  "/reports/it": "",
+  "/reports/marks-analysis": "",
+  "/users": "Administration",
+  "/procurement": "",
+  "/inventory": "",
+};
 
 const NAV_ICONS: Record<string, string> = {
   "/": "🏠",
@@ -128,6 +164,7 @@ const NAV_ICONS: Record<string, string> = {
   "/term-registrations/bulk": "📦",
   "/marks": "📊",
   "/finance": "💰",
+  "/finance/reconciliation": "🔄",
   "/clearance": "🔐",
   "/results": "📄",
   "/industrial-training": "🏗️",
@@ -282,15 +319,33 @@ function Sidebar() {
     >
       <nav>
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-          {navLinks.map(({ label, route }) => {
+          {navLinks.map(({ label, route }, idx) => {
             const active =
               route === "/"
                 ? pathname === "/"
                 : pathname === route ||
                   pathname.startsWith(route);
             const icon = NAV_ICONS[route] ?? "•";
+            const groupLabel = NAV_GROUP[route] ?? "";
+            const showGroupHeader = groupLabel !== "" && (
+              idx === 0 || NAV_GROUP[navLinks[idx - 1]?.route ?? ""] !== groupLabel
+            );
             return (
               <li key={route}>
+                {showGroupHeader && (
+                  <div
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: C.gray400,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      padding: "14px 20px 4px",
+                    }}
+                  >
+                    {groupLabel}
+                  </div>
+                )}
                 <Link
                   to={route}
                   className={active ? undefined : "amis-nav-link"}

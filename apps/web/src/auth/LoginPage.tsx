@@ -242,6 +242,10 @@ export function LoginPage() {
               { icon: "📊", label: "Marks & Assessments", desc: "Enter results, view grades and transcripts" },
               { icon: "💳", label: "Finance & Payments", desc: "Fee structures, invoices and collection" },
               { icon: "📅", label: "Academic Calendar", desc: "Terms, academic years and scheduling" },
+              { icon: "👔", label: "Staff & HR", desc: "Staff profiles, roles and assignments" },
+              { icon: "🏗️", label: "Industrial Training", desc: "Field placements and IT reports" },
+              { icon: "📈", label: "Analytics & Reports", desc: "Enrollment stats, fee collection and more" },
+              { icon: "🛒", label: "Procurement & Inventory", desc: "Requisitions, orders and stock management" },
             ] as const).map(({ icon, label, desc }) => (
               <div key={label} style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <div style={{

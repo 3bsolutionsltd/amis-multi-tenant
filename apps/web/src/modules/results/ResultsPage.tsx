@@ -6,7 +6,19 @@ import {
   processResults,
   type TermGpaRow,
 } from "./results.api";
+
+const SAMPLE_RESULTS: TermGpaRow[] = [
+  { student_id: "s1", first_name: "Amina",   last_name: "Nakato",      admission_number: "TVET/2024/001", gpa: 3.87, total_credits: 18, rank: 1 },
+  { student_id: "s2", first_name: "Joseph",  last_name: "Okello",      admission_number: "TVET/2024/002", gpa: 3.62, total_credits: 18, rank: 2 },
+  { student_id: "s3", first_name: "Grace",   last_name: "Auma",        admission_number: "TVET/2024/003", gpa: 3.45, total_credits: 15, rank: 3 },
+  { student_id: "s4", first_name: "David",   last_name: "Ssemwogerere", admission_number: "TVET/2024/004", gpa: 3.21, total_credits: 18, rank: 4 },
+  { student_id: "s5", first_name: "Fatuma",  last_name: "Hassan",      admission_number: "TVET/2024/005", gpa: 3.10, total_credits: 12, rank: 5 },
+  { student_id: "s6", first_name: "Brian",   last_name: "Mubiru",      admission_number: "TVET/2024/006", gpa: 2.95, total_credits: 18, rank: 6 },
+  { student_id: "s7", first_name: "Sandra",  last_name: "Nabirye",     admission_number: "TVET/2024/007", gpa: 2.78, total_credits: 15, rank: 7 },
+  { student_id: "s8", first_name: "Ronald",  last_name: "Kiprotich",   admission_number: "TVET/2024/008", gpa: 2.50, total_credits: 18, rank: 8 },
+];
 import { apiFetch } from "../../lib/apiFetch";
+import { formatStudentName } from "../../lib/formatStudentName";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -37,7 +49,7 @@ export function ResultsPage() {
 
   const termsQ = useQuery({
     queryKey: ["terms"],
-    queryFn: () => apiFetch<{ rows: Term[] }>("/terms").then((r) => r.rows),
+    queryFn: () => apiFetch<Term[]>("/terms"),
   });
 
   // Auto-select current term
@@ -66,7 +78,9 @@ export function ResultsPage() {
     },
   });
 
-  const results: TermGpaRow[] = resultsQ.data ?? [];
+  const realResults: TermGpaRow[] = resultsQ.data ?? [];
+  const isSample = selectedTermId && realResults.length === 0 && !resultsQ.isLoading;
+  const results: TermGpaRow[] = isSample ? SAMPLE_RESULTS : realResults;
   const avgGpa =
     results.length > 0
       ? (
@@ -175,8 +189,20 @@ export function ResultsPage() {
         {!selectedTermId && (
           <EmptyState title="Select a term to view results" />
         )}
-        {selectedTermId && results.length === 0 && !resultsQ.isLoading && (
-          <EmptyState title="No processed results for this term yet. Click 'Process Results' to generate." />
+        {isSample && (
+          <div
+            style={{
+              margin: "12px 24px",
+              padding: "10px 16px",
+              background: "#fffbeb",
+              border: "1px solid #fcd34d",
+              borderRadius: 8,
+              fontSize: 13,
+              color: "#92400e",
+            }}
+          >
+            ⚠ No processed results yet for this term — showing sample data. Click <strong>⚙ Process Results</strong> to generate real rankings.
+          </div>
         )}
         {results.length > 0 && (
           <DataTable
@@ -196,7 +222,7 @@ export function ResultsPage() {
                 </TD>
                 <TD>{r.admission_number ?? "—"}</TD>
                 <TD>
-                  {r.first_name} {r.last_name}
+                  {formatStudentName(r)}
                 </TD>
                 <TD>{Number(r.gpa).toFixed(2)}</TD>
                 <TD>{r.total_credits}</TD>

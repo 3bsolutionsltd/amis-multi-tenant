@@ -39,7 +39,7 @@ const TXN_COLS =
   "id, item_id, transaction_type, quantity, balance_after, reference_type, reference_id, performed_by, transaction_date, notes, created_at";
 
 const ISSUANCE_COLS =
-  "id, issuance_number, issued_to, issued_by, department, requisition_ref, purpose, status, issue_date, return_date, notes, created_at, updated_at";
+  "id, issuance_number, issued_to, issued_by, department, requisition_ref, srq_id, purpose, status, issue_date, return_date, notes, student_project_id, created_at, updated_at";
 
 const ISSUANCE_ITEM_COLS =
   "id, issuance_id, item_id, quantity_requested, quantity_issued, quantity_returned, notes, created_at";
@@ -299,9 +299,9 @@ export async function inventoryRoutes(app: FastifyInstance) {
     const d = parsed.data;
     const result = await withTenant(tenantId, async (client) => {
       const { rows } = await client.query(
-        `INSERT INTO app.store_issuances (tenant_id, issuance_number, issued_to, issued_by, department, requisition_ref, purpose, issue_date, notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING ${ISSUANCE_COLS}`,
-        [tenantId, d.issuance_number, d.issued_to, d.issued_by ?? null, d.department ?? null, d.requisition_ref ?? null, d.purpose ?? null, d.issue_date ?? null, d.notes ?? null],
+        `INSERT INTO app.store_issuances (tenant_id, issuance_number, issued_to, issued_by, department, requisition_ref, srq_id, purpose, issue_date, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING ${ISSUANCE_COLS}`,
+        [tenantId, d.issuance_number, d.issued_to, d.issued_by ?? null, d.department ?? null, d.requisition_ref ?? null, d.srq_id ?? null, d.purpose ?? null, d.issue_date ?? null, d.notes ?? null],
       );
       const issuance = rows[0];
 
@@ -363,6 +363,7 @@ export async function inventoryRoutes(app: FastifyInstance) {
     addField("issue_date", d.issue_date);
     addField("return_date", d.return_date);
     addField("notes", d.notes);
+    addField("student_project_id", d.student_project_id);
 
     if (!fields.length) return reply.status(422).send({ error: "No fields to update" });
 

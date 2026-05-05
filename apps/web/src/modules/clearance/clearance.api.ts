@@ -17,12 +17,38 @@ export interface ClearanceStatus {
   fully_cleared: boolean;
 }
 
+export interface EligibilityCheck {
+  pass: boolean;
+  detail: string;
+}
+
+export interface EligibilityResult {
+  student_id: string;
+  term_id: string;
+  checks: {
+    registered: EligibilityCheck;
+    fees_cleared: EligibilityCheck;
+    marks_complete: EligibilityCheck;
+    attendance_ok: EligibilityCheck;
+  };
+  eligible: boolean;
+}
+
 export function getClearanceStatus(
   studentId: string,
   termId: string,
 ): Promise<ClearanceStatus> {
   return apiFetch<ClearanceStatus>(
     `/clearance/student/${studentId}/term/${termId}`,
+  );
+}
+
+export function getEligibility(
+  studentId: string,
+  termId: string,
+): Promise<EligibilityResult> {
+  return apiFetch<EligibilityResult>(
+    `/clearance/eligibility/${studentId}?term_id=${termId}`,
   );
 }
 

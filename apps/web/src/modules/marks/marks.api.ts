@@ -13,11 +13,19 @@ export interface Submission {
   current_state: string | null;
 }
 
+export interface EvidenceFile {
+  url: string;
+  name: string;
+  type: string;
+}
+
 export interface MarkEntry {
+  id: string;
   student_id: string;
   score: number;
   updated_by: string | null;
   updated_at: string;
+  evidence_files: EvidenceFile[];
 }
 
 export interface SubmissionDetail extends Submission {
@@ -115,4 +123,41 @@ export interface AuditEntry {
 
 export function getAuditLog(submissionId: string): Promise<AuditEntry[]> {
   return apiFetch<AuditEntry[]>(`/marks/submissions/${submissionId}/audit`);
+}
+
+// ---------- Evidence attachments (issue #93) ----------
+
+export function uploadFile(file: File): Promise<EvidenceFile> {
+  const base = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+  const tenantId = localStorage.getItem("amis_tenant_id") ?? "";
+  const fd = new FormData();
+  fd.append("file", file);
+  return fetch(`${base}/uploads`, {
+    method: "POST",
+    headers: { "x-tenant-id": tenantId },
+    body: fd,
+  }).then(async (r) => {
+    if (!r.ok) throw new Error(`Upload failed: ${r.status}`);
+    return r.json() as Promise<EvidenceFile>;
+  });
+}
+
+export function addEvidence(
+  entryId: string,
+  files: EvidenceFile[],
+): Promise<{ id: string; evidence_files: EvidenceFile[] }> {
+  return apiFetch(`/marks/entries/${entryId}/evidence`, {
+    method: "PATCH",
+    body: JSON.stringify({ files }),
+  });
+}
+
+export function removeEvidence(
+  entryId: string,
+  url: string,
+): Promise<{ id: string; evidence_files: EvidenceFile[] }> {
+  return apiFetch(`/marks/entries/${entryId}/evidence`, {
+    method: "DELETE",
+    body: JSON.stringify({ url }),
+  });
 }

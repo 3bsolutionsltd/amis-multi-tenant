@@ -18,6 +18,7 @@ import {
   ErrorBanner,
   SectionLabel,
 } from "../../lib/ui";
+import { formatStudentName } from "../../lib/formatStudentName";
 
 const STATE_BADGE_COLOR: Record<
   string,
@@ -99,7 +100,7 @@ export function TermRegistrationDetailPage() {
 
   const studentName =
     reg.first_name && reg.last_name
-      ? `${reg.first_name} ${reg.last_name}`
+      ? formatStudentName(reg)
       : "—";
 
   return (

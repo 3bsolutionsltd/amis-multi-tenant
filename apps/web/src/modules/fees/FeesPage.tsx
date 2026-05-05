@@ -4,8 +4,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getFeeSummary,
   getFeeTransactions,
+  getFeeOverview,
+  getFeeDefaulters,
   type FeeSummary,
   type Transaction,
+  type FeeOverview,
+  type Defaulter,
 } from "./fees.api";
 import { listStudents, type Student } from "../students/students.api";
 import {
@@ -20,6 +24,8 @@ import {
   SecondaryBtn,
   EmptyState,
   Badge,
+  SectionLabel,
+  Spinner,
 } from "../../lib/ui";
 
 type BadgeColor = "green" | "yellow" | "red";
@@ -83,15 +89,31 @@ export function FeesPage() {
   const prefillId = params.get("student_id");
   const prefillName = params.get("student_name");
 
+  const [activeTab, setActiveTab] = useState<"overview" | "student">("overview");
   const [search, setSearch] = useState(prefillName ?? "");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     prefillId,
   );
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(
+    prefillId && prefillName
+      ? ({ id: prefillId, first_name: prefillName, last_name: "" } as Student)
+      : null,
+  );
+
+  const overviewQ = useQuery({
+    queryKey: ["feeOverview"],
+    queryFn: getFeeOverview,
+  });
+
+  const defaultersQ = useQuery({
+    queryKey: ["feeDefaulters"],
+    queryFn: getFeeDefaulters,
+  });
 
   const { data: students } = useQuery({
     queryKey: ["students-search", search],
     queryFn: () => listStudents({ search: search || undefined }),
-    enabled: search.length >= 2,
+    enabled: search.length >= 2 && !selectedStudentId,
   });
 
   const { data: summary } = useQuery({
@@ -107,26 +129,22 @@ export function FeesPage() {
   });
   const transactions: Transaction[] = txnResult?.rows ?? [];
 
-  const selectedStudent = students?.find((s) => s.id === selectedStudentId);
-
   function selectStudent(student: Student) {
     setSelectedStudentId(student.id);
+    setSelectedStudent(student);
     setSearch(`${student.first_name} ${student.last_name}`);
   }
 
   return (
     <div>
       <PageHeader
-        title="Fees"
+        title="Finance"
         action={
           <div style={{ display: "flex", gap: 10 }}>
-            <SecondaryBtn onClick={() => navigate("/finance/overview")}>
-              📊 Overview
-            </SecondaryBtn>
             <SecondaryBtn onClick={() => navigate("/finance/import")}>
               ⬆ Import CSV
             </SecondaryBtn>
-            {selectedStudentId && (
+            {activeTab === "student" && selectedStudentId && (
               <PrimaryBtn
                 onClick={() => {
                   const name = selectedStudent
@@ -144,8 +162,94 @@ export function FeesPage() {
         }
       />
 
+      {/* Tab bar */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+        {(["overview", "student"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            style={{
+              padding: "8px 18px",
+              borderRadius: 6,
+              border: "1px solid #d1d5db",
+              fontWeight: 500,
+              fontSize: 14,
+              cursor: "pointer",
+              background: activeTab === tab ? "#2563eb" : "#fff",
+              color: activeTab === tab ? "#fff" : "#374151",
+            }}
+          >
+            {tab === "overview" ? "📊 Overview" : "🎓 Student Fees"}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview tab */}
+      {activeTab === "overview" && (
+        <div>
+          {overviewQ.isLoading && <Spinner />}
+          {overviewQ.data && (
+            <>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+                  gap: 16,
+                  marginBottom: 28,
+                }}
+              >
+                <StatCard label="Total Students" value={overviewQ.data.totalStudents.toLocaleString()} accent="#2563eb" />
+                <StatCard label="Total Expected" value={`UGX ${overviewQ.data.totalExpected.toLocaleString()}`} accent="#7c3aed" />
+                <StatCard label="Total Collected" value={`UGX ${overviewQ.data.totalCollected.toLocaleString()}`} accent="#16a34a" />
+                <StatCard
+                  label="Collection Rate"
+                  value={`${overviewQ.data.collectionRate}%`}
+                  accent={overviewQ.data.collectionRate >= 75 ? "#16a34a" : "#dc2626"}
+                />
+                <StatCard label="Fully Paid" value={overviewQ.data.fullyPaid.toLocaleString()} accent="#16a34a" />
+                <StatCard
+                  label="Defaulters"
+                  value={overviewQ.data.defaulters.toLocaleString()}
+                  accent={overviewQ.data.defaulters > 0 ? "#dc2626" : "#16a34a"}
+                />
+              </div>
+
+              <SectionLabel>Fee Defaulters</SectionLabel>
+              {defaultersQ.isLoading && <Spinner />}
+              <DataTable
+                headers={["Student", "Admission #", "Programme", "Paid", "Balance"]}
+                isLoading={defaultersQ.isLoading}
+                isEmpty={!defaultersQ.isLoading && (defaultersQ.data ?? []).length === 0}
+                emptyIcon="🎉"
+                emptyTitle="No defaulters"
+                emptyDescription="All students are fully paid."
+                colCount={5}
+              >
+                {(defaultersQ.data ?? []).map((d: Defaulter) => (
+                  <TR key={d.id}>
+                    <TD>{d.first_name} {d.last_name}</TD>
+                    <TD muted>{d.admission_number ?? "—"}</TD>
+                    <TD muted>{d.programme ?? "—"}</TD>
+                    <TD muted>{d.total_paid?.toLocaleString() ?? "—"}</TD>
+                    <TD>
+                      <span style={{ color: "#dc2626", fontWeight: 600 }}>
+                        {d.balance?.toLocaleString() ?? "—"}
+                      </span>
+                    </TD>
+                  </TR>
+                ))}
+              </DataTable>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Student Fees tab */}
+      {activeTab === "student" && (
+        <div>
       {/* Student search */}
-      <Card padding="20px 24px" style={{ marginBottom: 24 }}>
+      <Card padding="20px 24px" style={{ marginBottom: 24, overflow: "visible" }}>
         <div
           style={{
             fontSize: 13,
@@ -162,8 +266,10 @@ export function FeesPage() {
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
-              if (selectedStudentId && e.target.value === "")
+              if (e.target.value === "") {
                 setSelectedStudentId(null);
+                setSelectedStudent(null);
+              }
             }}
             style={{
               width: "100%",
@@ -292,6 +398,8 @@ export function FeesPage() {
               </SecondaryBtn>
             </div>
           )}
+        </div>
+      )}
         </div>
       )}
     </div>

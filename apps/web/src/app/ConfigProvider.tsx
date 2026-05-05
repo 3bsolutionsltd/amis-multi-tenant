@@ -39,6 +39,12 @@ interface ConfigPayload {
     departments?: string[];
     designations?: string[];
   };
+  receipt?: {
+    template?: "classic" | "modern" | "minimal";
+    headerNote?: string;
+    footerNote?: string;
+    showBalance?: boolean;
+  };
 }
 
 interface ConfigData {
@@ -62,6 +68,12 @@ interface ConfigContextValue {
   studentFormConfig: StudentFormConfig | null;
   departments: string[];
   designations: string[];
+  receiptConfig: {
+    template: "classic" | "modern" | "minimal";
+    headerNote: string;
+    footerNote: string;
+    showBalance: boolean;
+  };
 }
 
 const ConfigContext = createContext<ConfigContextValue>({
@@ -77,6 +89,12 @@ const ConfigContext = createContext<ConfigContextValue>({
   studentFormConfig: null,
   departments: [],
   designations: [],
+  receiptConfig: {
+    template: "classic",
+    headerNote: "",
+    footerNote: "",
+    showBalance: true,
+  },
 });
 
 export function useConfig() {
@@ -104,6 +122,13 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const studentFormConfig = config?.payload?.forms?.students ?? null;
   const departments = config?.payload?.institution?.departments ?? [];
   const designations = config?.payload?.institution?.designations ?? [];
+  const rawReceipt = config?.payload?.receipt;
+  const receiptConfig = {
+    template: (rawReceipt?.template ?? "classic") as "classic" | "modern" | "minimal",
+    headerNote: rawReceipt?.headerNote ?? "",
+    footerNote: rawReceipt?.footerNote ?? "",
+    showBalance: rawReceipt?.showBalance !== false,
+  };
 
   useEffect(() => {
     document.documentElement.style.setProperty("--primary-color", primaryColor);
@@ -124,6 +149,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         studentFormConfig,
         departments,
         designations,
+        receiptConfig,
       }}
     >
       {children}
