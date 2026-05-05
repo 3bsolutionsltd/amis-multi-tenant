@@ -81,3 +81,4 @@ services:
 
 volumes:
   pgdata_staging:
+  uploads_staging:
