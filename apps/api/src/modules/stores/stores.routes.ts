@@ -53,6 +53,7 @@ export async function storesRoutes(app: FastifyInstance) {
     { preHandler: requireRole(...READ_ROLES) },
     async (req) => {
       const tid = getTenantId(req);
+      if (!tid) throw { statusCode: 400, message: "x-tenant-id header required" };
       const q = SRQQuerySchema.parse(req.query);
       const offset = (q.page - 1) * q.limit;
       return withTenant(tid, async (db) => {
@@ -100,6 +101,7 @@ export async function storesRoutes(app: FastifyInstance) {
     { preHandler: requireRole(...READ_ROLES) },
     async (req) => {
       const tid = getTenantId(req);
+      if (!tid) throw { statusCode: 400, message: "x-tenant-id header required" };
       const { id } = req.params as { id: string };
       return withTenant(tid, async (db) => {
         const srq = await db.query(
@@ -140,6 +142,7 @@ export async function storesRoutes(app: FastifyInstance) {
     { preHandler: requireRole(...WRITE_ROLES) },
     async (req, reply) => {
       const tid = getTenantId(req);
+      if (!tid) throw { statusCode: 400, message: "x-tenant-id header required" };
       const body = CreateSRQSchema.parse(req.body);
       return withTenant(tid, async (db) => {
         const { rows } = await db.query(
@@ -192,6 +195,7 @@ export async function storesRoutes(app: FastifyInstance) {
     { preHandler: requireRole(...WRITE_ROLES) },
     async (req) => {
       const tid = getTenantId(req);
+      if (!tid) throw { statusCode: 400, message: "x-tenant-id header required" };
       const { id } = req.params as { id: string };
       const body = UpdateSRQSchema.parse(req.body);
       return withTenant(tid, async (db) => {
@@ -230,6 +234,7 @@ export async function storesRoutes(app: FastifyInstance) {
     { preHandler: requireRole(...WRITE_ROLES) },
     async (req) => {
       const tid = getTenantId(req);
+      if (!tid) throw { statusCode: 400, message: "x-tenant-id header required" };
       const { id } = req.params as { id: string };
       const body = TransitionSRQSchema.parse(req.body);
       return withTenant(tid, async (db) => {
@@ -313,6 +318,7 @@ export async function storesRoutes(app: FastifyInstance) {
     { preHandler: requireRole(...READ_ROLES) },
     async (req) => {
       const tid = getTenantId(req);
+      if (!tid) throw { statusCode: 400, message: "x-tenant-id header required" };
       const q = PCVQuerySchema.parse(req.query);
       const offset = (q.page - 1) * q.limit;
       return withTenant(tid, async (db) => {
@@ -356,6 +362,7 @@ export async function storesRoutes(app: FastifyInstance) {
     { preHandler: requireRole(...READ_ROLES) },
     async (req) => {
       const tid = getTenantId(req);
+      if (!tid) throw { statusCode: 400, message: "x-tenant-id header required" };
       const { id } = req.params as { id: string };
       return withTenant(tid, async (db) => {
         const pcv = await db.query(
@@ -384,6 +391,7 @@ export async function storesRoutes(app: FastifyInstance) {
     { preHandler: requireRole(...WRITE_ROLES) },
     async (req, reply) => {
       const tid = getTenantId(req);
+      if (!tid) throw { statusCode: 400, message: "x-tenant-id header required" };
       const body = CreatePCVSchema.parse(req.body);
       return withTenant(tid, async (db) => {
         const { rows } = await db.query(
@@ -430,6 +438,7 @@ export async function storesRoutes(app: FastifyInstance) {
     { preHandler: requireRole(...WRITE_ROLES) },
     async (req) => {
       const tid = getTenantId(req);
+      if (!tid) throw { statusCode: 400, message: "x-tenant-id header required" };
       const { id } = req.params as { id: string };
       const body = UpdatePCVSchema.parse(req.body);
       return withTenant(tid, async (db) => {
@@ -467,6 +476,7 @@ export async function storesRoutes(app: FastifyInstance) {
     { preHandler: requireRole(...READ_ROLES) },
     async (req) => {
       const tid = getTenantId(req);
+      if (!tid) throw { statusCode: 400, message: "x-tenant-id header required" };
       const { id } = req.params as { id: string };
       const body = TransitionPCVSchema.parse(req.body);
       return withTenant(tid, async (db) => {
