@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
 import { requireRole } from "../../middleware/requireRole.js";
+import { getTenantId } from "../../lib/tenantId.js";
 import {
   SRQ_COLS,
   SRQ_ITEM_COLS,
@@ -51,9 +52,10 @@ export async function storesRoutes(app: FastifyInstance) {
     "/stores/requisitions",
     { preHandler: requireRole(...READ_ROLES) },
     async (req) => {
+      const tid = getTenantId(req);
       const q = SRQQuerySchema.parse(req.query);
       const offset = (q.page - 1) * q.limit;
-      return withTenant(req, async (db) => {
+      return withTenant(tid, async (db) => {
         const conditions: string[] = ["s.tenant_id = app.current_tenant_id()"];
         const params: unknown[] = [];
         let idx = 1;
@@ -97,8 +99,9 @@ export async function storesRoutes(app: FastifyInstance) {
     "/stores/requisitions/:id",
     { preHandler: requireRole(...READ_ROLES) },
     async (req) => {
+      const tid = getTenantId(req);
       const { id } = req.params as { id: string };
-      return withTenant(req, async (db) => {
+      return withTenant(tid, async (db) => {
         const srq = await db.query(
           `SELECT ${SRQ_COLS}
            FROM app.store_requisitions
@@ -136,8 +139,9 @@ export async function storesRoutes(app: FastifyInstance) {
     "/stores/requisitions",
     { preHandler: requireRole(...WRITE_ROLES) },
     async (req, reply) => {
+      const tid = getTenantId(req);
       const body = CreateSRQSchema.parse(req.body);
-      return withTenant(req, async (db) => {
+      return withTenant(tid, async (db) => {
         const { rows } = await db.query(
           `INSERT INTO app.store_requisitions
              (tenant_id, srq_number, requested_by, department, purpose,
@@ -187,9 +191,10 @@ export async function storesRoutes(app: FastifyInstance) {
     "/stores/requisitions/:id",
     { preHandler: requireRole(...WRITE_ROLES) },
     async (req) => {
+      const tid = getTenantId(req);
       const { id } = req.params as { id: string };
       const body = UpdateSRQSchema.parse(req.body);
-      return withTenant(req, async (db) => {
+      return withTenant(tid, async (db) => {
         const sets: string[] = ["updated_at = now()"];
         const params: unknown[] = [];
         let idx = 1;
@@ -224,9 +229,10 @@ export async function storesRoutes(app: FastifyInstance) {
     "/stores/requisitions/:id/transition",
     { preHandler: requireRole(...WRITE_ROLES) },
     async (req) => {
+      const tid = getTenantId(req);
       const { id } = req.params as { id: string };
       const body = TransitionSRQSchema.parse(req.body);
-      return withTenant(req, async (db) => {
+      return withTenant(tid, async (db) => {
         // Load current SRQ
         const cur = await db.query(
           `SELECT status FROM app.store_requisitions
@@ -306,9 +312,10 @@ export async function storesRoutes(app: FastifyInstance) {
     "/stores/pcv",
     { preHandler: requireRole(...READ_ROLES) },
     async (req) => {
+      const tid = getTenantId(req);
       const q = PCVQuerySchema.parse(req.query);
       const offset = (q.page - 1) * q.limit;
-      return withTenant(req, async (db) => {
+      return withTenant(tid, async (db) => {
         const conditions: string[] = ["p.tenant_id = app.current_tenant_id()"];
         const params: unknown[] = [];
         let idx = 1;
@@ -348,8 +355,9 @@ export async function storesRoutes(app: FastifyInstance) {
     "/stores/pcv/:id",
     { preHandler: requireRole(...READ_ROLES) },
     async (req) => {
+      const tid = getTenantId(req);
       const { id } = req.params as { id: string };
-      return withTenant(req, async (db) => {
+      return withTenant(tid, async (db) => {
         const pcv = await db.query(
           `SELECT ${PCV_COLS}
            FROM app.petty_cash_vouchers
@@ -375,8 +383,9 @@ export async function storesRoutes(app: FastifyInstance) {
     "/stores/pcv",
     { preHandler: requireRole(...WRITE_ROLES) },
     async (req, reply) => {
+      const tid = getTenantId(req);
       const body = CreatePCVSchema.parse(req.body);
-      return withTenant(req, async (db) => {
+      return withTenant(tid, async (db) => {
         const { rows } = await db.query(
           `INSERT INTO app.petty_cash_vouchers
              (tenant_id, pcv_number, requested_by, department, purpose, amount_requested, notes)
@@ -420,9 +429,10 @@ export async function storesRoutes(app: FastifyInstance) {
     "/stores/pcv/:id",
     { preHandler: requireRole(...WRITE_ROLES) },
     async (req) => {
+      const tid = getTenantId(req);
       const { id } = req.params as { id: string };
       const body = UpdatePCVSchema.parse(req.body);
-      return withTenant(req, async (db) => {
+      return withTenant(tid, async (db) => {
         const sets: string[] = ["updated_at = now()"];
         const params: unknown[] = [];
         let idx = 1;
@@ -456,9 +466,10 @@ export async function storesRoutes(app: FastifyInstance) {
     "/stores/pcv/:id/transition",
     { preHandler: requireRole(...READ_ROLES) },
     async (req) => {
+      const tid = getTenantId(req);
       const { id } = req.params as { id: string };
       const body = TransitionPCVSchema.parse(req.body);
-      return withTenant(req, async (db) => {
+      return withTenant(tid, async (db) => {
         const cur = await db.query(
           `SELECT status FROM app.petty_cash_vouchers
            WHERE id = $1 AND tenant_id = app.current_tenant_id()`,
