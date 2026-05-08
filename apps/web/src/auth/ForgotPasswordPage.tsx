@@ -2,9 +2,13 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const SLUG_STORAGE_KEY = "amis_tenant_slug";
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
+  const [tenantSlug, setTenantSlug] = useState(
+    () => localStorage.getItem(SLUG_STORAGE_KEY) ?? "",
+  );
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -12,16 +16,20 @@ export function ForgotPasswordPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!tenantSlug.trim()) {
+      setError("Please enter your institution code.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, tenantSlug: tenantSlug.trim() }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error ?? "Request failed");
+        throw new Error(data?.message ?? "Request failed");
       }
       setSubmitted(true);
     } catch (err) {
@@ -77,6 +85,27 @@ export function ForgotPasswordPage() {
             onSubmit={handleSubmit}
             style={{ display: "flex", flexDirection: "column", gap: 16 }}
           >
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>
+                Institution code
+              </label>
+              <input
+                type="text"
+                required
+                value={tenantSlug}
+                onChange={(e) => setTenantSlug(e.target.value)}
+                placeholder="e.g. greenfield-vti"
+                style={{
+                  padding: "8px 12px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  outline: "none",
+                }}
+                autoComplete="organization"
+              />
+            </div>
+
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>
                 Email address

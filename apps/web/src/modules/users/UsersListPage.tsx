@@ -147,7 +147,7 @@ export function UsersListPage() {
       </FilterBar>
 
       <DataTable
-        headers={["Email", "Role", "Status", "Created", "Actions"]}
+        headers={["Name / Email", "Role", "Status", "Created", "Actions"]}
         isLoading={isLoading}
         isEmpty={isEmpty}
         emptyIcon="👥"
@@ -162,8 +162,13 @@ export function UsersListPage() {
                 style={{ fontWeight: 600, color: "#2563eb", cursor: "pointer" }}
                 onClick={() => navigate(`/users/${user.id}`)}
               >
-                {user.email}
+                {user.firstName || user.lastName
+                  ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
+                  : user.email}
               </span>
+              {(user.firstName || user.lastName) && (
+                <div style={{ fontSize: 12, color: "#6b7280" }}>{user.email}</div>
+              )}
             </TD>
             <TD>
               <Badge label={user.role} color="blue" />

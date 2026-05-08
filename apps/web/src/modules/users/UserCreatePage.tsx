@@ -17,6 +17,8 @@ export function UserCreatePage() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     role: "registrar",
@@ -50,6 +52,26 @@ export function UserCreatePage() {
           onSubmit={handleSubmit}
           style={{ display: "flex", flexDirection: "column", gap: 16 }}
         >
+          <Field label="First Name">
+            <input
+              type="text"
+              autoComplete="given-name"
+              style={inputCss}
+              value={form.firstName}
+              onChange={(e) => set("firstName", e.target.value)}
+            />
+          </Field>
+
+          <Field label="Last Name">
+            <input
+              type="text"
+              autoComplete="family-name"
+              style={inputCss}
+              value={form.lastName}
+              onChange={(e) => set("lastName", e.target.value)}
+            />
+          </Field>
+
           <Field label="Email" required>
             <input
               required

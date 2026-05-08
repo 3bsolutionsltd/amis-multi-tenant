@@ -637,13 +637,14 @@ export async function studentsRoutes(app: FastifyInstance) {
 
       const RowsSchema = z.object({
         rows: z.array(z.record(z.string(), z.unknown())).min(1).max(2000),
+        update_if_exists: z.boolean().optional(),
       });
       const parsed = RowsSchema.safeParse(req.body);
       if (!parsed.success) {
         return reply.status(422).send({ error: parsed.error.flatten() });
       }
 
-      const { rows } = parsed.data;
+      const { rows, update_if_exists = false } = parsed.data;
 
       // Column name aliases: CSV header → internal key
       const COL = (row: Record<string, unknown>, ...keys: string[]): string => {
@@ -655,6 +656,7 @@ export async function studentsRoutes(app: FastifyInstance) {
       };
 
       let imported = 0;
+      let updated = 0;
       let skipped = 0;
       const errors: { row: number; error: string }[] = [];
       const warnings: { row: number; student_id: string; student_name: string; raw_programme: string }[] = [];
@@ -745,37 +747,63 @@ export async function studentsRoutes(app: FastifyInstance) {
           if (district)   extension["district_of_origin"]  = district;
           if (intakeYear) extension["intake_year"]         = intakeYear;
 
-          // Use a SAVEPOINT so a failed INSERT can be rolled back without
-          // aborting the outer transaction (PostgreSQL "transaction is aborted" cascade).
           const sp = `sp_import_${i}`;
           try {
             await client.query(`SAVEPOINT ${sp}`);
-            const { rows: insRows } = await client.query<{ id: string }>(
-              `INSERT INTO app.students
-                 (tenant_id, first_name, last_name, date_of_birth, admission_number,
-                  sponsorship_type, programme, programme_id, email, phone,
-                  guardian_name, guardian_phone, extension, is_active)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-               RETURNING id`,
-              [
-                tenantId,
-                firstName,
-                lastName,
-                dob,
-                admissionNumber || null,
-                sponsorship || null,
-                resolvedProgrammeText,
-                resolvedProgrammeId,
-                email || null,
-                phone || null,
-                nokName || null,
-                nokPhone || null,
-                JSON.stringify(extension),
-                isActive,
-              ],
-            );
+
+            // Build the INSERT — optionally upsert by admission_number
+            let queryText: string;
+            let queryValues: unknown[];
+            if (update_if_exists && admissionNumber) {
+              queryText = `
+                INSERT INTO app.students
+                  (tenant_id, first_name, last_name, date_of_birth, admission_number,
+                   sponsorship_type, programme, programme_id, email, phone,
+                   guardian_name, guardian_phone, extension, is_active)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                ON CONFLICT (tenant_id, admission_number)
+                DO UPDATE SET
+                  first_name       = EXCLUDED.first_name,
+                  last_name        = EXCLUDED.last_name,
+                  date_of_birth    = COALESCE(EXCLUDED.date_of_birth, app.students.date_of_birth),
+                  sponsorship_type = COALESCE(EXCLUDED.sponsorship_type, app.students.sponsorship_type),
+                  programme        = COALESCE(EXCLUDED.programme, app.students.programme),
+                  programme_id     = COALESCE(EXCLUDED.programme_id, app.students.programme_id),
+                  email            = COALESCE(EXCLUDED.email, app.students.email),
+                  phone            = COALESCE(EXCLUDED.phone, app.students.phone),
+                  guardian_name    = COALESCE(EXCLUDED.guardian_name, app.students.guardian_name),
+                  guardian_phone   = COALESCE(EXCLUDED.guardian_phone, app.students.guardian_phone),
+                  extension        = app.students.extension || EXCLUDED.extension
+                RETURNING id, (xmax = 0) AS was_inserted`;
+              queryValues = [
+                tenantId, firstName, lastName, dob, admissionNumber || null,
+                sponsorship || null, resolvedProgrammeText, resolvedProgrammeId,
+                email || null, phone || null, nokName || null, nokPhone || null,
+                JSON.stringify(extension), isActive,
+              ];
+            } else {
+              queryText = `
+                INSERT INTO app.students
+                  (tenant_id, first_name, last_name, date_of_birth, admission_number,
+                   sponsorship_type, programme, programme_id, email, phone,
+                   guardian_name, guardian_phone, extension, is_active)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                RETURNING id`;
+              queryValues = [
+                tenantId, firstName, lastName, dob, admissionNumber || null,
+                sponsorship || null, resolvedProgrammeText, resolvedProgrammeId,
+                email || null, phone || null, nokName || null, nokPhone || null,
+                JSON.stringify(extension), isActive,
+              ];
+            }
+
+            const { rows: insRows } = await client.query<{ id: string; was_inserted?: boolean }>(queryText, queryValues);
             await client.query(`RELEASE SAVEPOINT ${sp}`);
-            imported++;
+            if (update_if_exists && admissionNumber && insRows[0]?.was_inserted === false) {
+              updated++;
+            } else {
+              imported++;
+            }
             if (programme && !resolvedProgrammeId) {
               warnings.push({
                 row: i + 2,
@@ -798,7 +826,7 @@ export async function studentsRoutes(app: FastifyInstance) {
         }
       });
 
-      return reply.status(201).send({ imported, skipped, errors, warnings });
+      return reply.status(201).send({ imported, updated, skipped, errors, warnings });
     },
   );
 }

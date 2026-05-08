@@ -128,6 +128,34 @@ const SEED_WORKFLOWS: Record<string, WorkflowDef> = {
   },
 };
 
+/* ---- workflow display metadata ----------------------------------------- */
+const WF_META: Record<string, { label: string; description: string; icon: string }> = {
+  term_registration: {
+    label: "Term Registration",
+    description: "Student enrollment checklist — from initial registration through document verification, fee payment, and exam enrollment.",
+    icon: "🎓",
+  },
+  marks: {
+    label: "Mark Submission",
+    description: "Controls how instructors submit marks, get HOD review, and publish final results.",
+    icon: "📝",
+  },
+  admission: {
+    label: "Admission Application",
+    description: "Tracks applicant progress from submission through shortlisting, interview, and final acceptance or rejection.",
+    icon: "📋",
+  },
+  purchase_requisition: {
+    label: "Purchase Requisition",
+    description: "Approval chain for procurement requests — from department submission through HOD recommendation, principal approval, and LPO issuance.",
+    icon: "🛒",
+  },
+};
+
+function wfLabel(key: string) {
+  return WF_META[key]?.label ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /* ---------------------------------------------------------------- component */
 
 export function WorkflowViewer() {
@@ -294,15 +322,23 @@ const [newTrans, setNewTrans] = useState<Record<string, { action: string; from: 
     <div style={{ maxWidth: 860 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
-          <h2 style={{ margin: "0 0 4px", fontSize: 22, color: "#0f172a" }}>Workflow Editor</h2>
-          <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>Define state machines for admissions, approvals, and other processes.</p>
+          <h2 style={{ margin: "0 0 4px", fontSize: 22, color: "#0f172a" }}>Workflow Configuration</h2>
+          <p style={{ margin: 0, color: "#64748b", fontSize: 14 }}>Configure the approval steps and stages for key processes in your institution.</p>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
+          {editMode && (
+            <button
+              onClick={() => { if (confirm("Reset all workflows to built-in defaults? Your current changes will be lost.")) { setWorkflows(SEED_WORKFLOWS); setSeededFromDefaults(true); } }}
+              style={{ padding: "8px 14px", background: "#fff", color: "#b45309", border: "1px solid #fbbf24", borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            >
+              ↺ Reset to Defaults
+            </button>
+          )}
           <button
             onClick={() => { setEditMode((v) => !v); setSavedMsg(null); }}
             style={{ padding: "8px 16px", background: editMode ? "#f1f5f9" : "#2563eb", color: editMode ? "#374151" : "#fff", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
           >
-            {editMode ? "View Mode" : "Edit Mode"}
+            {editMode ? "✓ Done Editing" : "✎ Customize Workflows"}
           </button>
           {editMode && (
             <button
@@ -314,6 +350,19 @@ const [newTrans, setNewTrans] = useState<Record<string, { action: string; from: 
           )}
         </div>
       </div>
+
+      {/* Explainer guide */}
+      {!editMode && (
+        <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 8, padding: "14px 18px", marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, color: "#0369a1", marginBottom: 6, fontSize: 14 }}>ℹ️ How Workflows Work</div>
+          <ul style={{ margin: 0, padding: "0 0 0 20px", color: "#0c4a6e", fontSize: 13, lineHeight: 1.8 }}>
+            <li><strong>States</strong> are the stages a record passes through (e.g. REGISTERED → FEE_PAID → EXAM_ENROLLED).</li>
+            <li><strong>Transitions</strong> define what action moves a record from one state to the next, and which staff role can perform it.</li>
+            <li>The <strong>Initial State</strong> is where every new record starts.</li>
+            <li>Click <strong>"✎ Customize Workflows"</strong> to add states, change transitions, or modify role assignments.</li>
+          </ul>
+        </div>
+      )}
 
       {/* Default-seed notice */}
       {seededFromDefaults && (
@@ -346,17 +395,51 @@ const [newTrans, setNewTrans] = useState<Record<string, { action: string; from: 
           return (
             <div key={wfKey} style={cardStyle}>
               {/* Workflow title row */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <h3 style={{ margin: 0, fontSize: 16, color: "#0f172a", fontFamily: "monospace" }}>{wfKey}</h3>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: 20 }}>{WF_META[wfKey]?.icon ?? "⚙️"}</span>
+                    <h3 style={{ margin: 0, fontSize: 16, color: "#0f172a" }}>{wfLabel(wfKey)}</h3>
+                    <code style={{ fontSize: 11, color: "#94a3b8", background: "#f1f5f9", padding: "1px 8px", borderRadius: 4, border: "1px solid #e2e8f0" }}>{wfKey}</code>
+                  </div>
+                  {WF_META[wfKey]?.description && (
+                    <p style={{ margin: 0, color: "#64748b", fontSize: 13 }}>{WF_META[wfKey].description}</p>
+                  )}
+                </div>
                 {editMode && (
                   <button
                     onClick={() => { if (confirm(`Delete workflow "${wfKey}"?`)) deleteWorkflow(wfKey); }}
-                    style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                    style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 13, fontWeight: 600, flexShrink: 0 }}
                   >
                     Delete workflow
                   </button>
                 )}
               </div>
+
+              {/* Visual state flow (view mode) */}
+              {!editMode && wf.states.length > 0 && (
+                <div style={{ overflowX: "auto", marginBottom: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 0, padding: "8px 0", minWidth: "max-content" }}>
+                    {wf.states.map((s, idx) => (
+                      <div key={s} style={{ display: "flex", alignItems: "center" }}>
+                        <div style={{
+                          padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                          background: s === wf.initial_state ? "#dbeafe" : idx === wf.states.length - 1 ? "#dcfce7" : "#f1f5f9",
+                          color: s === wf.initial_state ? "#1d4ed8" : idx === wf.states.length - 1 ? "#166534" : "#374151",
+                          border: `1px solid ${s === wf.initial_state ? "#93c5fd" : idx === wf.states.length - 1 ? "#86efac" : "#e2e8f0"}`,
+                          whiteSpace: "nowrap",
+                        }}>
+                          {s === wf.initial_state && <span style={{ marginRight: 4 }}>▶</span>}
+                          {s}
+                        </div>
+                        {idx < wf.states.length - 1 && (
+                          <span style={{ color: "#94a3b8", fontSize: 14, padding: "0 4px" }}>→</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Initial state selector */}
               <div style={{ marginBottom: 16 }}>

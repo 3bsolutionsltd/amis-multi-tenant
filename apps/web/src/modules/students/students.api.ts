@@ -165,14 +165,15 @@ export function demoteStudents(body: PromotionBody): Promise<{ demoted: number }
 
 export interface ImportResult {
   imported: number;
+  updated?: number;
   skipped: number;
   errors: { row: number; error: string }[];
   warnings: { row: number; student_id: string; student_name: string; raw_programme: string }[];
 }
 
-export function importStudents(rows: Record<string, unknown>[]): Promise<ImportResult> {
+export function importStudents(rows: Record<string, unknown>[], updateIfExists = false): Promise<ImportResult> {
   return apiFetch<ImportResult>("/students/import", {
     method: "POST",
-    body: JSON.stringify({ rows }),
+    body: JSON.stringify({ rows, update_if_exists: updateIfExists }),
   });
 }

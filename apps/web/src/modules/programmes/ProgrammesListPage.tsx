@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listProgrammes, deleteProgramme, createProgramme, updateProgramme, type CreateProgrammeBody, type Programme } from "./programmes.api";
@@ -37,12 +37,124 @@ const FALLBACK_DEPARTMENTS = [
   "Automotive", "Electrical", "Others",
 ];
 
+/* ── Uganda TVET Standard Programme Catalogue ── */
+interface CatalogueEntry {
+  code: string;
+  title: string;
+  level: string;
+  duration_months: number;
+  department: string;
+}
+const TVET_CATALOGUE: CatalogueEntry[] = [
+  // National Certificates
+  { code: "NCBC", title: "National Certificate in Building Construction", level: "National Certificate", duration_months: 12, department: "Construction" },
+  { code: "NCES", title: "National Certificate in Electrical Studies", level: "National Certificate", duration_months: 12, department: "Electrical" },
+  { code: "NCMS", title: "National Certificate in Motor Vehicle Studies", level: "National Certificate", duration_months: 12, department: "Automotive" },
+  { code: "NCIT", title: "National Certificate in Information Technology", level: "National Certificate", duration_months: 12, department: "ICT" },
+  { code: "NCBS", title: "National Certificate in Business Studies", level: "National Certificate", duration_months: 12, department: "Business" },
+  { code: "NCHM", title: "National Certificate in Hotel and Restaurant Management", level: "National Certificate", duration_months: 12, department: "Hospitality" },
+  { code: "NCFC", title: "National Certificate in Food and Catering", level: "National Certificate", duration_months: 12, department: "Hospitality" },
+  { code: "NCAG", title: "National Certificate in Agriculture", level: "National Certificate", duration_months: 12, department: "Agriculture" },
+  { code: "NCPB", title: "National Certificate in Plumbing and Pipe Fitting", level: "National Certificate", duration_months: 12, department: "Engineering" },
+  { code: "NCWE", title: "National Certificate in Welding and Fabrication", level: "National Certificate", duration_months: 12, department: "Engineering" },
+  { code: "NCFT", title: "National Certificate in Fashion and Garment Design", level: "National Certificate", duration_months: 12, department: "Others" },
+  { code: "NCHSC", title: "National Certificate in Health and Social Care", level: "National Certificate", duration_months: 12, department: "Health Sciences" },
+  { code: "NCPM", title: "National Certificate in Production and Manufacturing", level: "National Certificate", duration_months: 12, department: "Engineering" },
+  { code: "NCRF", title: "National Certificate in Refrigeration and Air Conditioning", level: "National Certificate", duration_months: 12, department: "Electrical" },
+  { code: "NCCA", title: "National Certificate in Computer Applications", level: "National Certificate", duration_months: 12, department: "ICT" },
+  { code: "NCSC", title: "National Certificate in Secretarial Studies", level: "National Certificate", duration_months: 12, department: "Business" },
+  { code: "NCAC", title: "National Certificate in Accounting", level: "National Certificate", duration_months: 12, department: "Business" },
+  { code: "NCCS", title: "National Certificate in Community Services", level: "National Certificate", duration_months: 12, department: "Social Sciences" },
+  // National Diplomas
+  { code: "NDBC", title: "National Diploma in Building Construction", level: "National Diploma", duration_months: 24, department: "Construction" },
+  { code: "NDES", title: "National Diploma in Electrical Studies", level: "National Diploma", duration_months: 24, department: "Electrical" },
+  { code: "NDMS", title: "National Diploma in Motor Vehicle Studies", level: "National Diploma", duration_months: 24, department: "Automotive" },
+  { code: "NDIT", title: "National Diploma in Information Technology", level: "National Diploma", duration_months: 24, department: "ICT" },
+  { code: "NDBS", title: "National Diploma in Business Studies", level: "National Diploma", duration_months: 24, department: "Business" },
+  { code: "NDHM", title: "National Diploma in Hotel and Restaurant Management", level: "National Diploma", duration_months: 24, department: "Hospitality" },
+  { code: "NDAG", title: "National Diploma in Agriculture", level: "National Diploma", duration_months: 24, department: "Agriculture" },
+  { code: "NDAC", title: "National Diploma in Accounting", level: "National Diploma", duration_months: 24, department: "Business" },
+  // Higher National Diplomas
+  { code: "HNDBC", title: "Higher National Diploma in Building Construction", level: "Higher National Diploma", duration_months: 36, department: "Construction" },
+  { code: "HNDIT", title: "Higher National Diploma in Information Technology", level: "Higher National Diploma", duration_months: 36, department: "ICT" },
+  { code: "HNDBS", title: "Higher National Diploma in Business Studies", level: "Higher National Diploma", duration_months: 36, department: "Business" },
+  { code: "HNDAS", title: "Higher National Diploma in Accounting Studies", level: "Higher National Diploma", duration_months: 36, department: "Business" },
+  { code: "HNDES", title: "Higher National Diploma in Electrical Studies", level: "Higher National Diploma", duration_months: 36, department: "Electrical" },
+  // Certificates
+  { code: "CBET1", title: "CBET Level 1 Certificate", level: "Certificate", duration_months: 6, department: "Others" },
+  { code: "CBET2", title: "CBET Level 2 Certificate", level: "Certificate", duration_months: 12, department: "Others" },
+  { code: "CBET3", title: "CBET Level 3 Certificate", level: "Certificate", duration_months: 18, department: "Others" },
+];
+
+/* ── Catalogue Modal ── */
+function CatalogueModal({ onSelect, onClose }: { onSelect: (e: CatalogueEntry) => void; onClose: () => void }) {
+  const [search, setSearch] = useState("");
+  const filtered = TVET_CATALOGUE.filter(
+    (e) => !search || e.code.toLowerCase().includes(search.toLowerCase()) || e.title.toLowerCase().includes(search.toLowerCase()) || e.department.toLowerCase().includes(search.toLowerCase())
+  );
+  const overlay: React.CSSProperties = {
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 110,
+  };
+  const modal: React.CSSProperties = {
+    background: "#fff", borderRadius: 10, padding: 24, width: "100%", maxWidth: 620,
+    maxHeight: "80vh", display: "flex", flexDirection: "column",
+    boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+  };
+  return (
+    <div style={overlay} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={modal}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>TVET Programme Catalogue</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.gray500 }}>×</button>
+        </div>
+        <p style={{ margin: "0 0 12px", fontSize: 13, color: C.gray500 }}>
+          Select a standard Uganda TVET programme to pre-fill the form. You can edit the details before saving.
+        </p>
+        <input
+          style={{ ...inputCss, marginBottom: 12 }}
+          placeholder="Search by code, title or department…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          autoFocus
+        />
+        <div style={{ overflowY: "auto", flex: 1, border: "1px solid #e5e7eb", borderRadius: 6 }}>
+          {filtered.length === 0 && (
+            <div style={{ padding: 24, textAlign: "center", color: C.gray500, fontSize: 13 }}>No programmes match your search.</div>
+          )}
+          {filtered.map((entry) => (
+            <button key={entry.code} type="button"
+              style={{
+                display: "grid", gridTemplateColumns: "80px 1fr auto", gap: "4px 12px", alignItems: "center",
+                width: "100%", padding: "10px 14px", background: "none", border: "none", borderBottom: "1px solid #f3f4f6",
+                cursor: "pointer", textAlign: "left",
+              }}
+              onClick={() => onSelect(entry)}
+              onMouseOver={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f0f9ff"; }}
+              onMouseOut={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+            >
+              <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 13, color: C.brand600 ?? "#2563eb" }}>{entry.code}</span>
+              <span>
+                <span style={{ fontSize: 13, fontWeight: 500 }}>{entry.title}</span>
+                <span style={{ fontSize: 12, color: C.gray500, marginLeft: 8 }}>{entry.department}</span>
+              </span>
+              <span style={{ fontSize: 11, color: C.gray400, whiteSpace: "nowrap" }}>{entry.level} · {entry.duration_months}mo</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProgrammeModal({
   programme,
+  prefill,
   onClose,
   onSaved,
 }: {
   programme: Programme | null;
+  prefill?: CatalogueEntry;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -50,11 +162,11 @@ function ProgrammeModal({
   const { departments } = useConfig();
   const deptOptions = departments.length > 0 ? departments : FALLBACK_DEPARTMENTS;
   const [form, setForm] = useState({
-    code: programme?.code ?? "",
-    title: programme?.title ?? "",
-    department: programme?.department ?? "",
-    duration_months: programme?.duration_months != null ? String(programme.duration_months) : "",
-    level: programme?.level ?? "",
+    code: programme?.code ?? prefill?.code ?? "",
+    title: programme?.title ?? prefill?.title ?? "",
+    department: programme?.department ?? prefill?.department ?? "",
+    duration_months: programme?.duration_months != null ? String(programme.duration_months) : prefill?.duration_months != null ? String(prefill.duration_months) : "",
+    level: programme?.level ?? prefill?.level ?? "",
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -154,6 +266,8 @@ export function ProgrammesListPage() {
   const showInactive = params.get("inactive") === "true";
 
   const [modalProg, setModalProg] = useState<Programme | null | undefined>(undefined);
+  const [cataloguePrefill, setCataloguePrefill] = useState<CatalogueEntry | undefined>(undefined);
+  const [showCatalogue, setShowCatalogue] = useState(false);
   // undefined = closed, null = new, Programme = edit
 
   function setSearch(v: string) {
@@ -186,7 +300,10 @@ export function ProgrammesListPage() {
       <PageHeader
         title="Programme Catalog"
         action={
-          <PrimaryBtn onClick={() => setModalProg(null)}>+ New Programme</PrimaryBtn>
+          <div style={{ display: "flex", gap: 8 }}>
+            <SecondaryBtn onClick={() => setShowCatalogue(true)}>📋 Browse TVET Catalogue</SecondaryBtn>
+            <PrimaryBtn onClick={() => { setCataloguePrefill(undefined); setModalProg(null); }}>+ New Programme</PrimaryBtn>
+          </div>
         }
       />
 
@@ -243,8 +360,19 @@ export function ProgrammesListPage() {
       {modalProg !== undefined && (
         <ProgrammeModal
           programme={modalProg}
-          onClose={() => setModalProg(undefined)}
+          prefill={cataloguePrefill}
+          onClose={() => { setModalProg(undefined); setCataloguePrefill(undefined); }}
           onSaved={() => qc.invalidateQueries({ queryKey: ["programmes"] })}
+        />
+      )}
+      {showCatalogue && (
+        <CatalogueModal
+          onClose={() => setShowCatalogue(false)}
+          onSelect={(entry) => {
+            setCataloguePrefill(entry);
+            setModalProg(null);
+            setShowCatalogue(false);
+          }}
         />
       )}
     </div>

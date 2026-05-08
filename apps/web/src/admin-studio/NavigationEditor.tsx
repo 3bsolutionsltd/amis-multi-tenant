@@ -264,6 +264,7 @@ export function NavigationEditor() {
   const [newLabel, setNewLabel] = useState("");
   const [newRoute, setNewRoute] = useState("");
   const [newIcon, setNewIcon] = useState("");
+  const [addAttempted, setAddAttempted] = useState(false);
 
   // Inline edit state
   const [editIdx, setEditIdx] = useState<number | null>(null);
@@ -324,9 +325,9 @@ export function NavigationEditor() {
   function addItem() {
     const label = newLabel.trim();
     const route = newRoute.trim();
-    if (!label || !route) return;
+    if (!label || !route) { setAddAttempted(true); return; }
     setNavItems((prev) => [...prev, { label, route, icon: newIcon || undefined }]);
-    setNewLabel(""); setNewRoute(""); setNewIcon("");
+    setNewLabel(""); setNewRoute(""); setNewIcon(""); setAddAttempted(false);
     setSavedMsg(null); setDirty(true);
   }
 
@@ -599,12 +600,19 @@ export function NavigationEditor() {
             </div>
             <button
               onClick={addItem}
-              disabled={!newLabel.trim() || !newRoute.trim()}
               style={{ ...btnSt, background: newLabel.trim() && newRoute.trim() ? "#0f172a" : "#f1f5f9", color: newLabel.trim() && newRoute.trim() ? "#fff" : "#94a3b8", border: "none", whiteSpace: "nowrap" }}
             >
               + Add Item
             </button>
           </div>
+          {addAttempted && (!newLabel.trim() || !newRoute.trim()) && (
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#b91c1c" }}>
+              {!newLabel.trim() && !newRoute.trim()
+                ? "Enter a label and a route before adding."
+                : !newLabel.trim() ? "Enter a label."
+                : "Enter a route."}
+            </p>
+          )}
 
           {/* Save buttons */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 18, flexWrap: "wrap" }}>

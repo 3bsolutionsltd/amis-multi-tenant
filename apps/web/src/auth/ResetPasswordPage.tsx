@@ -17,8 +17,8 @@ export function ResetPasswordPage() {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      setError("Password must be at least 8 characters and contain at least one uppercase letter and one number.");
       return;
     }
     if (password !== confirm) {
@@ -31,7 +31,7 @@ export function ResetPasswordPage() {
       const res = await fetch(`${API_URL}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, new_password: password }),
+        body: JSON.stringify({ token, newPassword: password }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

@@ -41,6 +41,15 @@ const MODULE_GROUPS: Array<{ group: string; modules: Array<{ key: string; label:
       { key: "alumni",      label: "Alumni",               description: "Graduate tracking and alumni records" },
     ],
   },
+  {
+    group: "Operations & Procurement",
+    modules: [
+      { key: "procurement",      label: "Procurement",        description: "Purchase requisitions and local purchase orders" },
+      { key: "inventory",        label: "Inventory",          description: "Stock management and item issuances" },
+      { key: "stores",           label: "Stores / SRQ",       description: "Store requisitions and petty cash vouchers" },
+      { key: "student-projects", label: "Student Projects",   description: "Student project tracking and supervision" },
+    ],
+  },
 ];
 
 const ALL_MODULE_KEYS = MODULE_GROUPS.flatMap((g) => g.modules.map((m) => m.key));

@@ -94,39 +94,95 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 // Nav
 // ---------------------------------------------------------------------------
 
-const FALLBACK_NAV = [
-  { label: "Dashboard", route: "/" },
-  // Students & Admissions
-  { label: "Students", route: "/students" },
-  { label: "Admissions", route: "/admissions" },
-  { label: "Programmes", route: "/programmes" },
-  // Academic
-  { label: "Term Registrations", route: "/term-registrations" },
-  { label: "Bulk Registration", route: "/term-registrations/bulk" },
-  { label: "Marks", route: "/marks" },
-  { label: "Results", route: "/results" },
-  { label: "Clearance", route: "/clearance" },
-  // Finance
-  { label: "Finance", route: "/finance" },
-  { label: "Reconciliation", route: "/finance/reconciliation" },
-  // Training & Placements
-  { label: "Industrial Training", route: "/industrial-training" },
-  { label: "Field Placements", route: "/field-placements" },
-  // Staff & HR
-  { label: "Staff", route: "/staff" },
-  // Operations
-  { label: "Timetable", route: "/timetable" },
-  { label: "Attendance", route: "/attendance" },
-  { label: "Alumni", route: "/alumni" },
-  // Reports & Analytics
-  { label: "Analytics", route: "/analytics" },
-  { label: "Reports", route: "/reports/it" },
-  { label: "Marks Analysis", route: "/reports/marks-analysis" },
-  // Administration
-  { label: "Users", route: "/users" },
-  { label: "Procurement", route: "/procurement" },
-  { label: "Inventory", route: "/inventory" },
+type NavItem = { label: string; route: string };
+
+const ALL_NAV: NavItem[] = [
+  { label: "Dashboard",          route: "/"                        },
+  { label: "Students",           route: "/students"                },
+  { label: "Admissions",         route: "/admissions"              },
+  { label: "Programmes",         route: "/programmes"              },
+  { label: "Term Registrations", route: "/term-registrations"      },
+  { label: "Bulk Registration",  route: "/term-registrations/bulk" },
+  { label: "Marks",              route: "/marks"                   },
+  { label: "Results",            route: "/results"                 },
+  { label: "Clearance",          route: "/clearance"               },
+  { label: "Finance",            route: "/finance"                 },
+  { label: "Reconciliation",     route: "/finance/reconciliation"  },
+  { label: "Industrial Training",route: "/industrial-training"     },
+  { label: "Field Placements",   route: "/field-placements"        },
+  { label: "Staff",              route: "/staff"                   },
+  { label: "Timetable",          route: "/timetable"               },
+  { label: "Attendance",         route: "/attendance"              },
+  { label: "Alumni",             route: "/alumni"                  },
+  { label: "Analytics",          route: "/analytics"               },
+  { label: "Reports",            route: "/reports/it"              },
+  { label: "Marks Analysis",     route: "/reports/marks-analysis"  },
+  { label: "Users",              route: "/users"                   },
+  { label: "Procurement",        route: "/procurement"             },
+  { label: "Inventory",          route: "/inventory"               },
 ];
+
+// Default nav per role — used when navigation config has not been published yet.
+// Admins see everything; other roles see only what is relevant to them.
+const ROLE_FALLBACK_NAV: Record<string, string[]> = {
+  admin: ALL_NAV.map((n) => n.route),
+  platform_admin: ALL_NAV.map((n) => n.route),
+  registrar: [
+    "/", "/students", "/admissions", "/programmes",
+    "/term-registrations", "/term-registrations/bulk",
+    "/marks", "/results", "/clearance", "/users",
+  ],
+  finance: [
+    "/", "/finance", "/finance/reconciliation", "/students",
+  ],
+  hod: [
+    "/", "/marks", "/results", "/staff", "/timetable", "/attendance", "/clearance",
+  ],
+  instructor: [
+    "/", "/marks", "/attendance", "/timetable", "/results",
+  ],
+  principal: [
+    "/", "/students", "/admissions", "/term-registrations", "/marks",
+    "/results", "/finance", "/staff", "/analytics",
+    "/reports/it", "/reports/marks-analysis", "/clearance",
+  ],
+  dean: [
+    "/", "/students", "/term-registrations", "/clearance", "/results",
+  ],
+  procurement_officer: [
+    "/", "/procurement",
+  ],
+  inventory_manager: [
+    "/", "/inventory",
+  ],
+};
+
+function getFallbackNav(role: string): NavItem[] {
+  const routes = ROLE_FALLBACK_NAV[role] ?? ["/"];
+  return routes.map((r) => ALL_NAV.find((n) => n.route === r)).filter(Boolean) as NavItem[];
+}
+
+// Maps route prefixes to module keys (used to filter sidebar by enabled modules)
+const ROUTE_MODULE: Record<string, string> = {
+  "/students": "students",
+  "/admissions": "admissions",
+  "/programmes": "admissions",
+  "/term-registrations": "marks",
+  "/marks": "marks",
+  "/results": "results",
+  "/clearance": "clearance",
+  "/finance": "finance",
+  "/industrial-training": "industrial-training",
+  "/field-placements": "field-placements",
+  "/staff": "staff",
+  "/timetable": "timetable",
+  "/attendance": "attendance",
+  "/alumni": "alumni",
+  "/analytics": "analytics",
+  "/reports": "reports",
+  "/procurement": "procurement",
+  "/inventory": "inventory",
+};
 
 // Category label for each route. Routes not listed get no header.
 const NAV_GROUP: Record<string, string> = {
@@ -299,8 +355,18 @@ function Header() {
 }
 
 function Sidebar() {
-  const { navigation } = useConfig();
-  const navLinks = navigation.length > 0 ? navigation : FALLBACK_NAV;
+  const { navigation, enabledModules, role } = useConfig();
+  const baseLinks = navigation.length > 0 ? navigation : getFallbackNav(role);
+
+  // Filter out nav items whose module has been explicitly disabled
+  const navLinks = baseLinks.filter(({ route }) => {
+    const moduleKey = Object.entries(ROUTE_MODULE).find(([prefix]) =>
+      route === prefix || route.startsWith(prefix + "/"),
+    )?.[1];
+    if (!moduleKey) return true; // no module mapping → always show (e.g. Dashboard)
+    if (Object.keys(enabledModules).length === 0) return true; // no config saved yet
+    return enabledModules[moduleKey] !== false;
+  });
   const { pathname } = useLocation();
   const { user } = useAuth();
 
