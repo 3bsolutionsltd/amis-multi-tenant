@@ -34,7 +34,7 @@ interface ConfigPayload {
   theme?: { primaryColor?: string };
   navigation?: Record<string, NavItem[]>;
   dashboards?: Record<string, DashCard[]>;
-  forms?: { students?: StudentFormConfig };
+  forms?: { students?: StudentFormConfig; admissions?: StudentFormConfig };
   institution?: {
     departments?: string[];
     designations?: string[];
@@ -45,6 +45,7 @@ interface ConfigPayload {
     footerNote?: string;
     showBalance?: boolean;
   };
+  modules?: Record<string, boolean>;
 }
 
 interface ConfigData {
@@ -74,6 +75,7 @@ interface ConfigContextValue {
     footerNote: string;
     showBalance: boolean;
   };
+  enabledModules: Record<string, boolean>;
 }
 
 const ConfigContext = createContext<ConfigContextValue>({
@@ -95,6 +97,7 @@ const ConfigContext = createContext<ConfigContextValue>({
     footerNote: "",
     showBalance: true,
   },
+  enabledModules: {},
 });
 
 export function useConfig() {
@@ -122,6 +125,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const studentFormConfig = config?.payload?.forms?.students ?? null;
   const departments = config?.payload?.institution?.departments ?? [];
   const designations = config?.payload?.institution?.designations ?? [];
+  const enabledModules: Record<string, boolean> = config?.payload?.modules ?? {};
   const rawReceipt = config?.payload?.receipt;
   const receiptConfig = {
     template: (rawReceipt?.template ?? "classic") as "classic" | "modern" | "minimal",
@@ -150,6 +154,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         departments,
         designations,
         receiptConfig,
+        enabledModules,
       }}
     >
       {children}

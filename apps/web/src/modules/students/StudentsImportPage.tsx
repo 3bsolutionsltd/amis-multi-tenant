@@ -116,6 +116,7 @@ export function StudentsImportPage() {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   // "fml" = First Middle Last (default) | "lfm" = Last First Middle (common in KTI/Uganda exports)
   const [nameFormat, setNameFormat] = useState<"fml" | "lfm">("fml");
+  const [updateIfExists, setUpdateIfExists] = useState(false);
   const [step, setStep] = useState<"upload" | "map" | "preview" | "done">("upload");
   const [result, setResult] = useState<ImportResult | null>(null);
   const [fixSelections, setFixSelections] = useState<Record<string, string>>({});
@@ -129,7 +130,7 @@ export function StudentsImportPage() {
   });
 
   const importMut = useMutation({
-    mutationFn: (rows: Record<string, unknown>[]) => importStudents(rows),
+    mutationFn: (rows: Record<string, unknown>[]) => importStudents(rows, updateIfExists),
     onSuccess: (res) => {
       setResult(res);
       setStep("done");
@@ -422,6 +423,22 @@ export function StudentsImportPage() {
             </div>
           )}
 
+          <div style={{ marginBottom: 20, padding: "12px 16px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.gray700, marginBottom: 8 }}>
+              If a student with the same Reg. Number already exists:
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13 }}>
+                <input type="radio" name="dupeMode" checked={!updateIfExists} onChange={() => setUpdateIfExists(false)} />
+                <span><strong>Skip</strong> — keep the existing record unchanged (default)</span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13 }}>
+                <input type="radio" name="dupeMode" checked={updateIfExists} onChange={() => setUpdateIfExists(true)} />
+                <span><strong>Update</strong> — overwrite the existing student's details with data from this CSV</span>
+              </label>
+            </div>
+          </div>
+
           <div style={{ display: "flex", gap: 10 }}>
             <PrimaryBtn onClick={handleMappingNext}>Next: Preview →</PrimaryBtn>
             <SecondaryBtn onClick={() => { setStep("upload"); if (fileRef.current) fileRef.current.value = ""; }}>
@@ -498,6 +515,9 @@ export function StudentsImportPage() {
             <SectionLabel>Import Complete</SectionLabel>
             <div style={{ display: "flex", gap: 16, margin: "16px 0 20px", flexWrap: "wrap" }}>
               <Stat label="Imported" value={result.imported} color={C.green} />
+              {result.updated != null && result.updated > 0 && (
+                <Stat label="Updated" value={result.updated} color="#6366f1" />
+              )}
               <Stat label="Skipped" value={result.skipped} color={result.skipped > 0 ? C.yellow : C.gray400} />
               <Stat label="Errors" value={result.errors.length} color={result.errors.length > 0 ? C.red : C.gray400} />
             </div>

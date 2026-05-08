@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { createStudent, type CreateStudentBody } from "./students.api";
@@ -77,11 +77,34 @@ const FALLBACK_FIELDS: StudentFormField[] = [
   },
 ];
 
+type Tab = "bio" | "placement" | "guardian" | "uvtab";
+const TABS: { key: Tab; label: string }[] = [
+  { key: "bio",       label: "Bio Data" },
+  { key: "placement", label: "Placement" },
+  { key: "guardian",  label: "Guardian / NOK" },
+  { key: "uvtab",     label: "UVTAB / Exam Reg." },
+];
+
+const tabBarSt: React.CSSProperties = {
+  display: "flex", gap: 0, borderBottom: `2px solid ${C.gray200}`,
+  marginBottom: 20, overflowX: "auto",
+};
+function tabBtnSt(active: boolean): React.CSSProperties {
+  return {
+    padding: "8px 16px", fontSize: 13, fontWeight: active ? 600 : 400,
+    color: active ? C.brand600 ?? "#2563eb" : C.gray600,
+    background: "none", border: "none", cursor: "pointer",
+    borderBottom: active ? `2px solid ${C.brand600 ?? "#2563eb"}` : "2px solid transparent",
+    marginBottom: -2, whiteSpace: "nowrap",
+  };
+}
+
 export function StudentCreatePage() {
   ensureGlobalCss();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { studentFormConfig } = useConfig();
+  const [activeTab, setActiveTab] = useState<Tab>("bio");
 
   const { data: programmes } = useQuery({
     queryKey: ["programmes"],
@@ -199,260 +222,174 @@ export function StudentCreatePage() {
       ? "Something went wrong. Please try again."
       : null;
 
+  const tabIdx = TABS.findIndex((t) => t.key === activeTab);
+  const isLast = tabIdx === TABS.length - 1;
+
+  function renderField(f: StudentFormField, val: string, onChange: (v: string) => void, err?: string) {
+    return (
+      <Field key={f.key} label={f.label} required={f.key === "first_name" || f.key === "last_name"} error={err}>
+        {f.type === "date" ? (
+          <input type="date" style={inputCss} value={val} onChange={(e) => onChange(e.target.value)} />
+        ) : f.type === "textarea" ? (
+          <textarea style={{ ...inputCss, minHeight: 80 }} value={val} onChange={(e) => onChange(e.target.value)} />
+        ) : f.key === "programme" ? (
+          <select style={selectCss} value={val} onChange={(e) => onChange(e.target.value)}>
+            <option value="">— Select Programme —</option>
+            {(programmes ?? []).map((p) => (
+              <option key={p.id} value={p.code}>{p.code} — {p.title}</option>
+            ))}
+          </select>
+        ) : f.type === "select" || KNOWN_SELECT_OPTIONS[f.key] ? (
+          <select style={selectCss} value={val} onChange={(e) => onChange(e.target.value)}>
+            <option value="">— Select —</option>
+            {(f.options ?? KNOWN_SELECT_OPTIONS[f.key] ?? []).map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
+        ) : (
+          <input style={inputCss} value={val} required={f.key === "first_name" || f.key === "last_name"}
+            onChange={(e) => onChange(e.target.value)} />
+        )}
+      </Field>
+    );
+  }
+
   return (
     <div>
-      <PageHeader
-        title="New Student"
-        back={{ label: "Students", to: "/students" }}
-      />
-      <Card padding="24px" style={{ maxWidth: 520 }}>
-        <form
-          onSubmit={handleSubmit}
-          style={{ display: "flex", flexDirection: "column", gap: 16 }}
-        >
-          {coreFields.map((f) => (
-            <Field
-              key={f.key}
-              label={f.label}
-              required={f.key === "first_name" || f.key === "last_name"}
-              error={fieldErrors[f.key]?.[0]}
-            >
-              {f.type === "date" ? (
-                <input
-                  type="date"
-                  style={inputCss}
-                  value={form[f.key] ?? ""}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, [f.key]: e.target.value }))
-                  }
-                />
-              ) : f.type === "textarea" ? (
-                <textarea
-                  style={{ ...inputCss, minHeight: 80 }}
-                  value={form[f.key] ?? ""}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, [f.key]: e.target.value }))
-                  }
-                />
-              ) : f.key === "programme" ? (
-                <select
-                  style={selectCss}
-                  value={form[f.key] ?? ""}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, [f.key]: e.target.value }))
-                  }
-                >
-                  <option value="">— Select Programme —</option>
-                  {(programmes ?? []).map((p) => (
-                    <option key={p.id} value={p.code}>
-                      {p.code} — {p.title}
-                    </option>
-                  ))}
-                </select>
-              ) : f.type === "select" || KNOWN_SELECT_OPTIONS[f.key] ? (
-                <select
-                  style={selectCss}
-                  value={form[f.key] ?? ""}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, [f.key]: e.target.value }))
-                  }
-                >
-                  <option value="">— Select —</option>
-                  {(f.options ?? KNOWN_SELECT_OPTIONS[f.key] ?? []).map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  style={inputCss}
-                  value={form[f.key] ?? ""}
-                  required={f.key === "first_name" || f.key === "last_name"}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, [f.key]: e.target.value }))
-                  }
-                />
-              )}
-            </Field>
+      <PageHeader title="New Student" back={{ label: "Students", to: "/students" }} />
+      <Card padding="24px" style={{ maxWidth: 540 }}>
+        {/* Tab bar */}
+        <div style={tabBarSt}>
+          {TABS.map((t, i) => (
+            <button key={t.key} type="button" style={tabBtnSt(t.key === activeTab)}
+              onClick={() => setActiveTab(t.key)}>
+              <span style={{ marginRight: 6, opacity: 0.55 }}>{i + 1}.</span>
+              {t.label}
+            </button>
           ))}
+        </div>
 
-          {extFields.length > 0 && (
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* ── Tab 1: Bio Data ── */}
+          {activeTab === "bio" && (
             <>
-              <SectionLabel>Additional Information</SectionLabel>
-              {extFields.map((f) => (
-                <Field
-                  key={f.key}
-                  label={f.label}
-                  error={fieldErrors[f.key]?.[0]}
-                >
-                  {f.type === "date" ? (
-                    <input
-                      type="date"
-                      style={inputCss}
-                      value={extForm[f.key] ?? ""}
-                      onChange={(e) =>
-                        setExtForm((p) => ({ ...p, [f.key]: e.target.value }))
-                      }
-                    />
-                  ) : f.type === "textarea" ? (
-                    <textarea
-                      style={{ ...inputCss, minHeight: 80 }}
-                      value={extForm[f.key] ?? ""}
-                      onChange={(e) =>
-                        setExtForm((p) => ({ ...p, [f.key]: e.target.value }))
-                      }
-                    />
-                  ) : f.type === "select" || KNOWN_SELECT_OPTIONS[f.key] ? (
-                    <select
-                      style={selectCss}
-                      value={extForm[f.key] ?? ""}
-                      onChange={(e) =>
-                        setExtForm((p) => ({ ...p, [f.key]: e.target.value }))
-                      }
-                    >
-                      <option value="">— Select —</option>
-                      {(f.options ?? KNOWN_SELECT_OPTIONS[f.key] ?? []).map((o) => (
-                        <option key={o} value={o}>{o}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      style={inputCss}
-                      value={extForm[f.key] ?? ""}
-                      onChange={(e) =>
-                        setExtForm((p) => ({ ...p, [f.key]: e.target.value }))
-                      }
-                    />
+              {coreFields.map((f) =>
+                renderField(f, form[f.key] ?? "", (v) => setForm((p) => ({ ...p, [f.key]: v })), fieldErrors[f.key]?.[0])
+              )}
+            </>
+          )}
+
+          {/* ── Tab 2: Academic Placement ── */}
+          {activeTab === "placement" && (
+            <>
+              <Field label="Year of Study">
+                <select style={selectCss} value={yearOfStudy} onChange={(e) => setYearOfStudy(e.target.value)}>
+                  <option value="">— Select Year —</option>
+                  {[1, 2, 3, 4, 5, 6].map((y) => (
+                    <option key={y} value={y}>Year {y}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Class / Section">
+                <input style={inputCss} placeholder="e.g. A, B" value={classSection}
+                  onChange={(e) => setClassSection(e.target.value)} />
+              </Field>
+              {extFields.length > 0 && (
+                <>
+                  <SectionLabel>Additional Information</SectionLabel>
+                  {extFields.map((f) =>
+                    renderField(f, extForm[f.key] ?? "", (v) => setExtForm((p) => ({ ...p, [f.key]: v })), fieldErrors[f.key]?.[0])
                   )}
-                </Field>
-              ))}
+                </>
+              )}
+            </>
+          )}
+
+          {/* ── Tab 3: Guardian / Next of Kin ── */}
+          {activeTab === "guardian" && (
+            <>
+              <p style={{ margin: "0 0 8px", fontSize: 13, color: C.gray500 }}>
+                Guardian / Next of Kin contact details (optional).
+              </p>
+              <Field label="Guardian Name">
+                <input style={inputCss} placeholder="Full name" value={guardianForm.guardian_name}
+                  onChange={(e) => setGuardianForm((p) => ({ ...p, guardian_name: e.target.value }))} />
+              </Field>
+              <Field label="Relationship">
+                <input style={inputCss} placeholder="e.g. Mother, Father, Sibling" value={guardianForm.guardian_relationship}
+                  onChange={(e) => setGuardianForm((p) => ({ ...p, guardian_relationship: e.target.value }))} />
+              </Field>
+              <Field label="Phone">
+                <input style={inputCss} placeholder="+256 …" value={guardianForm.guardian_phone}
+                  onChange={(e) => setGuardianForm((p) => ({ ...p, guardian_phone: e.target.value }))} />
+              </Field>
+              <Field label="Email">
+                <input type="email" style={inputCss} placeholder="guardian@example.com" value={guardianForm.guardian_email}
+                  onChange={(e) => setGuardianForm((p) => ({ ...p, guardian_email: e.target.value }))} />
+              </Field>
+            </>
+          )}
+
+          {/* ── Tab 4: UVTAB / Exam Registration ── */}
+          {activeTab === "uvtab" && (
+            <>
+              <p style={{ margin: "0 0 8px", fontSize: 13, color: C.gray500 }}>
+                UVTAB / UBTEB exam registration details (optional). Required only for students sitting exams.
+              </p>
+              <Field label="NIN (National Identity Number)">
+                <input style={inputCss} placeholder="e.g. CM12345678ABCDE" maxLength={14}
+                  value={uvtabForm.nin} onChange={(e) => setUvtabForm((p) => ({ ...p, nin: e.target.value }))} />
+              </Field>
+              <Field label="Other Names">
+                <input style={inputCss} placeholder="Middle or other given names" value={uvtabForm.other_names}
+                  onChange={(e) => setUvtabForm((p) => ({ ...p, other_names: e.target.value }))} />
+              </Field>
+              <Field label="Gender">
+                <select style={selectCss} value={uvtabForm.gender} onChange={(e) => setUvtabForm((p) => ({ ...p, gender: e.target.value }))}>
+                  <option value="">— Select —</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </Field>
+              <Field label="Programme Code">
+                <input style={inputCss} placeholder="e.g. NCES, NCBC" value={uvtabForm.programme_code}
+                  onChange={(e) => setUvtabForm((p) => ({ ...p, programme_code: e.target.value }))} />
+              </Field>
+              <Field label="Assessment Level">
+                <select style={selectCss} value={uvtabForm.assessment_level}
+                  onChange={(e) => setUvtabForm((p) => ({ ...p, assessment_level: e.target.value }))}>
+                  <option value="">— Select Level —</option>
+                  {[1, 2, 3, 4].map((l) => <option key={l} value={l}>Level {l}</option>)}
+                </select>
+              </Field>
+              <Field label="Previous Index (PLE/UCE)">
+                <input style={inputCss} placeholder="e.g. U1234/5678" value={uvtabForm.previous_index}
+                  onChange={(e) => setUvtabForm((p) => ({ ...p, previous_index: e.target.value }))} />
+              </Field>
             </>
           )}
 
           {apiError && <ErrorBanner message={apiError} />}
 
-          {/* Academic placement */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 8 }}>Academic Placement</div>
-          <Field label="Year of Study">
-            <select
-              style={selectCss}
-              value={yearOfStudy}
-              onChange={(e) => setYearOfStudy(e.target.value)}
-            >
-              <option value="">— Select Year —</option>
-              {[1, 2, 3, 4, 5, 6].map((y) => (
-                <option key={y} value={y}>Year {y}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Class Section">
-            <input
-              style={inputCss}
-              placeholder="e.g. A, B"
-              value={classSection}
-              onChange={(e) => setClassSection(e.target.value)}
-            />
-          </Field>
-
-          {/* Guardian / Next-of-Kin section (SR-F-002) */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 8 }}>Guardian / Next of Kin (optional)</div>
-          <Field label="Guardian name">
-            <input
-              style={inputCss}
-              value={guardianForm.guardian_name}
-              onChange={(e) => setGuardianForm((p) => ({ ...p, guardian_name: e.target.value }))}
-              placeholder="Full name"
-            />
-          </Field>
-          <Field label="Relationship">
-            <input
-              style={inputCss}
-              value={guardianForm.guardian_relationship}
-              onChange={(e) => setGuardianForm((p) => ({ ...p, guardian_relationship: e.target.value }))}
-              placeholder="e.g. Mother, Father, Sibling"
-            />
-          </Field>
-          <Field label="Guardian phone">
-            <input
-              style={inputCss}
-              value={guardianForm.guardian_phone}
-              onChange={(e) => setGuardianForm((p) => ({ ...p, guardian_phone: e.target.value }))}
-              placeholder="+256 …"
-            />
-          </Field>
-          <Field label="Guardian email">
-            <input
-              type="email"
-              style={inputCss}
-              value={guardianForm.guardian_email}
-              onChange={(e) => setGuardianForm((p) => ({ ...p, guardian_email: e.target.value }))}
-              placeholder="guardian@example.com"
-            />
-          </Field>
-
-          {/* UVTAB / Exam Registration section */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 8 }}>UVTAB / Exam Registration (optional)</div>
-          <Field label="NIN (National Identity Number)">
-            <input
-              style={inputCss}
-              value={uvtabForm.nin}
-              onChange={(e) => setUvtabForm((p) => ({ ...p, nin: e.target.value }))}
-              placeholder="e.g. CM12345678ABCDE"
-              maxLength={14}
-            />
-          </Field>
-          <Field label="Other Names">
-            <input
-              style={inputCss}
-              value={uvtabForm.other_names}
-              onChange={(e) => setUvtabForm((p) => ({ ...p, other_names: e.target.value }))}
-              placeholder="Middle or other given names"
-            />
-          </Field>
-          <Field label="Gender">
-            <select
-              style={selectCss}
-              value={uvtabForm.gender}
-              onChange={(e) => setUvtabForm((p) => ({ ...p, gender: e.target.value }))}
-            >
-              <option value="">— Select —</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-          </Field>
-          <Field label="Programme Code">
-            <input
-              style={inputCss}
-              value={uvtabForm.programme_code}
-              onChange={(e) => setUvtabForm((p) => ({ ...p, programme_code: e.target.value }))}
-              placeholder="e.g. NCES, NCBC"
-            />
-          </Field>
-          <Field label="Assessment Level (1–4)">
-            <select
-              style={selectCss}
-              value={uvtabForm.assessment_level}
-              onChange={(e) => setUvtabForm((p) => ({ ...p, assessment_level: e.target.value }))}
-            >
-              <option value="">— Select Level —</option>
-              {[1, 2, 3, 4].map((l) => (
-                <option key={l} value={l}>Level {l}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Previous Index (PLE/UCE)">
-            <input
-              style={inputCss}
-              value={uvtabForm.previous_index}
-              onChange={(e) => setUvtabForm((p) => ({ ...p, previous_index: e.target.value }))}
-              placeholder="e.g. U1234/5678"
-            />
-          </Field>
-
+          {/* Nav buttons */}
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <PrimaryBtn type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Saving..." : "Create Student"}
-            </PrimaryBtn>
+            {tabIdx > 0 && (
+              <SecondaryBtn type="button" onClick={() => setActiveTab(TABS[tabIdx - 1].key)}>
+                ← Back
+              </SecondaryBtn>
+            )}
+            {!isLast && (
+              <PrimaryBtn type="button" onClick={() => setActiveTab(TABS[tabIdx + 1].key)}>
+                Next →
+              </PrimaryBtn>
+            )}
+            {isLast && (
+              <PrimaryBtn type="submit" disabled={mutation.isPending}>
+                {mutation.isPending ? "Saving..." : "Create Student"}
+              </PrimaryBtn>
+            )}
             <SecondaryBtn type="button" onClick={() => navigate("/students")}>
               Cancel
             </SecondaryBtn>

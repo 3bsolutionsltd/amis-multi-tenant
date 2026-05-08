@@ -55,13 +55,7 @@ const moduleFormConfigSchema = z.object({
 // Workflows live here so they benefit from config draft/validate/publish/rollback.
 export const configPayloadSchema = z
   .object({
-    modules: z
-      .object({
-        students: z.boolean().optional(),
-        admissions: z.boolean().optional(),
-        finance: z.boolean().optional(),
-      })
-      .optional(),
+    modules: z.record(z.string(), z.boolean()).optional(),
     branding: z
       .object({
         appName: z.string().min(1).default("AMIS"),
@@ -81,6 +75,7 @@ export const configPayloadSchema = z
     forms: z
       .object({
         students: moduleFormConfigSchema.optional(),
+        admissions: moduleFormConfigSchema.optional(),
       })
       .optional(),
     workflows: z.record(z.string(), workflowDefinitionSchema).optional(),

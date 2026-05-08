@@ -17,6 +17,8 @@ export type UserRole = (typeof VALID_ROLES)[number];
 export interface User {
   id: string;
   email: string;
+  firstName: string | null;
+  lastName: string | null;
   role: UserRole;
   isActive: boolean;
   createdAt: string;
@@ -27,11 +29,15 @@ export interface CreateUserBody {
   email: string;
   password: string;
   role: UserRole;
+  firstName?: string;
+  lastName?: string;
 }
 
 export interface UpdateUserBody {
   role?: UserRole;
   isActive?: boolean;
+  firstName?: string;
+  lastName?: string;
 }
 
 export interface ListUsersParams {

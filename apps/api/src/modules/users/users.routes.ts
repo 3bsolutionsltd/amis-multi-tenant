@@ -60,12 +60,16 @@ const CreateUserSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
   role: z.enum(VALID_ROLES),
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
 });
 
 const UpdateUserSchema = z
   .object({
     role: z.enum(VALID_ROLES).optional(),
     isActive: z.boolean().optional(),
+    firstName: z.string().min(1).optional(),
+    lastName: z.string().min(1).optional(),
   })
   .refine((d) => d.role !== undefined || d.isActive !== undefined, {
     message: "At least one of role or isActive must be provided",
@@ -80,6 +84,8 @@ const UpdatePasswordSchema = z.object({
 interface UserPublic {
   id: string;
   email: string;
+  firstName: string | null;
+  lastName: string | null;
   role: string;
   isActive: boolean;
   createdAt: string;
@@ -119,6 +125,8 @@ function writeAuditLog(
 function toPublic(row: {
   id: string;
   email: string;
+  first_name?: string | null;
+  last_name?: string | null;
   role: string;
   is_active: boolean;
   created_at: string;
@@ -127,6 +135,8 @@ function toPublic(row: {
   return {
     id: row.id,
     email: row.email,
+    firstName: row.first_name ?? null,
+    lastName: row.last_name ?? null,
     role: row.role,
     isActive: row.is_active,
     createdAt: row.created_at,
@@ -186,7 +196,7 @@ export async function usersRoutes(app: FastifyInstance) {
           created_at: string;
           last_login_at: string | null;
         }>(
-          `SELECT id, email, role, is_active, created_at, last_login_at
+          `SELECT id, email, first_name, last_name, role, is_active, created_at, last_login_at
            FROM platform.users
            WHERE ${where}
            ORDER BY created_at DESC
@@ -228,7 +238,7 @@ export async function usersRoutes(app: FastifyInstance) {
         });
       }
 
-      const { email, password, role } = parsed.data;
+      const { email, password, role, firstName, lastName } = parsed.data;
 
       if (!isValidPassword(password)) {
         return reply
@@ -252,15 +262,17 @@ export async function usersRoutes(app: FastifyInstance) {
       const { rows } = await pool.query<{
         id: string;
         email: string;
+        first_name: string | null;
+        last_name: string | null;
         role: string;
         is_active: boolean;
         created_at: string;
         last_login_at: string | null;
       }>(
-        `INSERT INTO platform.users (tenant_id, email, password_hash, role)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, email, role, is_active, created_at, last_login_at`,
-        [tenantId, email, passwordHash, role],
+        `INSERT INTO platform.users (tenant_id, email, password_hash, role, first_name, last_name)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, email, first_name, last_name, role, is_active, created_at, last_login_at`,
+        [tenantId, email, passwordHash, role, firstName ?? null, lastName ?? null],
       );
 
       const created = rows[0];
@@ -291,7 +303,7 @@ export async function usersRoutes(app: FastifyInstance) {
         });
       }
 
-      const { role, isActive } = parsed.data;
+      const { role, isActive, firstName, lastName } = parsed.data;
 
       // Verify the user belongs to the same tenant
       const { rows: existing } = await pool.query<{
@@ -323,6 +335,14 @@ export async function usersRoutes(app: FastifyInstance) {
         params.push(isActive);
         setClauses.push(`is_active = $${params.length}`);
       }
+      if (firstName !== undefined) {
+        params.push(firstName);
+        setClauses.push(`first_name = $${params.length}`);
+      }
+      if (lastName !== undefined) {
+        params.push(lastName);
+        setClauses.push(`last_name = $${params.length}`);
+      }
 
       params.push(id);
       const idParam = `$${params.length}`;
@@ -330,6 +350,8 @@ export async function usersRoutes(app: FastifyInstance) {
       const { rows } = await pool.query<{
         id: string;
         email: string;
+        first_name: string | null;
+        last_name: string | null;
         role: string;
         is_active: boolean;
         last_login_at: string | null;
@@ -338,7 +360,7 @@ export async function usersRoutes(app: FastifyInstance) {
         `UPDATE platform.users
          SET ${setClauses.join(", ")}
          WHERE id = ${idParam}
-         RETURNING id, email, role, is_active, created_at, last_login_at`,
+         RETURNING id, email, first_name, last_name, role, is_active, created_at, last_login_at`,
         params,
       );
 

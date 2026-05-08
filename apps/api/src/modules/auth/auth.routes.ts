@@ -83,8 +83,12 @@ const LogoutSchema = z.object({
 
 const ForgotPasswordSchema = z.object({
   email: z.string().email(),
-  tenantId: z.string().uuid(),
-});
+  tenantId: z.string().uuid().optional(),
+  tenantSlug: z.string().min(1).optional(),
+}).refine(
+  (d) => d.tenantId !== undefined || d.tenantSlug !== undefined,
+  { message: "Either tenantId or tenantSlug must be provided" },
+);
 
 const ResetPasswordSchema = z.object({
   token: z.string().min(1),
@@ -417,8 +421,22 @@ export async function authRoutes(app: FastifyInstance) {
         .send({ statusCode: 400, message: "Invalid request body" });
     }
 
-    const { email, tenantId } = parsed.data;
+    const { email, tenantId: rawTenantId, tenantSlug } = parsed.data;
     const MSG = "If that email exists, a reset link has been sent.";
+
+    // Resolve tenantId from slug if needed
+    let tenantId = rawTenantId;
+    if (!tenantId && tenantSlug) {
+      const { rows: tenantRows } = await pool.query<{ id: string }>(
+        `SELECT id FROM platform.tenants WHERE slug = $1 AND is_active = true`,
+        [tenantSlug],
+      );
+      if (tenantRows.length === 0) {
+        // Return 200 to prevent tenant enumeration
+        return reply.status(200).send({ message: MSG });
+      }
+      tenantId = tenantRows[0].id;
+    }
 
     const { rows } = await pool.query<{ id: string }>(
       `SELECT id FROM platform.users
