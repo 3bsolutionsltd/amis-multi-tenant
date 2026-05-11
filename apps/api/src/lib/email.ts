@@ -1,31 +1,15 @@
-import nodemailer, { type Transporter } from "nodemailer";
+import { Resend } from "resend";
 
-let _transporter: Transporter | null = null;
+const FROM = "AMIS <noreply@amis.institute>";
 
-function getTransporter(): Transporter {
-  if (_transporter) return _transporter;
-
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT ?? "587", 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  const secure = process.env.SMTP_SECURE === "true";
-
-  if (!host) {
-    // Return a test/preview transport if no SMTP configured
-    _transporter = nodemailer.createTransport({
-      jsonTransport: true,
-    } as Parameters<typeof nodemailer.createTransport>[0]);
-  } else {
-    _transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: user && pass ? { user, pass } : undefined,
-    });
+function getResend(): Resend {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "[email] RESEND_API_KEY environment variable is required. Add it to .env before starting the server.",
+    );
   }
-
-  return _transporter;
+  return new Resend(apiKey);
 }
 
 interface SendMailOptions {
@@ -36,22 +20,16 @@ interface SendMailOptions {
 }
 
 export async function sendMail(options: SendMailOptions): Promise<void> {
-  const from =
-    process.env.SMTP_FROM ?? `"AMIS" <noreply@${process.env.SMTP_HOST ?? "example.com"}>`;
-
-  const transporter = getTransporter();
-
-  const info = await transporter.sendMail({
-    from,
+  const resend = getResend();
+  const { error } = await resend.emails.send({
+    from: FROM,
     to: options.to,
     subject: options.subject,
     html: options.html,
     text: options.text,
   });
-
-  // If using jsonTransport (no SMTP configured), log to console
-  if (process.env.NODE_ENV !== "production" && (info as { message?: unknown }).message) {
-    console.log("[EMAIL] Would send:", JSON.stringify((info as { message?: unknown }).message, null, 2));
+  if (error) {
+    throw new Error(`[email] Resend error: ${error.message}`);
   }
 }
 
