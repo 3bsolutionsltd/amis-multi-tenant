@@ -484,19 +484,30 @@ export function StudentDetailPage() {
               }}
             >
               <SectionLabel>Term Registrations</SectionLabel>
-              <button
-                onClick={() => navigate(`/term-registrations?student_id=${id}`)}
-                style={{
-                  fontSize: 12,
-                  color: C.primary,
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontWeight: 600,
-                }}
-              >
-                View all →
-              </button>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <SecondaryBtn
+                  onClick={() =>
+                    navigate(
+                      `/term-registrations/new?student_id=${id}&student_name=${encodeURIComponent(formatStudentName(student))}`,
+                    )
+                  }
+                >
+                  + Register for Term
+                </SecondaryBtn>
+                <button
+                  onClick={() => navigate(`/term-registrations?student_id=${id}`)}
+                  style={{
+                    fontSize: 12,
+                    color: C.primary,
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  View all →
+                </button>
+              </div>
             </div>
             {tregQ.isLoading ? (
               <Card padding="16px 20px">
