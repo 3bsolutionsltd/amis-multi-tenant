@@ -59,7 +59,7 @@ export function TermRegistrationCreatePage() {
 
   const { data: searchResults } = useQuery({
     queryKey: ["students-search", search],
-    queryFn: () => listStudents({ search, page: 1, per_page: 10 }),
+    queryFn: () => listStudents({ search, page: 1, limit: 10 }),
     enabled: search.length >= 2,
   });
 
@@ -125,7 +125,7 @@ export function TermRegistrationCreatePage() {
               />
               {showDropdown &&
                 searchResults &&
-                searchResults.students.length > 0 && (
+                searchResults.length > 0 && (
                   <div
                     style={{
                       position: "absolute",
@@ -141,7 +141,7 @@ export function TermRegistrationCreatePage() {
                       boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                     }}
                   >
-                    {searchResults.students.map((s) => (
+                    {searchResults.map((s) => (
                       <div
                         key={s.id}
                         onMouseDown={() => selectStudent(s)}
