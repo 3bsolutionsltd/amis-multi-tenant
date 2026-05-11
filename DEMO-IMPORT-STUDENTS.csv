@@ -1,0 +1,11 @@
+first_name,last_name,admission_number,date_of_birth,gender,programme_code,email,phone,sponsorship_type,year_of_study,district_of_origin,intake_year,guardian_name,guardian_phone,guardian_relationship
+AMANYA,Patrick,UVT212/U/26/M/NCES/0501,3/14/2005,Male,NCES,patrick.amanya@demo.ac.ug,2.567E+11,government,1,Kasese,2026,Grace Amanya,2.56701E+11,Mother
+BIRUNGI,Sophia,UVT212/U/26/F/NCAM/0502,7/22/2004,Female,NCAM,sophia.birungi@demo.ac.ug,2.567E+11,private,1,Kampala,2026,Robert Birungi,2.56701E+11,Father
+KASANDE,Joshua,UVT212/U/26/M/NCBC/0503,1/8/2005,Male,NCBC,joshua.kasande@demo.ac.ug,2.567E+11,government,1,Rukungiri,2026,Mary Kasande,2.56701E+11,Mother
+TENDO,Irene,UVT212/U/26/F/NCPL/0504,11/30/2004,Female,NCPL,irene.tendo@demo.ac.ug,2.567E+11,private,1,Mbarara,2026,Peter Tendo,2.56701E+11,Father
+MUGISHA,Daniel,UVT212/U/26/M/NCAP/0505,5/17/2005,Male,NCAP,daniel.mugisha@demo.ac.ug,2.567E+11,government,1,Bushenyi,2026,Jane Mugisha,2.56701E+11,Mother
+NANKUNDA,Sarah,UVT212/U/26/F/NCES/0506,9/3/2004,Female,NCES,sarah.nankunda@demo.ac.ug,2.567E+11,private,1,Kabale,2026,Tom Nankunda,2.56701E+11,Father
+RWAMWENGE,Fred,UVT212/U/26/M/NCBC/0507,2/19/2005,Male,NCBC,fred.rwamwenge@demo.ac.ug,2.567E+11,government,1,Kasese,2026,Alice Rwamwenge,2.56701E+11,Mother
+KYOMUHENDO,Grace,UVT212/U/26/F/NCAM/0508,12/25/2004,Female,NCAM,grace.kyomuhendo@demo.ac.ug,2.567E+11,private,1,Fort Portal,2026,Samuel Kyomuhendo,2.56701E+11,Father
+BWAMBALE,Moses,UVT212/U/26/M/NCPL/0509,4/11/2005,Male,NCPL,moses.bwambale@demo.ac.ug,2.567E+11,government,1,Kasese,2026,Ruth Bwambale,2.56701E+11,Mother
+AHIMBISIBWE,Christine,UVT212/U/26/F/NCAP/0510,6/28/2004,Female,NCAP,christine.ahimbisibwe@demo.ac.ug,2.567E+11,private,1,Ntungamo,2026,James Ahimbisibwe,2.56701E+11,Father

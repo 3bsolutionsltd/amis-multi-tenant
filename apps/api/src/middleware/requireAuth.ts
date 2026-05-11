@@ -11,7 +11,7 @@
  *   POST /auth/login | POST /auth/refresh | POST /auth/logout | GET /health
  */
 import type { FastifyRequest, FastifyReply } from "fastify";
-import { pool } from "../db/pool.js";
+import { superPool } from "../db/pool.js";
 import { verifyToken } from "../lib/jwt.js";
 
 /** Routes that never require authentication. */
@@ -62,7 +62,9 @@ export async function requireAuth(
   }
 
   // 5. Look up the user in the DB (catches deleted / inactive accounts)
-  const { rows } = await pool.query<{
+  // Use superPool (postgres superuser) to bypass RLS — requireAuth runs before
+  // any tenant context is established, so the amis_app role would see 0 rows.
+  const { rows } = await superPool.query<{
     id: string;
     role: string;
     tenant_id: string;

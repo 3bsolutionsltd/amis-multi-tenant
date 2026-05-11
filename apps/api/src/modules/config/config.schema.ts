@@ -5,9 +5,13 @@ const workflowTransitionSchema = z.object({
   action: z.string().min(1),
   from: z.string().min(1),
   to: z.string().min(1),
-  // Optional: restrict which role may fire this transition.
+  // Human-readable label shown on the action button (falls back to action).
+  label: z.string().optional(),
+  // Optional: restrict which roles may fire this transition.
+  // `roles` (array) takes precedence over legacy `required_role` (string).
   // When set, the API enforces it server-side and the UI only shows the
   // action button to users with a matching role.
+  roles: z.array(z.string()).optional(),
   required_role: z.string().optional(),
 });
 

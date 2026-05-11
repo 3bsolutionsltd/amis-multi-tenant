@@ -2,9 +2,12 @@
  * Auth routes — Prompt 17
  *
  * POST /auth/login            — verify credentials (VTI users), return JWT + refresh token
+ *                               If ENABLE_OTP_LOGIN=true, returns { status:"otp_required", otpSessionId }
+ *                               and sends a 6-digit OTP to the user's email instead.
+ * POST /auth/verify-otp       — verify OTP code; returns JWT + refresh token
  * POST /auth/platform-login   — verify credentials (platform admins only, no tenant slug required)
  * POST /auth/refresh          — rotate refresh token, return new JWT pair
- * POST /auth/logout           — revoke refresh token (always 204)
+ * POST /auth/logout            — revoke refresh token (always 204)
  * GET  /auth/me               — return current user from Bearer JWT
  *
  * All auth DB queries use the superuser pool (DATABASE_URL) so they bypass
@@ -14,7 +17,7 @@
 import type { FastifyInstance } from "fastify";
 import { createHash, randomBytes } from "crypto";
 import { z } from "zod";
-import { pool } from "../../db/pool.js";
+import { superPool as pool } from "../../db/pool.js";
 import { hashPasswordAsync, verifyPasswordAsync } from "../../lib/password.js";
 import { signToken, verifyToken } from "../../lib/jwt.js";
 import { isValidPassword } from "../../lib/passwordValidator.js";
@@ -56,6 +59,25 @@ async function revokeAllRefreshTokens(userId: string): Promise<void> {
   );
 }
 
+/** Generate a random 6-digit OTP code and insert an OTP session. */
+async function issueOtpSession(userId: string): Promise<{ sessionId: string; code: string }> {
+  // Invalidate any existing unused sessions for this user
+  await pool.query(
+    `DELETE FROM platform.otp_sessions WHERE user_id = $1`,
+    [userId],
+  );
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const hash = createHash("sha256").update(code).digest("hex");
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+  const { rows } = await pool.query<{ id: string }>(
+    `INSERT INTO platform.otp_sessions (user_id, code_hash, expires_at)
+     VALUES ($1, $2, $3)
+     RETURNING id`,
+    [userId, hash, expiresAt],
+  );
+  return { sessionId: rows[0].id, code };
+}
+
 // ------------------------------------------------------------------ schemas
 
 const LoginSchema = z.object({
@@ -63,10 +85,7 @@ const LoginSchema = z.object({
   password: z.string().min(1),
   tenantId: z.string().uuid().optional(),
   tenantSlug: z.string().min(1).optional(),
-}).refine(
-  (d) => d.tenantId !== undefined || d.tenantSlug !== undefined,
-  { message: "Either tenantId or tenantSlug must be provided" },
-);
+});
 
 const PlatformLoginSchema = z.object({
   email: z.string().email(),
@@ -137,7 +156,8 @@ export async function authRoutes(app: FastifyInstance) {
 
     const { email, password, tenantId: rawTenantId, tenantSlug } = parsed.data;
 
-    // Resolve tenant: prefer tenantId if given, otherwise look up by slug
+    // Resolve tenant: prefer tenantId if given, otherwise look up by slug.
+    // If neither is given, resolve by email lookup across all tenants.
     let tenantId = rawTenantId;
     if (!tenantId && tenantSlug) {
       const { rows: tenantRows } = await pool.query<{ id: string }>(
@@ -150,6 +170,29 @@ export async function authRoutes(app: FastifyInstance) {
           .send({ statusCode: 401, message: INVALID_CREDS });
       }
       tenantId = tenantRows[0].id;
+    } else if (!tenantId && !tenantSlug) {
+      // Single-step login: resolve tenant from email
+      const { rows: candidates } = await pool.query<{ tenant_id: string; tenant_slug: string }>(
+        `SELECT u.tenant_id, t.slug AS tenant_slug
+         FROM platform.users u
+         JOIN platform.tenants t ON t.id = u.tenant_id
+         WHERE u.email = $1 AND u.is_active = true AND t.is_active = true`,
+        [email],
+      );
+      if (candidates.length === 0) {
+        // Constant-time: still do a bogus hash to prevent timing attacks
+        await verifyPasswordAsync(password, "$argon2id$v=19$m=65536,t=2,p=1$fake$fake");
+        return reply.status(401).send({ statusCode: 401, message: INVALID_CREDS });
+      }
+      if (candidates.length > 1) {
+        // Multiple tenants have this email — ask the user to specify
+        return reply.status(409).send({
+          statusCode: 409,
+          message: "Multiple institutions found for this email. Please enter your institution code.",
+          tenantSlugs: candidates.map((c) => c.tenant_slug),
+        });
+      }
+      tenantId = candidates[0].tenant_id;
     }
 
     const { rows } = await pool.query<UserRow>(
@@ -175,7 +218,21 @@ export async function authRoutes(app: FastifyInstance) {
     if (!user.is_active) {
       return reply
         .status(401)
-        .send({ statusCode: 401, message: ACCOUNT_DISABLED });
+        .send({ statusCode: 401, message: INVALID_CREDS });
+    }
+
+    // OTP / 2FA gate — only when ENABLE_OTP_LOGIN=true
+    if (process.env.ENABLE_OTP_LOGIN === "true") {
+      const { sessionId, code } = await issueOtpSession(user.id);
+      await sendMail({
+        to: user.email,
+        subject: "Your AMIS login code",
+        text: `Your one-time login code is: ${code}\n\nThis code expires in 10 minutes. Do not share it.`,
+        html: `<p>Your one-time login code is:</p>
+               <p style="font-size:32px;letter-spacing:8px;font-weight:bold;color:#2563EB">${code}</p>
+               <p>This code expires in 10 minutes. Do not share it with anyone.</p>`,
+      });
+      return reply.status(200).send({ status: "otp_required", otpSessionId: sessionId });
     }
 
     const accessToken = signToken({
@@ -203,10 +260,72 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   /**
+   * POST /auth/verify-otp
+   * Body: { otpSessionId, code }
+   * Verifies a 6-digit OTP code issued by /auth/login when ENABLE_OTP_LOGIN=true.
+   * Returns JWT + refreshToken on success.
+   */
+  app.post("/auth/verify-otp", {
+    config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+  }, async (req, reply) => {
+    const parsed = z.object({
+      otpSessionId: z.string().uuid(),
+      code: z.string().length(6).regex(/^\d{6}$/),
+    }).safeParse(req.body);
+
+    if (!parsed.success) {
+      return reply.status(400).send({ statusCode: 400, message: "Invalid request body" });
+    }
+
+    const { otpSessionId, code } = parsed.data;
+    const codeHash = createHash("sha256").update(code).digest("hex");
+
+    const { rows } = await pool.query<{ id: string; user_id: string; used: boolean; expires_at: string }>(
+      `SELECT id, user_id, used, expires_at
+       FROM platform.otp_sessions
+       WHERE id = $1 AND code_hash = $2`,
+      [otpSessionId, codeHash],
+    );
+
+    const session = rows[0];
+    if (!session || session.used || new Date(session.expires_at) < new Date()) {
+      return reply.status(401).send({ statusCode: 401, message: INVALID_CREDS });
+    }
+
+    // Mark session used
+    await pool.query(`UPDATE platform.otp_sessions SET used = true WHERE id = $1`, [session.id]);
+
+    const { rows: userRows } = await pool.query<UserRow>(
+      `SELECT id, tenant_id, email, role, password_hash, is_active
+       FROM platform.users WHERE id = $1`,
+      [session.user_id],
+    );
+    const user = userRows[0];
+    if (!user || !user.is_active) {
+      return reply.status(401).send({ statusCode: 401, message: INVALID_CREDS });
+    }
+
+    const accessToken = signToken({ sub: user.id, tenantId: user.tenant_id, role: user.role });
+    const refreshToken = await issueRefreshToken(user.id);
+
+    pool
+      .query(`UPDATE platform.users SET last_login_at = now() WHERE id = $1`, [user.id])
+      .catch((err: unknown) => console.error("[verify-otp] last_login_at update failed:", err));
+
+    return reply.status(200).send({
+      accessToken,
+      refreshToken,
+      user: { id: user.id, email: user.email, role: user.role, tenantId: user.tenant_id },
+    });
+  });
+
+  /**
    * POST /auth/refresh
    * Body: { refreshToken }
    */
-  app.post("/auth/refresh", async (req, reply) => {
+  app.post("/auth/refresh", {
+    config: { rateLimit: { max: 20, timeWindow: "1 minute" } },
+  }, async (req, reply) => {
     const parsed = RefreshSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply
@@ -314,7 +433,7 @@ export async function authRoutes(app: FastifyInstance) {
     if (!user.is_active) {
       return reply
         .status(401)
-        .send({ statusCode: 401, message: ACCOUNT_DISABLED });
+        .send({ statusCode: 401, message: INVALID_CREDS });
     }
 
     const accessToken = signToken({
@@ -388,10 +507,10 @@ export async function authRoutes(app: FastifyInstance) {
     );
 
     const user = rows[0];
-    if (!user) {
+    if (!user || !user.is_active) {
       return reply
         .status(401)
-        .send({ statusCode: 401, message: "User not found" });
+        .send({ statusCode: 401, message: "Invalid or expired token" });
     }
 
     return reply.status(200).send({

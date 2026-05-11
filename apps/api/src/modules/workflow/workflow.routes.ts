@@ -185,13 +185,25 @@ export async function workflowRoutes(app: FastifyInstance) {
           } as const;
         }
 
-        // Enforce required_role if the transition has one
-        if (transition.required_role) {
+        // Enforce role restrictions if the transition defines them.
+        // `roles` (array) takes precedence over legacy `required_role` (string).
+        const allowedRoles: string[] | null =
+          transition.roles && transition.roles.length > 0
+            ? transition.roles
+            : transition.required_role
+              ? [transition.required_role]
+              : null;
+
+        if (allowedRoles) {
           const actorRole = req.user?.role ?? null;
-          if (actorRole !== transition.required_role && actorRole !== "admin" && actorRole !== "platform_admin") {
+          const superRoles = ["admin", "platform_admin"];
+          const permitted =
+            actorRole !== null &&
+            (superRoles.includes(actorRole) || allowedRoles.includes(actorRole));
+          if (!permitted) {
             return {
               forbidden: true,
-              message: `action "${action}" requires role "${transition.required_role}"`,
+              message: `action "${action}" requires one of: ${allowedRoles.join(", ")}`,
             } as const;
           }
         }

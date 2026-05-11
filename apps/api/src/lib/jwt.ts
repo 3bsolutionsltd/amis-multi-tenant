@@ -54,5 +54,5 @@ export function signToken(payload: Omit<JwtPayload, "iat" | "exp">): string {
  * Throws `JsonWebTokenError` or `TokenExpiredError` if invalid / expired.
  */
 export function verifyToken(token: string): JwtPayload {
-  return jwt.verify(token, getSecret()) as JwtPayload;
+  return jwt.verify(token, getSecret(), { algorithms: ["HS256"] }) as JwtPayload;
 }

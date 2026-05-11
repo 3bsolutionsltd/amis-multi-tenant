@@ -7,8 +7,15 @@ const { Pool } = pg;
 let _pool: pg.Pool | null = null;
 
 function createPool(): pg.Pool {
+  // Prefer APP_DATABASE_URL (non-superuser amis_app role) so that PostgreSQL
+  // Row-Level Security is enforced. Fall back to DATABASE_URL for local dev
+  // environments that haven't set APP_DATABASE_URL yet.
+  // NEVER use a superuser connection for application queries — superusers
+  // bypass RLS unconditionally in PostgreSQL, even with FORCE ROW LEVEL SECURITY.
+  const connectionString =
+    process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
   const p = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
     max: parseInt(process.env.PG_POOL_MAX ?? "10", 10),
     // Keep idle connections alive for 10 minutes; after that the pool
     // discards them cleanly and reconnects on demand.
@@ -38,6 +45,41 @@ function getPool(): pg.Pool {
 export const pool: pg.Pool = new Proxy({} as pg.Pool, {
   get(_t, prop) {
     return (getPool() as unknown as Record<string | symbol, unknown>)[prop];
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Superuser pool — uses DATABASE_URL (postgres role) which bypasses RLS.
+// Use ONLY for auth operations (login, token refresh, OTP) that run before
+// a tenant context is established.  All other queries must use `pool`.
+// ---------------------------------------------------------------------------
+let _superPool: pg.Pool | null = null;
+
+function getSuperPool(): pg.Pool {
+  if (!_superPool) {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error("DATABASE_URL is not set — cannot create superuser pool");
+    }
+    const p = new Pool({
+      connectionString,
+      max: 5, // small — only used for auth
+      idleTimeoutMillis: 600_000,
+      connectionTimeoutMillis: 10_000,
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10_000,
+    });
+    p.on("error", (err) => {
+      console.error("[super-pool] idle client error:", err.message);
+    });
+    _superPool = p;
+  }
+  return _superPool;
+}
+
+export const superPool: pg.Pool = new Proxy({} as pg.Pool, {
+  get(_t, prop) {
+    return (getSuperPool() as unknown as Record<string | symbol, unknown>)[prop];
   },
 });
 

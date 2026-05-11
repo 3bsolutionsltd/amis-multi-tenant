@@ -1,0 +1,148 @@
+Speaker 1  0:00  
+Yeah, you are you okay? I can hear you well. I hope you also do. Yes, I can hear you. Thank
+
+Speaker 2  0:05  
+you.
+
+IKUMBE, Emmanuel  2:26  
+Hello colleagues, good morning. Thank you for joining. Emmanuel sure is on the road. Might be difficult for him to join. But since John is here, I think he will represent him. I think we are fairly represented here we can begin. Please confirm if you can hear this?
+
+Omwony Stephen  3:02  
+Yes, I can hear
+
+Speaker 2  3:04  
+just
+
+Speaker 3  3:04  
+Emmanuel can hear,
+
+IKUMBE, Emmanuel  3:06  
+okay, all right, I'm requesting that we begin. Thank you so much for being in maybe again, for the interest of our consultants, but also for ourselves. Quickly introduce ourselves. We hand over to the consultant to walk up through the system. Emmanuel, thank you.
+
+Speaker 4  3:31  
+More of information.
+
+IKUMBE, Emmanuel  3:40  
+Introduce themselves.
+
+Speaker 5  3:43  
+Okay, good, good morning everyone. Yeah, thank you for joining us meeting. My name is Ambrose OKELLO. I'm from E for D and evaluation department. Thank you.
+
+Speaker 6  4:00  
+Good morning, ladies and gentlemen. My name is John IKARA. It officer in England,
+
+Speaker 3  4:09  
+good morning. My name is Daniel MUHANGUZI, D for D and innovations. Officer Enabel.
+
+Speaker 7  4:16  
+Good morning. Bart CORNILLE, D for D and innovation. Experts. Enabling Uganda, good
+
+Speaker 8  4:34  
+morning, good morning. Irene KHARONO, Enabel Uganda joining in from for total
+
+IKUMBE, Emmanuel  4:43  
+colleagues, can we also hear from the consultant side, if there is any other colleague of you guys joining? How?
+
+Omwony Stephen  5:02  
+If Francis is there, so I think he's going to start.
+
+Speaker 2  5:16  
+Good morning. I'm Stephen morning. Evermore. Thank you. This is also online. Think is on mute.
+
+Speaker 9  5:32  
+Francis, I hope you can hear us
+
+IKUMBE, Emmanuel  5:40  
+with another colleague. Thank you. Thank you again for for joining, and we want to also thank you all for the work done, the ideas, the technical advice given. We earlier on this week, requested that the consultant has offered and some good work. But our request was that we also request him to walk us through the system, how it works, so that then that can give us an idea of where we are. I'm also happy to report that, especially for the consultants, that the servers have all been installed operating system and so maybe we can also determine what what do next, now that they are up and running. So I would like to request, Stephen, that you it works. I think our colleagues can raise questions as we go. Thank you.
+
+Omwony Stephen  6:56  
+Okay. Thank you very much. Mr. Emmanuel, everyone else want to thank you for coming for this meeting. I hope I am audible enough. In case I'm not, please let me know. Thank you. Everyone can hear me. I believe. All right, great. I see a thumbs up for Mr. I'm going to share my screen. Give me a minute. Right? I I'm going to go straight into the system demo. I'm not
+
+Speaker 2  8:07  
+it is the main a person who's meeting.
+
+Speaker 5  8:15  
+So
+
+Omwony Stephen  8:21  
+I we shared, I think, two weeks a week, two weeks ago, we shared the deployed server links and which currently the system is sitting on AMIS, that institute that is the domain link, which I believe all of us got that communication. In case you did, maybe we can guide you how to get there. So in the what we already have, we have we have also put together a user manual, a user manual to help people to navigate the system. And I'm going to start from there. Then I will take us through the processes, from setup up to where time will get us. But I would I'll basically take us through the different two features, what they do and how they're working. And we shall get feedback from there. So the manual is whether it is on production or this, but for purposes of this stage, I'm going to refer to the staging link or the testing link, which is pre dot AMIS dot Institute. So that is the link that we should be using. Pre dot AMIS dot Institute. When you do a slash, user dash money dot HTML, it will take you to this user money page where we are right now. This is where I would encourage everyone who wants to understand the system to begin from, because it has the Getting Started side, showing you how do you get started on AMIS. It gives you an introduction of what AMIS is. It shows you how to log in. It is also it will also give you the two links testing and production for now we're not working on production, so please ignore that. With the with the different steps which I'm going to take you through. It also has the core modules, which is student admission, term registration fees and finance and fees, Max assessment results and transcript. Then we have the academic operations, where we have the attendance, timetable, programs, the clearance, industry, training, field placement. We also have the people and HR you have the staff and HR management alumni. Then we have the user management. We also have analytics and reports to give us an overview of what the system of what is going on in an VTi and the report section. Then we also have the operations feature. These two was majorly what was a major one for Chairman. So we we decided to also include it into this, although it didn't fall into the core AMIS, but since it was requested by one of the vtis as one of their major requirements, we had to include it there now the general system management features, which is mainly used by the system admin shooters. We have the admin studio, we have the platform, and then we have the public portal. Last but not least, we have troubleshooting to help the users to figure out what the problem could be at what point. So that's a general overview, and each of these guides will guide you how to test the system or how to interface with those modules, so that you have you know how it works, right? So I'm going to start with, I'm moving away from this interface, and I'm going to create a uh. So maybe as the consensus, which, which Institute can we, because I want, I want to start with the setup of, I already have KTI
+
+Speaker 3  13:37  
+saint
+
+Omwony Stephen  13:39  
+Simon, okay, okay, so what we do is just do a slash setup. Once you get to that URL, it brings you this interface. Now this is the setup that can be done by a VTi. They don't know anything about the system yet. This is their beginning point. But we have the platform admin side, which can be managed by maybe the Enabel team, or depending on the structure that will be set up, it can also be managed by that. So right now we have also done the Platform Manager, which will be used to manage so this process can be done either here or on the by the Platform Manager, which is just gives an overview of, for example, how many VT eyes are in the system. And then you can create one and stuff like that. So we have sent Simons. Send Simons, saint Simon Peter st,
+
+Speaker 10  14:52  
+Simon Peters.
+
+Omwony Stephen  15:01  
+Now, the URL slug is like, it's an important, it's an important future which is unique to a VTi. So I can put something like that. I will enter an email address for now. Let's do a demo, adjust a test email. I'm going to do that AMIS, that Institute. I'm
+
+Speaker 2  15:43  
+the phone number. They mostly use the demo. So what I have now?
+
+Omwony Stephen  15:52  
+So inside, okay, they continue. It takes you to the TVET compliance, just to capture for example, ownership. Is it a private Is it public? Is it faith based? Is it community based? Mr. Emmanuel, could you please help me here? I said, Simon,
+
+IKUMBE, Emmanuel  16:20  
+then Simon is the best the
+
+Omwony Stephen  16:24  
+Tid bit number. Now, these ones are not compulsory at this stage. You don't want to hamper this the process, but they can be captured. You can capture the Tid bit called number. You can capture the alliances number, the date it was issued, and the status of the alliances now this will be the admin email. The first one was the institute. This is for admin, so I can Do SSP Tid at Ernest dot Institute, okay, my passwords don't match, right? So once you do that, it will give you a general information of what you have done, and then you can launch. Go ahead and launch.
+
+Speaker 2  17:59  
+Think about error. Here.
+
+Omwony Stephen  18:07  
+I think it was Emmanuel. We reported this error. We had fixed it. I need to see what the issue is. But that doesn't stop us. We have a second process of doing that. I'm going to log in as the platform administrator. Let me get the credentials. Just a minute I get the credentials here. Right? I see it created. So the other area was not stopping the creating, but it was just stopping it from proceeding to the login page. We can see St Simon has been created, which we just created here today. It shows the credit date and the setup status. Let's try to log in as st Simon. So this is the interface I was talking about. We can actually also create another institute using this interface,
+
+Speaker 2  20:24  
+but So right here, click
+
+Omwony Stephen  21:09  
+okay, so I'd gotten the I'd gotten the slag wrong. That is the code. So I'm going to enter the email address we used. I think it was admin. Was it SS?
+
+Speaker 2  21:47  
+Do that you
+
+Omwony Stephen  22:21  
+right, I used the wrong similar dose. It looks like I'm forgetting my password.
+
+Speaker 2  23:00  
+Let me try KTI. I have that recorded here. I've been testing that so it's okay,
+
+Omwony Stephen  24:25  
+all right, I've used Casa Technical Institute because that was already tested. But we can, we can go through the process. Should we do another registration. Just to test the workflow again, I
+
+Speaker 3  24:45  
+would request, let's complete the one of science. Simon, just to Yeah, to understand the workflow.
+
+Speaker 2  24:51  
+Okay,
+
+Omwony Stephen  24:56  
+let's let me use the platform admin.
+
+Speaker 2  25:13  
+Just a minute. Check something here. Sorry, sign I'm
+
+Omwony Stephen  26:11  
+going to request a creator, a new a new one, just so that I can have the credentials send silence, because it has to be different. I'm going to use something which I can't remember. I'm
+
+Speaker 2  27:04  
+any here. Let me have this password now I
+
+Omwony Stephen  27:24  
+Slide. I'm just writing this down.
+
+Speaker 2  27:44  
+Okay, everybody,
+
+Omwony Stephen  28:10  
+all right, I hope we've got that so I'll need to retest the one for testing via the public interface, income located,
+
+Speaker 2  29:08  
+that's
+
+Transcribed by https://otter.ai

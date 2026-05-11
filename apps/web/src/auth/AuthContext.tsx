@@ -15,11 +15,14 @@ import {
   type AuthUser,
 } from "../lib/auth";
 
+export type LoginResult = { status: "ok" } | { status: "otp_required"; otpSessionId: string };
+
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login(email: string, password: string, tenantSlug: string): Promise<void>;
+  login(email: string, password: string, tenantSlug?: string): Promise<LoginResult>;
+  verifyOtp(otpSessionId: string, code: string): Promise<void>;
   logout(): Promise<void>;
 }
 
@@ -27,7 +30,8 @@ export const AuthContext = createContext<AuthContextValue>({
   user: null,
   isAuthenticated: false,
   isLoading: true,
-  login: async () => {},
+  login: async () => ({ status: "ok" }),
+  verifyOtp: async () => {},
   logout: async () => {},
 });
 
@@ -42,17 +46,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(
-    async (email: string, password: string, tenantSlug: string) => {
+    async (email: string, password: string, tenantSlug?: string): Promise<{ status: "ok" } | { status: "otp_required"; otpSessionId: string }> => {
+      const body: Record<string, string> = { email, password };
+      if (tenantSlug) body.tenantSlug = tenantSlug;
       const res = await apiFetch<{
-        accessToken: string;
-        refreshToken: string;
-        user: AuthUser;
+        accessToken?: string;
+        refreshToken?: string;
+        user?: AuthUser;
+        status?: string;
+        otpSessionId?: string;
       }>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password, tenantSlug }),
+        body: JSON.stringify(body),
       });
-      setTokens(res.accessToken, res.refreshToken, res.user);
-      setUser(res.user);
+      if (res.status === "otp_required" && res.otpSessionId) {
+        return { status: "otp_required", otpSessionId: res.otpSessionId };
+      }
+      setTokens(res.accessToken!, res.refreshToken!, res.user!);
+      setUser(res.user!);
+      return { status: "ok" };
     },
     [],
   );
@@ -71,6 +83,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = "/login";
   }, []);
 
+  const verifyOtp = useCallback(
+    async (otpSessionId: string, code: string) => {
+      const res = await apiFetch<{ accessToken: string; refreshToken: string; user: AuthUser }>(
+        "/auth/verify-otp",
+        { method: "POST", body: JSON.stringify({ otpSessionId, code }) },
+      );
+      setTokens(res.accessToken, res.refreshToken, res.user);
+      setUser(res.user);
+    },
+    [],
+  );
+
   return (
     <AuthContext.Provider
       value={{
@@ -78,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: user !== null,
         isLoading,
         login,
+        verifyOtp,
         logout,
       }}
     >

@@ -22,5 +22,22 @@ export const ApplicationsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+export const EnrollBodySchema = z.object({
+  admission_number: z.string().optional(),
+  nin: z.string().optional(),
+  other_names: z.string().optional(),
+  year_of_study: z.coerce.number().int().min(1).max(6).optional(),
+  class_section: z.string().optional(),
+  district_of_origin: z.string().optional(),
+  guardian_name: z.string().optional(),
+  guardian_phone: z.string().optional(),
+  guardian_email: z.string().email().optional().or(z.literal("")).or(z.undefined()),
+  guardian_relationship: z.string().optional(),
+  programme_code: z.string().optional(),
+  assessment_level: z.coerce.number().int().min(1).max(4).optional(),
+  previous_index: z.string().optional(),
+});
+
 export type CreateApplication = z.infer<typeof CreateApplicationSchema>;
 export type ApplicationsQuery = z.infer<typeof ApplicationsQuerySchema>;
+export type EnrollBody = z.infer<typeof EnrollBodySchema>;

@@ -41,4 +41,5 @@ export function clearTokens(): void {
   localStorage.removeItem("amis_access_token");
   localStorage.removeItem("amis_refresh_token");
   localStorage.removeItem("amis_user");
+  localStorage.removeItem("amis_tenant_id");
 }

@@ -92,6 +92,45 @@ const btnSecondary: React.CSSProperties = {
 
 const STEPS = ["Institute Info", "TVET Compliance", "Admin Account", "Review & Launch"];
 
+function CredRow({
+  label,
+  value,
+  mono,
+  link,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  link?: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  }
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 2 }}>{label}</div>
+        {link ? (
+          <a href={value} style={{ fontSize: 13, color: "#2563eb", fontFamily: "monospace", wordBreak: "break-all" }}>{value}</a>
+        ) : (
+          <div style={{ fontSize: 14, fontFamily: mono ? "monospace" : undefined, color: "#0f172a", fontWeight: 600 }}>{value}</div>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={copy}
+        style={{ padding: "5px 10px", background: copied ? "#dcfce7" : "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 6, fontSize: 12, cursor: "pointer", color: copied ? "#166534" : "#64748b", whiteSpace: "nowrap", flexShrink: 0 }}
+      >
+        {copied ? "✓ Copied" : "Copy"}
+      </button>
+    </div>
+  );
+}
+
 function StepIndicator({ current }: { current: Step }) {
   return (
     <div style={{ display: "flex", alignItems: "center", marginBottom: 32 }}>
@@ -157,6 +196,11 @@ export function VtiSetupPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [credentials, setCredentials] = useState<{
+    loginUrl: string;
+    adminEmail: string;
+    tenantSlug: string;
+  } | null>(null);
 
   const [institute, setInstitute] = useState<InstituteForm>({
     instituteName: "",
@@ -281,18 +325,22 @@ export function VtiSetupPage() {
         adminEmail: string;
       };
 
-      // Store tokens and redirect into the app
+      // Store tokens and redirect into the app.
+      // Use a hard redirect (not navigate()) so AuthProvider re-mounts and
+      // reads the fresh tokens from localStorage; client-side navigation
+      // would leave AuthContext.user = null → ProtectedRoute redirects to /login.
       setTokens(data.accessToken, data.refreshToken, {
         id: data.userId,
         email: data.adminEmail,
         role: "admin",
         tenantId: data.tenantId,
       });
+      setCredentials({
+        loginUrl: `${window.location.origin}/login?org=${encodeURIComponent(data.tenantSlug)}`,
+        adminEmail: data.adminEmail,
+        tenantSlug: data.tenantSlug,
+      });
       setSuccess(true);
-
-      setTimeout(() => {
-        navigate("/admin-studio");
-      }, 2500);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -300,7 +348,7 @@ export function VtiSetupPage() {
     }
   }
 
-  if (success) {
+  if (success && credentials) {
     return (
       <div
         style={{
@@ -309,16 +357,57 @@ export function VtiSetupPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          padding: "40px 16px",
         }}
       >
-        <div style={{ ...cardStyle, textAlign: "center" }}>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
-          <h2 style={{ color: C.gray900, marginTop: 0, marginBottom: 8 }}>
-            Your institute is ready!
-          </h2>
-          <p style={{ color: C.gray500, marginBottom: 0 }}>
-            Taking you to Admin Studio to complete your setup…
-          </p>
+        <div style={{ ...cardStyle, maxWidth: 540 }}>
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
+            <div style={{ fontSize: 52, marginBottom: 12 }}>🎉</div>
+            <h2 style={{ color: C.gray900, margin: "0 0 6px", fontSize: 22, fontWeight: 700 }}>
+              Your institute is ready!
+            </h2>
+            <p style={{ color: C.gray500, margin: 0, fontSize: 14 }}>
+              Save the details below — your team will need them to log in.
+            </p>
+          </div>
+
+          <div
+            style={{
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: 10,
+              padding: "20px 24px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 14,
+              marginBottom: 24,
+            }}
+          >
+            <CredRow label="Institution Code" value={credentials.tenantSlug} mono />
+            <CredRow label="Admin Email" value={credentials.adminEmail} />
+            <CredRow label="Login URL" value={credentials.loginUrl} link />
+          </div>
+
+          <div
+            style={{
+              background: "#fffbeb",
+              border: "1px solid #fde68a",
+              borderRadius: 8,
+              padding: "10px 14px",
+              fontSize: 13,
+              color: "#92400e",
+              marginBottom: 24,
+            }}
+          >
+            ⚠️ Copy your login URL now — you can always find it later at <em>/login?org={credentials.tenantSlug}</em>
+          </div>
+
+          <button
+            onClick={() => { window.location.href = "/admin-studio"; }}
+            style={{ ...btnPrimary }}
+          >
+            Go to Admin Studio →
+          </button>
         </div>
       </div>
     );
