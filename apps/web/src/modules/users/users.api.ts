@@ -27,7 +27,6 @@ export interface User {
 
 export interface CreateUserBody {
   email: string;
-  password: string;
   role: UserRole;
   firstName?: string;
   lastName?: string;

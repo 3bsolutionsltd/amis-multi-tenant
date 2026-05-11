@@ -90,3 +90,49 @@ If you did not request this, you can safely ignore this email.
 
   return { html, text };
 }
+
+export function buildWelcomeEmail(
+  setupUrl: string,
+  firstName?: string | null,
+): { html: string; text: string } {
+  const greeting = firstName ? `Hello ${firstName},` : "Hello,";
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color: #1d4ed8;">Welcome to AMIS</h2>
+      <p>${greeting}</p>
+      <p>
+        An account has been created for you on the <strong>Academic Management Information System (AMIS)</strong>.
+        To get started, click the button below to set up your password.
+        This link expires in <strong>48 hours</strong>.
+      </p>
+      <p style="margin: 24px 0;">
+        <a href="${setupUrl}"
+           style="background:#1d4ed8;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
+          Set Up Your Account
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:13px;">
+        If you were not expecting this email, please contact your institution's administrator.
+        Do not share this link with anyone.
+      </p>
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
+      <p style="color:#9ca3af;font-size:12px;">AMIS — Academic Management Information System</p>
+    </div>
+  `;
+
+  const text = `
+${greeting}
+
+An account has been created for you on the Academic Management Information System (AMIS).
+
+To get started, click the link below to set up your password. This link expires in 48 hours.
+
+${setupUrl}
+
+If you were not expecting this email, please contact your institution's administrator.
+Do not share this link with anyone.
+  `.trim();
+
+  return { html, text };
+}

@@ -11,11 +11,13 @@
  * password_hash is NEVER returned in any response.
  */
 import type { FastifyInstance } from "fastify";
+import { createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import { pool } from "../../db/pool.js";
 import { hashPassword } from "../../lib/password.js";
 import { isValidPassword } from "../../lib/passwordValidator.js";
 import { requireRole } from "../../middleware/requireRole.js";
+import { sendMail, buildWelcomeEmail } from "../../lib/email.js";
 
 // ------------------------------------------------------------------ constants
 
@@ -58,7 +60,6 @@ const UsersQuerySchema = z.object({
 
 const CreateUserSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1),
   role: z.enum(VALID_ROLES),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
@@ -238,13 +239,7 @@ export async function usersRoutes(app: FastifyInstance) {
         });
       }
 
-      const { email, password, role, firstName, lastName } = parsed.data;
-
-      if (!isValidPassword(password)) {
-        return reply
-          .status(400)
-          .send({ message: "Password does not meet requirements" });
-      }
+      const { email, role, firstName, lastName } = parsed.data;
 
       // Check uniqueness (tenant_id + email)
       const { rows: existing } = await pool.query<{ id: string }>(
@@ -257,7 +252,9 @@ export async function usersRoutes(app: FastifyInstance) {
           .send({ message: "A user with that email already exists" });
       }
 
-      const passwordHash = hashPassword(password);
+      // Generate a random internal password — user will set their own via the welcome email link
+      const internalPassword = randomBytes(32).toString("hex");
+      const passwordHash = hashPassword(internalPassword);
 
       const { rows } = await pool.query<{
         id: string;
@@ -277,6 +274,25 @@ export async function usersRoutes(app: FastifyInstance) {
 
       const created = rows[0];
       writeAuditLog(tenantId, req.user.userId, created.id, "created", null, role);
+
+      // Issue a 48-hour account setup token and send welcome email
+      try {
+        const rawToken = randomBytes(32).toString("hex");
+        const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+        const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
+        await pool.query(
+          `INSERT INTO platform.password_reset_tokens (user_id, token_hash, expires_at)
+           VALUES ($1, $2, $3)`,
+          [created.id, tokenHash, expiresAt],
+        );
+        const appUrl = process.env.APP_URL ?? "http://localhost:5173";
+        const setupUrl = `${appUrl}/reset-password?token=${rawToken}&mode=setup`;
+        const { html, text } = buildWelcomeEmail(setupUrl, firstName ?? null);
+        await sendMail({ to: email, subject: "Welcome to AMIS — Set Up Your Account", html, text });
+      } catch (emailErr) {
+        // Log but do not fail the request — admin can resend manually
+        console.error("[users] Welcome email send failed:", emailErr);
+      }
 
       return reply.status(201).send(toPublic(created));
     },
