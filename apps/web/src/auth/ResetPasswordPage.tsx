@@ -6,6 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") ?? "";
+  const isSetup = searchParams.get("mode") === "setup";
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -68,7 +69,10 @@ export function ResetPasswordPage() {
           }}
         >
           <p style={{ color: "#b91c1c", marginBottom: 16 }}>
-            Invalid or missing reset token.
+            Invalid or missing {isSetup ? "account setup" : "reset"} token.{" "}
+            {isSetup
+              ? "Please contact your administrator to resend the welcome email."
+              : ""}
           </p>
           <Link to="/login" style={{ color: "#2563eb" }}>
             Back to sign in
@@ -99,10 +103,12 @@ export function ResetPasswordPage() {
         }}
       >
         <h1 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: "#111827" }}>
-          Reset Password
+          {isSetup ? "Set Up Your Account" : "Reset Password"}
         </h1>
         <p style={{ margin: "0 0 24px", color: "#6b7280", fontSize: 14 }}>
-          Choose a new password for your account.
+          {isSetup
+            ? "Welcome to AMIS. Choose a password to activate your account."
+            : "Choose a new password for your account."}
         </p>
 
         {success ? (
@@ -118,10 +124,12 @@ export function ResetPasswordPage() {
                 marginBottom: 16,
               }}
             >
-              Your password has been reset successfully.
+              {isSetup
+                ? "Your account is ready. You can now sign in with your new password."
+                : "Your password has been reset successfully."}
             </div>
             <Link to="/login" style={{ color: "#2563eb", fontSize: 14 }}>
-              Sign in with your new password →
+              {isSetup ? "Sign in to AMIS →" : "Sign in with your new password →"}
             </Link>
           </div>
         ) : (

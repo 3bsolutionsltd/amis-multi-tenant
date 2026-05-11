@@ -20,7 +20,6 @@ export function UserCreatePage() {
     firstName: "",
     lastName: "",
     email: "",
-    password: "",
     role: "registrar",
   });
   const [saving, setSaving] = useState(false);
@@ -83,16 +82,18 @@ export function UserCreatePage() {
             />
           </Field>
 
-          <Field label="Password" required>
-            <input
-              required
-              type="password"
-              autoComplete="new-password"
-              style={inputCss}
-              value={form.password}
-              onChange={(e) => set("password", e.target.value)}
-            />
-          </Field>
+          <div
+            style={{
+              padding: "10px 14px",
+              background: "#eff6ff",
+              border: "1px solid #bfdbfe",
+              borderRadius: 6,
+              fontSize: 13,
+              color: "#1e40af",
+            }}
+          >
+            A welcome email will be sent to this address with a link to set up their password (valid 48 hours).
+          </div>
 
           <Field label="Role" required>
             <select
