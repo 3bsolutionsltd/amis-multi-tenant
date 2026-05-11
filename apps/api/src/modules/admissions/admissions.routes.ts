@@ -8,6 +8,7 @@ import type { WorkflowDefinition } from "../config/config.schema.js";
 import {
   CreateApplicationSchema,
   ApplicationsQuerySchema,
+  EnrollBodySchema,
 } from "./admissions.schema.js";
 
 // ------------------------------------------------------------------ helpers
@@ -380,6 +381,10 @@ export async function admissionsRoutes(app: FastifyInstance) {
 
       const { id } = req.params;
 
+      // Parse optional extra fields from the request body
+      const extras = EnrollBodySchema.safeParse(req.body ?? {});
+      const extra = extras.success ? extras.data : {};
+
       const result = await withTenant(tid, async (client) => {
         // Load application with workflow state
         const { rows: appRows } = await client.query(
@@ -398,31 +403,37 @@ export async function admissionsRoutes(app: FastifyInstance) {
           return { alreadyEnrolled: true, studentId: application.student_id } as const;
         }
 
-        // Check workflow state allows enrollment
-        const state = application.current_state;
-        if (state !== "enrolled" && state !== "admitted") {
-          return {
-            invalidState: true,
-            message: `Cannot enroll: application is in "${state}" state`,
-          } as const;
+        // Generate admission number: use provided value or auto-generate ADM-<year>-<seq>
+        const year = new Date().getFullYear();
+        let admissionNumber = extra.admission_number?.trim() || null;
+        if (!admissionNumber) {
+          const { rows: seqRows } = await client.query(
+            `SELECT COUNT(*)::int + 1 AS seq
+             FROM app.students WHERE admission_number LIKE $1`,
+            [`ADM-${year}-%`],
+          );
+          const seq = String(seqRows[0].seq).padStart(4, "0");
+          admissionNumber = `ADM-${year}-${seq}`;
         }
 
-        // Generate admission number: ADM-<year>-<seq>
-        const year = new Date().getFullYear();
-        const { rows: seqRows } = await client.query(
-          `SELECT COUNT(*)::int + 1 AS seq
-           FROM app.students WHERE admission_number LIKE $1`,
-          [`ADM-${year}-%`],
-        );
-        const seq = String(seqRows[0].seq).padStart(4, "0");
-        const admissionNumber = `ADM-${year}-${seq}`;
+        // Merge application extension with district_of_origin if supplied
+        const extBase: Record<string, unknown> = {
+          ...(application.extension ?? {}),
+        };
+        if (extra.district_of_origin) extBase.district_of_origin = extra.district_of_origin;
+        if (extra.programme_code) extBase.programme_code = extra.programme_code;
+        if (extra.assessment_level) extBase.assessment_level = extra.assessment_level;
+        if (extra.previous_index) extBase.previous_index = extra.previous_index;
 
-        // Create student from application data
+        // Create student from application data + extra fields
         const { rows: stuRows } = await client.query(
           `INSERT INTO app.students
              (tenant_id, first_name, last_name, date_of_birth, admission_number,
-              sponsorship_type, programme, email, phone, extension)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+              sponsorship_type, programme, email, phone, gender, nin, other_names,
+              year_of_study, class_section,
+              guardian_name, guardian_phone, guardian_email, guardian_relationship,
+              extension)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
            RETURNING *`,
           [
             tid,
@@ -434,7 +445,16 @@ export async function admissionsRoutes(app: FastifyInstance) {
             application.programme ?? null,
             application.email ?? null,
             application.phone ?? null,
-            JSON.stringify(application.extension ?? {}),
+            application.gender ?? null,
+            extra.nin ?? null,
+            extra.other_names ?? null,
+            extra.year_of_study ?? null,
+            extra.class_section ?? null,
+            extra.guardian_name ?? null,
+            extra.guardian_phone ?? null,
+            extra.guardian_email ?? null,
+            extra.guardian_relationship ?? null,
+            JSON.stringify(extBase),
           ],
         );
         const student = stuRows[0];
@@ -454,8 +474,6 @@ export async function admissionsRoutes(app: FastifyInstance) {
         return reply
           .status(409)
           .send({ error: "already enrolled", studentId: result.studentId });
-      if ("invalidState" in result)
-        return reply.status(422).send({ error: result.message });
 
       // Fire-and-forget SMS to enrolled student's phone
       const enrolledPhone = result.student?.phone ?? null;

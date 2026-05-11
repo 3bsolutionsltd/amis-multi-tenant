@@ -39,7 +39,8 @@ import { GradingScaleEditor } from "./admin-studio/GradingScaleEditor";
 import { AcademicCalendarPage } from "./admin-studio/AcademicCalendarPage";
 import { DashboardWidgetsEditor } from "./admin-studio/DashboardWidgetsEditor";
 import { ReceiptTemplateEditor } from "./admin-studio/ReceiptTemplateEditor";
-import { VtiSetupPage } from "./setup/VtiSetupPage";
+import { VtiSetupPage as _VtiSetupPage } from "./setup/VtiSetupPage"; // kept for platform admin
+import { SetupClosedPage } from "./setup/SetupClosedPage";
 import { PlatformAdminLayout } from "./platform-admin/PlatformAdminLayout";
 import { PlatformOverview } from "./platform-admin/PlatformOverview";
 import { PlatformTenantManager } from "./platform-admin/PlatformTenantManager";
@@ -128,7 +129,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/setup",
-    element: <VtiSetupPage />,
+    element: <SetupClosedPage />,
   },
   {
     path: "/",

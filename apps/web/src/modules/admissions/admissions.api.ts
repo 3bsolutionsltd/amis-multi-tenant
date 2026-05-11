@@ -12,6 +12,7 @@ export interface Application {
   email: string | null;
   phone: string | null;
   sponsorship_type: string | null;
+  student_id: string | null;
   extension: Record<string, unknown>;
   created_at: string;
   current_state: string | null;
@@ -38,11 +39,20 @@ export interface ListApplicationsParams {
   limit?: number;
 }
 
+export interface WorkflowTransition {
+  action: string;
+  from: string;
+  to: string;
+  label?: string;
+  roles?: string[];
+  required_role?: string;
+}
+
 export interface WorkflowDefinition {
   key: string;
   initial_state: string;
   states: string[];
-  transitions: { from: string; action: string; to: string }[];
+  transitions: WorkflowTransition[];
 }
 
 export interface WorkflowInstance {
@@ -141,9 +151,25 @@ export interface EnrollResult {
   application: Application;
 }
 
-export function enrollApplication(applicationId: string): Promise<EnrollResult> {
+export interface EnrollBody {
+  admission_number?: string;
+  nin?: string;
+  other_names?: string;
+  year_of_study?: number;
+  class_section?: string;
+  district_of_origin?: string;
+  guardian_name?: string;
+  guardian_phone?: string;
+  guardian_email?: string;
+  guardian_relationship?: string;
+  programme_code?: string;
+  assessment_level?: number;
+  previous_index?: string;
+}
+
+export function enrollApplication(applicationId: string, extras?: EnrollBody): Promise<EnrollResult> {
   return apiFetch<EnrollResult>(
     `/admissions/applications/${applicationId}/enroll`,
-    { method: "POST" },
+    { method: "POST", body: JSON.stringify(extras ?? {}) },
   );
 }

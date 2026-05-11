@@ -89,10 +89,19 @@ const ProvisionSchema = z.object({
 export async function onboardingRoutes(app: FastifyInstance) {
   /**
    * POST /onboarding
-   * Public — VTI self-registers. Creates tenant + admin user.
-   * Rate-limited by the global rate limiter in buildApp.
+   * Disabled unless ENABLE_PUBLIC_ONBOARDING=true (default: off).
+   * VTIs must be provisioned by platform admin via POST /onboarding/provision.
+   * When enabled, creates a tenant + admin user and returns JWT tokens.
    */
   app.post("/onboarding", async (req, reply) => {
+    if (process.env.ENABLE_PUBLIC_ONBOARDING !== "true") {
+      return reply.status(403).send({
+        statusCode: 403,
+        message:
+          "Public self-registration is disabled. Contact your platform administrator.",
+      });
+    }
+
     const parsed = OnboardingSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.status(400).send({
@@ -139,6 +148,31 @@ export async function onboardingRoutes(app: FastifyInstance) {
         [tenantId, adminEmail, passwordHash],
       );
       const userId: string = userRes.rows[0].id;
+
+      // 3. Pre-load Uganda TVET standard 2025/2026 academic calendar
+      //    Must set RLS context (app.tenant_id) before inserting into app schema tables.
+      await client.query(`SELECT set_config('app.tenant_id', $1, true)`, [tenantId]);
+
+      const yearRes = await client.query(
+        `INSERT INTO app.academic_years (tenant_id, name, start_date, end_date, is_current)
+         VALUES ($1, '2025/2026', '2026-01-27', '2026-11-28', true)
+         RETURNING id`,
+        [tenantId],
+      );
+      const academicYearId: string = yearRes.rows[0].id;
+
+      const tvetTerms = [
+        { name: "Term 1", term_number: 1, start_date: "2026-02-03", end_date: "2026-04-18", is_current: false },
+        { name: "Term 2", term_number: 2, start_date: "2026-05-05", end_date: "2026-08-21", is_current: true },
+        { name: "Term 3", term_number: 3, start_date: "2026-09-07", end_date: "2026-11-27", is_current: false },
+      ];
+      for (const t of tvetTerms) {
+        await client.query(
+          `INSERT INTO app.terms (tenant_id, academic_year_id, name, term_number, start_date, end_date, is_current)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [tenantId, academicYearId, t.name, t.term_number, t.start_date, t.end_date, t.is_current],
+        );
+      }
 
       await client.query("COMMIT");
 

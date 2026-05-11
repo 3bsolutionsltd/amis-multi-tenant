@@ -15,6 +15,7 @@ import {
   Card,
   Badge,
 } from "../../lib/ui";
+import { OnboardingChecklist } from "../../components/OnboardingChecklist";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -799,6 +800,9 @@ export function DashboardPage() {
     <div style={{ animation: "amis-fadein 0.2s ease-out" }}>
       {/* Welcome banner */}
       {user && <WelcomeBanner email={user.email} role={user.role} />}
+
+      {/* Onboarding checklist — admin only, hides when complete */}
+      {user?.role === "admin" && <OnboardingChecklist />}
 
       {/* Stats row */}
       <div

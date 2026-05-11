@@ -38,13 +38,17 @@ export function AdminStudioLayout() {
   const role = user?.role ?? "none";
   const navigate = useNavigate();
 
+  const isAdmin = role === "admin";
+  const isRegistrar = role === "registrar";
+  const hasAccess = isAdmin || isRegistrar;
+
   useEffect(() => {
-    if (role !== "admin") {
+    if (!hasAccess) {
       navigate("/", { replace: true });
     }
-  }, [role, navigate]);
+  }, [hasAccess, navigate]);
 
-  if (role !== "admin") return null;
+  if (!hasAccess) return null;
 
   return (
     <div
@@ -104,39 +108,45 @@ export function AdminStudioLayout() {
           <NavLink to="/admin-studio/profile" style={studioNavStyle}>
             Institute Profile
           </NavLink>
-          <NavLink to="/admin-studio/users" style={studioNavStyle}>
-            Users &amp; Roles
-          </NavLink>
+          {isAdmin && (
+            <NavLink to="/admin-studio/users" style={studioNavStyle}>
+              Users &amp; Roles
+            </NavLink>
+          )}
 
-          <div style={NAV_SECTION}>Configuration</div>
-          <NavLink to="/admin-studio/editor" style={studioNavStyle}>
-            Config Editor
-          </NavLink>
-          <NavLink to="/admin-studio/branding" style={studioNavStyle}>
-            Branding &amp; Theme
-          </NavLink>
-          <NavLink to="/admin-studio/modules" style={studioNavStyle}>
-            Module Toggles
-          </NavLink>
-          <NavLink to="/admin-studio/navigation" style={studioNavStyle}>
-            Navigation
-          </NavLink>
-          <NavLink to="/admin-studio/dashboards" style={studioNavStyle}>
-            Dashboard Widgets
-          </NavLink>
+          {isAdmin && (
+            <>
+              <div style={NAV_SECTION}>Configuration</div>
+              <NavLink to="/admin-studio/editor" style={studioNavStyle}>
+                Config Editor
+              </NavLink>
+              <NavLink to="/admin-studio/branding" style={studioNavStyle}>
+                Branding &amp; Theme
+              </NavLink>
+              <NavLink to="/admin-studio/modules" style={studioNavStyle}>
+                Module Toggles
+              </NavLink>
+              <NavLink to="/admin-studio/navigation" style={studioNavStyle}>
+                Navigation
+              </NavLink>
+              <NavLink to="/admin-studio/dashboards" style={studioNavStyle}>
+                Dashboard Widgets
+              </NavLink>
 
-          <div style={NAV_SECTION}>Forms</div>
-          <NavLink to="/admin-studio/student-form" style={studioNavStyle}>
-            Student Form Fields
-          </NavLink>
-          <NavLink to="/admin-studio/admission-form" style={studioNavStyle}>
-            Admission Form
-          </NavLink>
+              <div style={NAV_SECTION}>Forms</div>
+              <NavLink to="/admin-studio/student-form" style={studioNavStyle}>
+                Student Form Fields
+              </NavLink>
+              <NavLink to="/admin-studio/admission-form" style={studioNavStyle}>
+                Admission Form
+              </NavLink>
 
-          <div style={NAV_SECTION}>Academic</div>
-          <NavLink to="/admin-studio/workflows" style={studioNavStyle}>
-            Workflows
-          </NavLink>
+              <div style={NAV_SECTION}>Academic</div>
+              <NavLink to="/admin-studio/workflows" style={studioNavStyle}>
+                Workflows
+              </NavLink>
+            </>
+          )}
 
           <div style={NAV_SECTION}>Data Management</div>
           <NavLink to="/admin-studio/academic-calendar" style={studioNavStyle}>

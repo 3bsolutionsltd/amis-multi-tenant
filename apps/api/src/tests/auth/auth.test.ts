@@ -61,6 +61,8 @@ describeIf("Auth endpoints (integration)", () => {
 
   /** Real DB id of the seeded admin@tenant-a.test user */
   let tenantAAdminId: string;
+  /** ID of the inactive fixture user */
+  let inactiveUserId: string;
   /** ID of temp user deleted during the "deleted mid-session" test */
   let tempUserId: string;
 
@@ -74,20 +76,22 @@ describeIf("Auth endpoints (integration)", () => {
     );
     tenantAAdminId = rows[0].id;
 
-    // Insert an inactive user for Tenant A
-    await adminPool.query(
+    // Insert an inactive user for Tenant A and capture its ID
+    const { rows: inactiveRows } = await adminPool.query<{ id: string }>(
       `INSERT INTO platform.users (tenant_id, email, password_hash, role, is_active)
        VALUES ($1, 'inactive@auth-test.local', $2, 'registrar', false)
-       ON CONFLICT (tenant_id, email)
-         DO UPDATE SET is_active = false, password_hash = EXCLUDED.password_hash`,
+       ON CONFLICT (tenant_id, email) WHERE tenant_id IS NOT NULL
+         DO UPDATE SET is_active = false, password_hash = EXCLUDED.password_hash
+       RETURNING id`,
       [TENANT_A, pwHash],
     );
+    inactiveUserId = inactiveRows[0].id;
 
     // Insert a temp user that will be deleted inside the "deleted mid-session" test
     const { rows: tempRows } = await adminPool.query<{ id: string }>(
       `INSERT INTO platform.users (tenant_id, email, password_hash, role)
        VALUES ($1, 'delete-me@auth-test.local', $2, 'registrar')
-       ON CONFLICT (tenant_id, email)
+       ON CONFLICT (tenant_id, email) WHERE tenant_id IS NOT NULL
          DO UPDATE SET is_active = true, password_hash = EXCLUDED.password_hash
        RETURNING id`,
       [TENANT_A, pwHash],
@@ -162,7 +166,7 @@ describeIf("Auth endpoints (integration)", () => {
       expect(res.json().message).toBe("Invalid credentials");
     });
 
-    it("returns 401 with 'Account disabled' for inactive user", async () => {
+    it("returns 401 with 'Invalid credentials' for inactive user", async () => {
       const res = await app.inject({
         method: "POST",
         url: "/auth/login",
@@ -174,7 +178,7 @@ describeIf("Auth endpoints (integration)", () => {
       });
 
       expect(res.statusCode).toBe(401);
-      expect(res.json().message).toBe("Account disabled");
+      expect(res.json().message).toBe("Invalid credentials");
     });
 
     it("returns 400 when tenantId is missing", async () => {
@@ -438,6 +442,20 @@ describeIf("Auth endpoints (integration)", () => {
       const res = await app.inject({
         method: "GET",
         url: "/auth/me",
+      });
+      expect(res.statusCode).toBe(401);
+    });
+
+    it("returns 401 for an inactive user with a valid JWT", async () => {
+      const token = jwt.sign(
+        { sub: inactiveUserId, tenantId: TENANT_A, role: "registrar" },
+        JWT_SECRET as string,
+        { expiresIn: "15m" },
+      );
+      const res = await app.inject({
+        method: "GET",
+        url: "/auth/me",
+        headers: { authorization: `Bearer ${token}` },
       });
       expect(res.statusCode).toBe(401);
     });
