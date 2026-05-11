@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "../lib/apiFetch";
+import { apiFetch, ApiError } from "../lib/apiFetch";
 import { C, inputCss } from "../lib/ui";
 
 interface Tenant {
@@ -60,8 +60,8 @@ export function PlatformTenantManager() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) =>
-      apiFetch(`/tenants/${id}?confirm=true`, { method: "DELETE" }),
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) =>
+      apiFetch(`/tenants/${id}?confirm=true${force ? "&force=true" : ""}`, { method: "DELETE" }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["platform/tenants"] });
     },
@@ -84,9 +84,31 @@ export function PlatformTenantManager() {
       )
         return;
       setDeleteErr(null);
-      deleteMutation.mutate(t.id, {
-        onError: (err) =>
-          setDeleteErr(err instanceof Error ? err.message : "Delete failed"),
+      deleteMutation.mutate({ id: t.id }, {
+        onError: (err) => {
+          // 409 means the tenant still has users — offer a force-delete
+          if (
+            err instanceof ApiError &&
+            err.status === 409 &&
+            (err.body as { userCount?: number } | null)?.userCount
+          ) {
+            const count = (err.body as { userCount: number }).userCount;
+            if (
+              window.confirm(
+                `"${t.name}" still has ${count} user(s).\n\n` +
+                  `Force delete will permanently remove the tenant AND all its users and data.\n\n` +
+                  `Continue with force delete?`,
+              )
+            ) {
+              deleteMutation.mutate({ id: t.id, force: true }, {
+                onError: (e2) =>
+                  setDeleteErr(e2 instanceof Error ? e2.message : "Force delete failed"),
+              });
+            }
+          } else {
+            setDeleteErr(err instanceof Error ? err.message : "Delete failed");
+          }
+        },
       });
     },
     [deleteMutation],
