@@ -10,7 +10,7 @@
  */
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { pool } from "../../db/pool.js";
+import { pool, superPool } from "../../db/pool.js";
 import { requireRole } from "../../middleware/requireRole.js";
 
 // ------------------------------------------------------------------ schemas
@@ -390,25 +390,30 @@ export async function tenantsRoutes(app: FastifyInstance) {
         return reply.status(400).send({ statusCode: 400, message: "Invalid tenant ID" });
       }
 
-      const { confirm } = req.query as { confirm?: string };
+      const { confirm, force } = req.query as { confirm?: string; force?: string };
       if (confirm !== "true") {
         return reply
           .status(400)
           .send({ statusCode: 400, message: "Pass ?confirm=true to confirm deletion" });
       }
 
-      // Prevent deleting a tenant that still has users
-      const userCount = await pool.query(
+      // Use superPool to bypass RLS on platform.users (amis_app cannot read
+      // platform.users without a tenant context, which isn't set here).
+      const userCount = await superPool.query(
         `SELECT count(*)::int AS cnt FROM platform.users WHERE tenant_id = $1`,
         [id],
       );
-      if (userCount.rows[0].cnt > 0) {
+      const cnt: number = userCount.rows[0].cnt;
+      if (cnt > 0 && force !== "true") {
         return reply.status(409).send({
           statusCode: 409,
-          message: `Cannot delete: tenant still has ${userCount.rows[0].cnt} user(s). Remove all users first.`,
+          message: `Cannot delete: tenant still has ${cnt} user(s).`,
+          userCount: cnt,
         });
       }
 
+      // Delete the tenant. ON DELETE CASCADE in the schema automatically removes
+      // all related users, roles, app data for this tenant.
       const result = await pool.query(
         `DELETE FROM platform.tenants WHERE id = $1 RETURNING id`,
         [id],

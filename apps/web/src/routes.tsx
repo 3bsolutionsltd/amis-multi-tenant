@@ -232,6 +232,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <PlatformOverview /> },
       { path: "tenants", element: <PlatformTenantManager /> },
+      { path: "tenants/:id", element: <Navigate to="/platform-admin/tenants" replace /> },
       { path: "provision", element: <ProvisionVtiPage /> },
       { path: "users", element: <PlatformUsersPage /> },
     ],
