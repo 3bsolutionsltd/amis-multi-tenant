@@ -32,3 +32,24 @@ export function listCourses(params?: ListCoursesParams): Promise<Course[]> {
   const qs = q.toString();
   return apiFetch<Course[]>(`/courses${qs ? `?${qs}` : ""}`);
 }
+
+export interface CreateCourseBody {
+  programme_id: string;
+  code: string;
+  title: string;
+  credit_hours?: number;
+  course_type?: "theory" | "practical" | "both";
+  year_of_study?: number;
+  semester?: number;
+}
+
+export function createCourse(body: CreateCourseBody): Promise<Course> {
+  return apiFetch<Course>("/courses", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteCourse(id: string): Promise<void> {
+  return apiFetch<void>(`/courses/${id}`, { method: "DELETE" });
+}
