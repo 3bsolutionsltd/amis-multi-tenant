@@ -1,0 +1,73 @@
+name: Feature Request
+description: Define a new feature or enhancement (ISO 9001:2015 Clause 8.2 & 8.3)
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Complete all required fields before development begins. This form is the
+        **design input record** for ISO 9001:2015 Clause 8.3.2.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem / Customer Need"
+      description: >
+        What problem does this solve? Who requested it? Reference any customer
+        communication, demo feedback, or QA tracker entry.
+      placeholder: "e.g. Finance staff cannot filter fee reports by term — raised in QA session May 2026."
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: "Acceptance Criteria"
+      description: >
+        Testable conditions that must be true for this issue to be closed.
+        Use 'Given / When / Then' or a checklist.
+      placeholder: |
+        - [ ] GET /reports/fees?term_id= returns results filtered to that term
+        - [ ] Returns 422 if term_id is not a valid UUID
+        - [ ] Frontend dropdown populates from GET /terms
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk
+    attributes:
+      label: "Risk Level (Clause 6.1)"
+      description: How significant is the impact if this goes wrong?
+      options:
+        - "Low — UI/UX change, documentation, copy"
+        - "Medium — New feature, API addition"
+        - "High — Database migration, auth/security change, multi-tenant isolation"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: "Affected Module / Tenant Scope"
+      options:
+        - "Core Infrastructure / Multi-tenant Shared"
+        - "Students & Admissions"
+        - "Finance & Fees"
+        - "Marks & Assessments"
+        - "Clearance"
+        - "Staff / HR"
+        - "Procurement / Inventory"
+        - "Reports / Analytics"
+        - "Platform Admin"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: design_notes
+    attributes:
+      label: "Design Notes / Proposed Approach (optional)"
+      description: >
+        Any known technical constraints, schema changes, or API design
+        considerations. Leave blank if unknown.

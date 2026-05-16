@@ -45,6 +45,18 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Audit dependencies for vulnerabilities
+        run: pnpm audit --audit-level=high
+
+      - name: Install dbmate
+        run: |
+          curl -fsSL -o /usr/local/bin/dbmate \
+            https://github.com/amacneil/dbmate/releases/latest/download/dbmate-linux-amd64
+          chmod +x /usr/local/bin/dbmate
+
+      - name: Run database migrations
+        run: dbmate up
+
       - name: Run API tests
         run: pnpm --filter api test
 
