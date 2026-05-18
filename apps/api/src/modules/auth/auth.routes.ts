@@ -85,7 +85,10 @@ const LoginSchema = z.object({
   password: z.string().min(1),
   tenantId: z.string().uuid().optional(),
   tenantSlug: z.string().min(1).optional(),
-});
+}).refine(
+  (d) => d.tenantId !== undefined || d.tenantSlug !== undefined,
+  { message: "Either tenantId or tenantSlug must be provided" },
+);
 
 const PlatformLoginSchema = z.object({
   email: z.string().email(),
