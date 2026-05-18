@@ -66,7 +66,7 @@ describeIf("Prompt 19 — password reset + user management (integration)", () =>
     const { rows: targetRows } = await adminPool.query<{ id: string }>(
       `INSERT INTO platform.users (tenant_id, email, password_hash, role, is_active)
        VALUES ($1, 'p19-target@test.local', $2, 'registrar', true)
-       ON CONFLICT (tenant_id, email)
+       ON CONFLICT (tenant_id, email) WHERE tenant_id IS NOT NULL
          DO UPDATE SET password_hash = EXCLUDED.password_hash,
                        role = 'registrar', is_active = true
        RETURNING id`,
