@@ -1,0 +1,68 @@
+name: Bug Report
+description: Report a defect or non-conforming output (ISO 9001:2015 Clause 8.7)
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to raise a verified defect. Unverified reports may be
+        converted to a Feature Request or closed as **'Works as Designed'**.
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to Reproduce"
+      description: Exact steps to reliably trigger the issue.
+      placeholder: |
+        1. Log in as `finance@tenant-a.test`
+        2. Navigate to Finance → Fee Collection
+        3. Click Export
+        4. Observe error in console
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected vs. Actual Behaviour"
+      placeholder: |
+        **Expected:** CSV download begins immediately.
+        **Actual:** API returns 500 — "column term_id does not exist".
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: "Severity"
+      options:
+        - "Critical — System unusable / data loss / security breach"
+        - "High — Core feature broken, no workaround"
+        - "Medium — Feature degraded, workaround exists"
+        - "Low — Minor UI issue, cosmetic"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: "Environment Where Bug Was Found"
+      options:
+        - "Local development"
+        - "Staging (pre.amis.institute)"
+        - "Production (amis.institute)"
+    validations:
+      required: true
+
+  - type: input
+    id: tenant
+    attributes:
+      label: "Affected Tenant / Slug (if known)"
+      placeholder: "e.g. kti, greenfield-vti, or 'all tenants'"
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: "Evidence (logs, screenshots, network responses)"
+      description: Paste relevant API error messages, console output, or attach screenshots.

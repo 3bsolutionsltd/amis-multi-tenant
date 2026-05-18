@@ -236,7 +236,7 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
       const { rows } = await pool.query<{ id: string }>(
         `INSERT INTO platform.users (tenant_id, email, password_hash, role, is_active)
          VALUES ($1, $2, $3, $4, true)
-         ON CONFLICT (tenant_id, email) DO UPDATE
+         ON CONFLICT (tenant_id, email) WHERE tenant_id IS NOT NULL DO UPDATE
            SET password_hash = EXCLUDED.password_hash,
                role          = EXCLUDED.role,
                is_active     = true

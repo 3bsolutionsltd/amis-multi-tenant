@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: User Manual
+    url: https://github.com/3bsolutionsltd/amis-multi-tenant/blob/main/USER_MANUAL.md
+    about: Read the AMIS User Manual before opening an issue.
+  - name: QA Tracker
+    url: https://github.com/3bsolutionsltd/amis-multi-tenant/blob/main/QA-TRACKER.md
+    about: Check the QA Tracker to see if your issue is already known.
