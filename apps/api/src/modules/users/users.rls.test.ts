@@ -28,11 +28,9 @@ describeIf("RLS isolation — platform.users (integration)", () => {
   let tenantBId: string;
 
   beforeAll(async () => {
-    // Ensure amis_app has access to the platform schema tables
-    await adminPool.query(
-      `GRANT USAGE ON SCHEMA platform TO amis_app;
-       GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA platform TO amis_app;`,
-    );
+    // Note: amis_app grants on platform schema are handled by migration 064.
+    // Do NOT re-issue GRANT here — concurrent test files cause "tuple
+    // concurrently updated" on pg system catalogs when grants run in parallel.
 
     // Create two isolated test tenants
     const resA = await adminPool.query<{ id: string }>(
