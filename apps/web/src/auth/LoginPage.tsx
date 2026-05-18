@@ -447,11 +447,11 @@ export function LoginPage() {
           )}
         </div>
 
-        <p style={{ position: "fixed", bottom: 16, left: 0, right: 0, textAlign: "center", fontSize: 11, color: "#d1d5db", pointerEvents: "none" }}>
+        <p style={{ position: "fixed", bottom: 16, left: 0, right: 0, textAlign: "center", fontSize: 11, color: "#6b7280", pointerEvents: "none" }}>
           {APP_NAME} · Academic Management Information System
         </p>
         <p style={{ position: "fixed", bottom: 36, left: 0, right: 0, textAlign: "center", fontSize: 11 }}>
-          <Link to="/platform-login" style={{ color: "#9ca3af", textDecoration: "none" }}>
+          <Link to="/platform-login" style={{ color: "#374151", textDecoration: "none", fontWeight: 500 }}>
             Platform Administrator?
           </Link>
         </p>
