@@ -448,7 +448,7 @@ export async function usersRoutes(app: FastifyInstance) {
         return reply.status(404).send({ message: "User not found" });
       }
 
-      const passwordHash = hashPassword(newPassword);
+      const passwordHash = await hashPasswordAsync(newPassword);
 
       await pool.query(
         `UPDATE platform.users SET password_hash = $1 WHERE id = $2`,
