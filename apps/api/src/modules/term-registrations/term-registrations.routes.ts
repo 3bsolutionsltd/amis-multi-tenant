@@ -148,7 +148,7 @@ export async function termRegistrationsRoutes(app: FastifyInstance) {
       if (!parsed.success)
         return reply.status(422).send({ error: parsed.error.flatten() });
 
-      const { student_id, academic_year, term, current_state, page, limit } =
+      const { student_id, academic_year, term, academic_year_id, term_id, current_state, page, limit } =
         parsed.data;
       const offset = (page - 1) * limit;
 
@@ -160,11 +160,17 @@ export async function termRegistrationsRoutes(app: FastifyInstance) {
           params.push(student_id);
           conditions.push(`r.student_id = $${params.length}`);
         }
-        if (academic_year) {
+        if (academic_year_id) {
+          params.push(academic_year_id);
+          conditions.push(`r.academic_year_id = $${params.length}`);
+        } else if (academic_year) {
           params.push(academic_year);
           conditions.push(`r.academic_year = $${params.length}`);
         }
-        if (term) {
+        if (term_id) {
+          params.push(term_id);
+          conditions.push(`r.term_id = $${params.length}`);
+        } else if (term) {
           params.push(term);
           conditions.push(`r.term = $${params.length}`);
         }
@@ -373,14 +379,26 @@ export async function termRegistrationsRoutes(app: FastifyInstance) {
           [academic_year, term],
         );
 
+        // Resolve FK IDs once for all students in the batch
+        const { rows: promoteAyRows } = await client.query<{ id: string }>(
+          `SELECT id FROM app.academic_years WHERE tenant_id = $1 AND name = $2 LIMIT 1`,
+          [tid, academic_year],
+        );
+        const { rows: promoteTRows } = await client.query<{ id: string }>(
+          `SELECT id FROM app.terms WHERE tenant_id = $1 AND name = $2 LIMIT 1`,
+          [tid, term],
+        );
+        const promoteAcademicYearId = promoteAyRows[0]?.id ?? null;
+        const promoteTermId = promoteTRows[0]?.id ?? null;
+
         let created = 0;
         for (const { id: student_id } of students) {
           const { rows: regRows } = await client.query(
             `INSERT INTO app.term_registrations
-               (tenant_id, student_id, academic_year, term, extension, created_by)
-             VALUES ($1, $2, $3, $4, '{}', $5)
+               (tenant_id, student_id, academic_year, term, academic_year_id, term_id, extension, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, '{}', $7)
              RETURNING id`,
-            [tid, student_id, academic_year, term, actorUserId],
+            [tid, student_id, academic_year, term, promoteAcademicYearId, promoteTermId, actorUserId],
           );
           const regId = regRows[0].id;
 
