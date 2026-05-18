@@ -75,7 +75,7 @@ export const configPayloadSchema = z
       })
       .optional(),
     navigation: z.record(z.string(), z.array(navItemSchema)).optional(),
-    dashboards: z.record(z.string(), z.object({ widgets: z.array(z.string()) })).optional(),
+    dashboards: z.record(z.string(), z.array(dashCardSchema)).optional(),
     forms: z
       .object({
         students: moduleFormConfigSchema.optional(),
