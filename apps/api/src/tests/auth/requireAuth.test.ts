@@ -149,7 +149,7 @@ describeIf("requireAuth — JWT authentication (DB integration)", () => {
     const { rows: active } = await adminPool.query<{ id: string }>(
       `INSERT INTO platform.users (tenant_id, email, password_hash, role, is_active)
        VALUES ($1, 'active@requireauth-test.local', $2, 'registrar', true)
-       ON CONFLICT (tenant_id, email)
+       ON CONFLICT (tenant_id, email) WHERE tenant_id IS NOT NULL
          DO UPDATE SET is_active = true, password_hash = EXCLUDED.password_hash, role = 'registrar'
        RETURNING id`,
       [TENANT_A, pwHash],
@@ -160,7 +160,7 @@ describeIf("requireAuth — JWT authentication (DB integration)", () => {
     await adminPool.query(
       `INSERT INTO platform.users (tenant_id, email, password_hash, role, is_active)
        VALUES ($1, 'inactive@requireauth-test.local', $2, 'finance', false)
-       ON CONFLICT (tenant_id, email)
+       ON CONFLICT (tenant_id, email) WHERE tenant_id IS NOT NULL
          DO UPDATE SET is_active = false, password_hash = EXCLUDED.password_hash`,
       [TENANT_A, pwHash],
     );

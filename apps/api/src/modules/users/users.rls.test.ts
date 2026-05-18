@@ -59,14 +59,14 @@ describeIf("RLS isolation — platform.users (integration)", () => {
        VALUES
          ($1, 'alice-rls@tenant-a.test',  '$2b$10$placeholder_hash_a1', 'admin'),
          ($1, 'bob-rls@tenant-a.test',    '$2b$10$placeholder_hash_a2', 'registrar')
-       ON CONFLICT (tenant_id, email) DO NOTHING`,
+       ON CONFLICT (tenant_id, email) WHERE tenant_id IS NOT NULL DO NOTHING`,
       [tenantAId],
     );
     await adminPool.query(
       `INSERT INTO platform.users (tenant_id, email, password_hash, role)
        VALUES
          ($1, 'carol-rls@tenant-b.test', '$2b$10$placeholder_hash_b1', 'admin')
-       ON CONFLICT (tenant_id, email) DO NOTHING`,
+       ON CONFLICT (tenant_id, email) WHERE tenant_id IS NOT NULL DO NOTHING`,
       [tenantBId],
     );
   });

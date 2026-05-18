@@ -108,7 +108,7 @@ describeIf("platform.users DB constraints (integration)", () => {
       adminPool.query(
         `INSERT INTO platform.users (tenant_id, email, password_hash, role)
          VALUES ($1, $2, $3, 'admin')
-         ON CONFLICT (tenant_id, email) DO NOTHING`,
+         ON CONFLICT (tenant_id, email) WHERE tenant_id IS NOT NULL DO NOTHING`,
         [tenantBId, UNIQUE_EMAIL, hash],
       ),
     ).resolves.toBeDefined();
@@ -163,7 +163,7 @@ describeIf("platform.users DB constraints (integration)", () => {
     await adminPool.query(
       `INSERT INTO platform.users (tenant_id, email, password_hash, role)
        VALUES ($1, $2, $3, 'admin')
-       ON CONFLICT (tenant_id, email) DO NOTHING`,
+       ON CONFLICT (tenant_id, email) WHERE tenant_id IS NOT NULL DO NOTHING`,
       [tenantBId, RLS_EMAIL, hash],
     );
 
