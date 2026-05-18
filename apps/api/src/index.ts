@@ -28,6 +28,7 @@ import { assertJwtConfig } from "./lib/jwt.js";
 assertJwtConfig();
 
 import { buildApp } from "./app.js";
+import { startOutboxWorker } from "./lib/queue.js";
 
 const app = buildApp();
 const port = Number(process.env.PORT) || 3000;
@@ -38,4 +39,8 @@ app.listen({ port, host: "0.0.0.0" }, (err, address) => {
     process.exit(1);
   }
   app.log.info(`API listening at ${address}`);
+  // Start outbox worker after server is up (no-op when REDIS_URL is not set)
+  startOutboxWorker().catch((e) =>
+    app.log.error("[outbox] worker startup failed:", e)
+  );
 });
