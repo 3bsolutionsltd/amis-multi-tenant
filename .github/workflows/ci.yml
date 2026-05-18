@@ -57,6 +57,9 @@ jobs:
       - name: Run database migrations
         run: dbmate up
 
+      - name: Seed test fixtures
+        run: pnpm seed
+
       - name: Run API tests
         run: pnpm --filter api test
 

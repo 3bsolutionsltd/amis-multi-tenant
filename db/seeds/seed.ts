@@ -45,16 +45,16 @@ async function withTenant<T>(
 async function seed() {
   const client = await pool.connect();
   try {
-    // Upsert tenants (idempotent)
+    // Upsert tenants (idempotent) — explicit IDs so test constants match in CI
     const tenantA = await client.query<{ id: string }>(
-      `INSERT INTO platform.tenants (slug, name)
-       VALUES ('greenfield-vti', 'Greenfield VTI')
+      `INSERT INTO platform.tenants (id, slug, name)
+       VALUES ('10e575a2-2e59-437b-b251-c5b906a482d8', 'greenfield-vti', 'Greenfield VTI')
        ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
        RETURNING id`,
     );
     const tenantB = await client.query<{ id: string }>(
-      `INSERT INTO platform.tenants (slug, name)
-       VALUES ('riverside-tech', 'Riverside Tech College')
+      `INSERT INTO platform.tenants (id, slug, name)
+       VALUES ('b6c79654-fa01-4598-90ad-5467760e57e2', 'riverside-tech', 'Riverside Tech College')
        ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
        RETURNING id`,
     );
