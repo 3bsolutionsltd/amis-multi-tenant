@@ -26,8 +26,8 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgres://amis:amis@localhost:5432/amis
-      APP_DATABASE_URL: postgres://amis:amis@localhost:5432/amis
+      DATABASE_URL: postgres://amis:amis@localhost:5432/amis?sslmode=disable
+      APP_DATABASE_URL: postgres://amis:amis@localhost:5432/amis?sslmode=disable
       JWT_SECRET: ci-test-secret
       NODE_ENV: test
 
