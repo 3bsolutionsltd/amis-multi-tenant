@@ -13,8 +13,8 @@
 import type { FastifyInstance } from "fastify";
 import { createHash, randomBytes } from "crypto";
 import { z } from "zod";
-import { pool } from "../../db/pool.js";
-import { hashPassword } from "../../lib/password.js";
+import { superPool as pool } from "../../db/pool.js";
+import { hashPasswordAsync } from "../../lib/password.js";
 import { isValidPassword } from "../../lib/passwordValidator.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { sendMail, buildWelcomeEmail } from "../../lib/email.js";
@@ -60,6 +60,7 @@ const UsersQuerySchema = z.object({
 
 const CreateUserSchema = z.object({
   email: z.string().email(),
+  password: z.string().min(1),
   role: z.enum(VALID_ROLES),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
@@ -155,7 +156,7 @@ export async function usersRoutes(app: FastifyInstance) {
    */
   app.get(
     "/users",
-    { preHandler: requireRole("admin", "registrar") },
+    { preHandler: requireRole("admin") },
     async (req, reply) => {
       const { tenantId } = req.user;
 
@@ -239,7 +240,14 @@ export async function usersRoutes(app: FastifyInstance) {
         });
       }
 
-      const { email, role, firstName, lastName } = parsed.data;
+      const { email, password, role, firstName, lastName } = parsed.data;
+
+      // Validate password strength
+      if (!isValidPassword(password)) {
+        return reply
+          .status(400)
+          .send({ message: "Password does not meet requirements" });
+      }
 
       // Check uniqueness (tenant_id + email)
       const { rows: existing } = await pool.query<{ id: string }>(
@@ -252,9 +260,7 @@ export async function usersRoutes(app: FastifyInstance) {
           .send({ message: "A user with that email already exists" });
       }
 
-      // Generate a random internal password — user will set their own via the welcome email link
-      const internalPassword = randomBytes(32).toString("hex");
-      const passwordHash = hashPassword(internalPassword);
+      const passwordHash = await hashPasswordAsync(password);
 
       const { rows } = await pool.query<{
         id: string;
@@ -442,7 +448,7 @@ export async function usersRoutes(app: FastifyInstance) {
         return reply.status(404).send({ message: "User not found" });
       }
 
-      const passwordHash = hashPassword(newPassword);
+      const passwordHash = await hashPasswordAsync(newPassword);
 
       await pool.query(
         `UPDATE platform.users SET password_hash = $1 WHERE id = $2`,

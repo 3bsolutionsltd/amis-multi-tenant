@@ -403,6 +403,15 @@ export async function admissionsRoutes(app: FastifyInstance) {
           return { alreadyEnrolled: true, studentId: application.student_id } as const;
         }
 
+        // Check workflow state allows enrollment
+        const state = application.current_state;
+        if (state !== "enrolled" && state !== "admitted") {
+          return {
+            invalidState: true,
+            message: `Cannot enroll: application is in "${state}" state`,
+          } as const;
+        }
+
         // Generate admission number: use provided value or auto-generate ADM-<year>-<seq>
         const year = new Date().getFullYear();
         let admissionNumber = extra.admission_number?.trim() || null;
@@ -474,6 +483,8 @@ export async function admissionsRoutes(app: FastifyInstance) {
         return reply
           .status(409)
           .send({ error: "already enrolled", studentId: result.studentId });
+      if ("invalidState" in result)
+        return reply.status(422).send({ error: result.message });
 
       // Fire-and-forget SMS to enrolled student's phone
       const enrolledPhone = result.student?.phone ?? null;

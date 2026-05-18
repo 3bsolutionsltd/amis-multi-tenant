@@ -8,7 +8,7 @@
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "seed": "pnpm --filter @amis/api exec tsx --cwd ../.. ../../db/seeds/seed.ts"
+    "seed": "pnpm --filter @amis/api exec tsx ../../db/seeds/seed.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

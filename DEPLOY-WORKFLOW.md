@@ -28,15 +28,26 @@ Before touching the VPS, always commit and push your changes from Windows PowerS
 ```powershell
 cd C:\Users\DELL\amis-multi-tenant
 
-# Stage everything (including new untracked files)
+# Create a feature branch (never commit directly to main)
+git checkout -b feat/short-description
+
+# Stage your changes
 git add -A
 
-# Commit with a meaningful message
+# Commit with a conventional commit message
 git commit -m "feat: short description of what changed"
 
-# Push to GitHub
-git push origin main
+# Push the branch to GitHub
+git push origin feat/short-description
 ```
+
+> **Then open a Pull Request** on GitHub from your branch into `main`.
+> Branch protection on `main` requires:
+> - At least **1 approved review** before merging
+> - The **CI pipeline (test job)** must pass
+>
+> Direct pushes to `main` are blocked. Use `git push origin main` **only** in hotfix emergencies
+> agreed by the team, using a short-lived branch merged via PR.
 
 > **Tip:** If you only changed specific files, use `git add <file>` instead of `git add -A`.
 > But `git add -A` is safe — it stages all changes and new files.

@@ -26,8 +26,8 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgres://amis:amis@localhost:5432/amis
-      APP_DATABASE_URL: postgres://amis:amis@localhost:5432/amis
+      DATABASE_URL: postgres://amis:amis@localhost:5432/amis?sslmode=disable
+      APP_DATABASE_URL: postgres://amis_app:amis_dev@localhost:5432/amis?sslmode=disable
       JWT_SECRET: ci-test-secret
       NODE_ENV: test
 
@@ -36,7 +36,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.12.3
 
       - uses: actions/setup-node@v4
         with:
@@ -44,6 +44,21 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Audit dependencies for vulnerabilities
+        run: pnpm audit --audit-level=critical
+
+      - name: Install dbmate
+        run: |
+          curl -fsSL -o /usr/local/bin/dbmate \
+            https://github.com/amacneil/dbmate/releases/latest/download/dbmate-linux-amd64
+          chmod +x /usr/local/bin/dbmate
+
+      - name: Run database migrations
+        run: dbmate up
+
+      - name: Seed test fixtures
+        run: pnpm seed
 
       - name: Run API tests
         run: pnpm --filter api test
@@ -57,7 +72,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.12.3
 
       - uses: actions/setup-node@v4
         with:
