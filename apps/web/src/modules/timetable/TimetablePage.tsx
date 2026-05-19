@@ -498,7 +498,7 @@ export function TimetablePage() {
       {!isLoading && slots.length === 0 && !error && (
         <div style={{ padding: 48 }}>
           <EmptyState
-            message="No timetable slots found."
+            title="No timetable slots found."
             description="Click '+ New Slot' to add a class to the schedule."
             action={<PrimaryBtn onClick={openNew}>+ New Slot</PrimaryBtn>}
           />

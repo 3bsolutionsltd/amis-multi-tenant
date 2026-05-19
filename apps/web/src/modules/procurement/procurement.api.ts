@@ -48,6 +48,7 @@ export interface PRItem {
   quantity: number;
   unit: string | null;
   estimated_unit_cost: number | null;
+  vote_item?: string | null;
   notes: string | null;
   created_at: string;
 }
