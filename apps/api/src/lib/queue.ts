@@ -6,13 +6,13 @@
  * until Redis becomes available).
  */
 import { Queue, Worker } from "bullmq";
-import IORedis from "ioredis";
+import { Redis } from "ioredis";
 import { superPool } from "../db/pool.js";
 
 export type OutboxQueue = Queue;
 export type OutboxWorker = Worker;
 
-let _connection: IORedis | null = null;
+let _connection: Redis | null = null;
 let _queue: Queue | null = null;
 let _worker: Worker | null = null;
 let _pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -21,10 +21,10 @@ let _pollTimer: ReturnType<typeof setInterval> | null = null;
 // Connection
 // -----------------------------------------------------------------------
 
-export function createRedisConnection(): IORedis | null {
+export function createRedisConnection(): Redis | null {
   const url = process.env.REDIS_URL;
   if (!url) return null;
-  const conn = new IORedis(url, {
+  const conn = new Redis(url, {
     maxRetriesPerRequest: null, // required by BullMQ
     enableReadyCheck: false,
   });
