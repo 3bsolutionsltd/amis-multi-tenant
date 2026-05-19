@@ -30,14 +30,14 @@ export function MarkCreatePage() {
 
   const programmesQ = useQuery({
     queryKey: ["programmes"],
-    queryFn: listProgrammes,
+    queryFn: () => listProgrammes(),
     staleTime: 60_000,
   });
   const programmes = programmesQ.data ?? [];
 
   const { data: academicYears } = useQuery({
     queryKey: ["academic-years"],
-    queryFn: listAcademicYears,
+    queryFn: () => listAcademicYears(),
     staleTime: 60_000,
   });
 
@@ -52,7 +52,7 @@ export function MarkCreatePage() {
 
   // Resolve programme UUID for course filtering
   const selectedProgramme = programmes.find(
-    (p) => (p.code ?? p.name) === form.programme,
+    (p) => (p.code ?? p.title) === form.programme,
   );
   const coursesQ = useQuery({
     queryKey: ["courses", selectedProgramme?.id],
@@ -116,8 +116,8 @@ export function MarkCreatePage() {
             >
               <option value="">— Select Programme —</option>
               {programmes.map((p) => (
-                <option key={p.id} value={p.code ?? p.name}>
-                  {p.code ? `${p.code} – ${p.name}` : p.name}
+                <option key={p.id} value={p.code ?? p.title}>
+                  {p.code ? `${p.code} – ${p.title}` : p.title}
                 </option>
               ))}
             </select>
