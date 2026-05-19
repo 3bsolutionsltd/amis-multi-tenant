@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     const refreshToken = getRefreshToken();
     // Fire-and-forget — revoke on server best-effort, don't block the redirect
     if (refreshToken) {

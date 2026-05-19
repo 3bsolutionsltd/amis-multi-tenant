@@ -243,6 +243,29 @@ describe("GET /term-registrations", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([]);
   });
+
+  it("returns 200 when filtering by term_id UUID (#85)", async () => {
+    const TERM_ID = "aa000000-0000-0000-0000-000000000001";
+    mockWithTenant.mockResolvedValueOnce({ rows: [fakeRegistration] } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/term-registrations?term_id=${TERM_ID}`,
+      headers,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toHaveLength(1);
+  });
+
+  it("returns 422 when term_id filter is not a valid UUID (#85)", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/term-registrations?term_id=not-a-uuid",
+      headers,
+    });
+    expect(res.statusCode).toBe(422);
+  });
 });
 
 // ------------------------------------------------------------------ GET /term-registrations/:id

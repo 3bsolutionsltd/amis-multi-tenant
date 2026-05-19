@@ -181,13 +181,13 @@ describeIf("Auth endpoints (integration)", () => {
       expect(res.json().message).toBe("Invalid credentials");
     });
 
-    it("returns 400 when tenantId is missing", async () => {
+    it("single-step login (no tenantId) resolves tenant from email → 200", async () => {
       const res = await app.inject({
         method: "POST",
         url: "/auth/login",
         payload: { email: VALID_EMAIL, password: VALID_PASSWORD },
       });
-      expect(res.statusCode).toBe(400);
+      expect(res.statusCode).toBe(200);
     });
 
     it("returns 400 when email is missing", async () => {

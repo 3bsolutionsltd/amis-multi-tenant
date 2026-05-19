@@ -2,7 +2,7 @@
  * AMIS shared UI primitives.
  * All styling is inline — no Tailwind, no CSS modules.
  */
-import { type CSSProperties, type ReactNode } from "react";
+import { type CSSProperties, type ReactNode, type MouseEventHandler } from "react";
 import { Link } from "react-router-dom";
 
 // ---------------------------------------------------------------------------
@@ -45,6 +45,7 @@ export const C = {
   gray300: "#d1d5db",
   gray400: "#9ca3af",
   gray500: "#6b7280",
+  gray600: "#4b5563",
   gray700: "#374151",
   gray900: "#111827",
   red: "#dc2626",
@@ -71,6 +72,11 @@ export const C = {
   indigo: "#4f46e5",
   indigoBg: "#e0e7ff",
   indigoText: "#3730a3",
+  gray800: "#1f2937",
+  text: "#111827",
+  textSecondary: "#6b7280",
+  border: "#e5e7eb",
+  brand600: "#2563eb",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -320,17 +326,22 @@ export function PrimaryBtn({
   onClick,
   disabled,
   type = "button",
+  style,
+  title,
 }: {
   children: ReactNode;
-  onClick?: () => void;
+  onClick?: MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean;
   type?: "button" | "submit";
+  style?: CSSProperties;
+  title?: string;
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
+      title={title}
       style={{
         ...BTN_BASE,
         background: C.primary,
@@ -338,6 +349,7 @@ export function PrimaryBtn({
         padding: "9px 18px",
         opacity: disabled ? 0.55 : 1,
         cursor: disabled ? "not-allowed" : "pointer",
+        ...style,
       }}
     >
       {children}
@@ -350,11 +362,13 @@ export function SecondaryBtn({
   onClick,
   disabled,
   type = "button",
+  style,
 }: {
   children: ReactNode;
-  onClick?: () => void;
+  onClick?: MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean;
   type?: "button" | "submit";
+  style?: CSSProperties;
 }) {
   return (
     <button
@@ -369,6 +383,7 @@ export function SecondaryBtn({
         border: `1px solid ${C.gray300}`,
         opacity: disabled ? 0.55 : 1,
         cursor: disabled ? "not-allowed" : "pointer",
+        ...style,
       }}
     >
       {children}
@@ -383,7 +398,7 @@ export function DangerBtn({
   type = "button",
 }: {
   children: ReactNode;
-  onClick?: () => void;
+  onClick?: MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean;
   type?: "button" | "submit";
 }) {
@@ -415,7 +430,7 @@ export function SuccessBtn({
   type = "button",
 }: {
   children: ReactNode;
-  onClick?: () => void;
+  onClick?: MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean;
   type?: "button" | "submit";
 }) {
@@ -443,7 +458,7 @@ export function SuccessBtn({
 // ---------------------------------------------------------------------------
 // Badge
 // ---------------------------------------------------------------------------
-type BadgeColor =
+export type BadgeColor =
   | "gray"
   | "blue"
   | "green"
@@ -468,9 +483,11 @@ const BADGE_MAP: Record<BadgeColor, { bg: string; color: string }> = {
 
 export function Badge({
   label,
+  children,
   color = "gray",
 }: {
-  label: string;
+  label?: string;
+  children?: ReactNode;
   color?: BadgeColor;
 }) {
   const { bg, color: fg } = BADGE_MAP[color as BadgeColor] ?? BADGE_MAP.gray;
@@ -488,7 +505,7 @@ export function Badge({
         letterSpacing: "0.01em",
       }}
     >
-      {label}
+      {label ?? children}
     </span>
   );
 }
@@ -576,9 +593,11 @@ export function DataTable({
 export function TR({
   children,
   onClick,
+  style,
 }: {
   children: ReactNode;
   onClick?: () => void;
+  style?: CSSProperties;
 }) {
   ensureGlobalCss();
   return (
@@ -589,6 +608,7 @@ export function TR({
         borderBottom: `1px solid ${C.gray100}`,
         cursor: onClick ? "pointer" : "default",
         background: C.white,
+        ...style,
       }}
     >
       {children}
@@ -600,13 +620,22 @@ export function TD({
   children,
   muted,
   style,
+  colSpan,
+  onClick,
+  title,
 }: {
   children: ReactNode;
   muted?: boolean;
   style?: CSSProperties;
+  colSpan?: number;
+  onClick?: MouseEventHandler<HTMLTableCellElement>;
+  title?: string;
 }) {
   return (
     <td
+      colSpan={colSpan}
+      onClick={onClick}
+      title={title}
       style={{
         padding: "12px 16px",
         color: muted ? C.gray500 : C.gray700,
@@ -651,14 +680,17 @@ export function Field({
   error,
   required,
   children,
+  style,
 }: {
   label: string;
-  error?: string;
+  error?: string | string[];
   required?: boolean;
   children: ReactNode;
+  style?: CSSProperties;
 }) {
+  const errorMsg = Array.isArray(error) ? error[0] : error;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 5, ...style }}>
       <label
         style={{
           fontSize: 13,
@@ -673,9 +705,9 @@ export function Field({
         {required && <span style={{ color: C.red, fontSize: 12 }}>*</span>}
       </label>
       {children}
-      {error && (
+      {errorMsg && (
         <span style={{ color: C.red, fontSize: 12, marginTop: 2 }}>
-          {error}
+          {errorMsg}
         </span>
       )}
     </div>
@@ -946,7 +978,7 @@ export function Modal({
 // ---------------------------------------------------------------------------
 // Section divider with label
 // ---------------------------------------------------------------------------
-export function SectionLabel({ children }: { children: ReactNode }) {
+export function SectionLabel({ children, style }: { children: ReactNode; style?: CSSProperties }) {
   return (
     <div
       style={{
@@ -957,6 +989,7 @@ export function SectionLabel({ children }: { children: ReactNode }) {
         letterSpacing: "0.07em",
         marginBottom: 12,
         marginTop: 4,
+        ...style,
       }}
     >
       {children}

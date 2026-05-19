@@ -75,7 +75,7 @@ export function FeeCollectionReportPage() {
     <div>
       <PageHeader
         title="Fee Collection Report"
-        actions={
+        action={
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={handleExportCsv}
@@ -202,7 +202,7 @@ export function FeeCollectionReportPage() {
               <h3 style={{ fontSize: 14, fontWeight: 600, color: C.gray700, marginBottom: 8 }}>
                 Summary by Programme &amp; Term
               </h3>
-              <DataTable columns={["Term", "Programme", "# Payments", "Total Collected (UGX)"]}>
+              <DataTable headers={["Term", "Programme", "# Payments", "Total Collected (UGX)"]}>
                 {data.by_programme_term.map((r, i) => (
                   <TR key={i}>
                     <TD>{r.term ?? "—"}</TD>
@@ -220,7 +220,7 @@ export function FeeCollectionReportPage() {
             Payment Details ({data.payments.length} records)
           </h3>
           <DataTable
-            columns={[
+            headers={[
               "Adm. No.",
               "Name",
               "Programme",
