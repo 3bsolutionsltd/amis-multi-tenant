@@ -6,6 +6,8 @@ import { DevRoleSwitcher } from "./DevRoleSwitcher";
 import { useAuth } from "../auth/AuthContext";
 import { C, StatCard, ensureGlobalCss } from "../lib/ui";
 import { NotificationBell } from "../modules/notifications/NotificationBell";
+import { SyncQueueProvider } from "../lib/useSyncQueue";
+import { SyncStatusBadge } from "../components/SyncStatusBadge";
 
 ensureGlobalCss();
 
@@ -285,6 +287,7 @@ function Header() {
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         {import.meta.env.DEV && <TenantSwitcher />}
         {import.meta.env.DEV && <DevRoleSwitcher />}
+        <SyncStatusBadge />
         <NotificationBell />
 
         {user && (
@@ -629,14 +632,16 @@ function MainContent() {
 
 function Shell() {
   return (
-    <ConfigProvider>
-      <Header />
-      <DefaultConfigBanner />
-      <div style={{ display: "flex" }}>
-        <Sidebar />
-        <MainContent />
-      </div>
-    </ConfigProvider>
+    <SyncQueueProvider>
+      <ConfigProvider>
+        <Header />
+        <DefaultConfigBanner />
+        <div style={{ display: "flex" }}>
+          <Sidebar />
+          <MainContent />
+        </div>
+      </ConfigProvider>
+    </SyncQueueProvider>
   );
 }
 

@@ -5,6 +5,7 @@ import {
   clearTokens,
   type AuthUser,
 } from "./auth";
+import { enqueue } from "./offlineQueue";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -87,10 +88,33 @@ async function refreshAccessToken(): Promise<string> {
   return refreshInFlight;
 }
 
+const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
 export async function apiFetch<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
+  // Intercept mutations while offline — queue for later sync
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (!navigator.onLine && MUTATION_METHODS.has(method)) {
+    const bodyStr =
+      typeof init?.body === "string"
+        ? init.body
+        : init?.body != null
+          ? JSON.stringify(init.body)
+          : null;
+    await enqueue({
+      id: crypto.randomUUID(),
+      url: path,
+      method,
+      body: bodyStr,
+      createdAt: new Date().toISOString(),
+    });
+    // Return the submitted body optimistically so mutations appear to succeed
+    const optimistic = bodyStr ? (JSON.parse(bodyStr) as T) : ({} as T);
+    return optimistic;
+  }
+
   let res = await doFetch(path, init);
 
   // On 401, attempt singleton token refresh then retry once
