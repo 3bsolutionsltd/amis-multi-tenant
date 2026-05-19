@@ -693,26 +693,31 @@ export async function reportsRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
       const q = req.query as Record<string, string>;
-      const term = q.term ?? null;
+      const term_id = q.term_id ?? null;
+      const academic_year_id = q.academic_year_id ?? null;
       const from = q.from ?? null;
       const to = q.to ?? null;
       const programme = q.programme ?? null;
 
       const result = await withTenant(tid, async (client) => {
-        const conditions: string[] = ["fp.tenant_id = $1"];
+        const conditions: string[] = ["p.tenant_id = $1"];
         const params: unknown[] = [tid];
 
-        if (term) {
-          params.push(term);
-          conditions.push(`fp.term = $${params.length}`);
+        if (term_id) {
+          params.push(term_id);
+          conditions.push(`p.term_id = $${params.length}`);
+        }
+        if (academic_year_id) {
+          params.push(academic_year_id);
+          conditions.push(`p.academic_year_id = $${params.length}`);
         }
         if (from) {
           params.push(from);
-          conditions.push(`fp.payment_date >= $${params.length}`);
+          conditions.push(`p.paid_at >= $${params.length}`);
         }
         if (to) {
           params.push(to);
-          conditions.push(`fp.payment_date <= $${params.length}`);
+          conditions.push(`p.paid_at <= $${params.length}`);
         }
         if (programme) {
           params.push(programme);
@@ -721,35 +726,41 @@ export async function reportsRoutes(app: FastifyInstance) {
 
         const { rows: payments } = await client.query(
           `SELECT
-             fp.id,
-             fp.student_id,
+             p.id,
+             p.student_id,
              s.admission_number,
              s.first_name,
              s.last_name,
              s.programme,
-             fp.amount,
-             fp.payment_method,
-             fp.payment_date,
-             fp.term,
-             fp.reference_number
-           FROM app.fee_payments fp
-           LEFT JOIN app.students s ON s.id = fp.student_id
+             p.amount,
+             p.currency,
+             p.reference,
+             p.paid_at,
+             p.source,
+             p.term_id,
+             t.name AS term_name,
+             p.academic_year_id
+           FROM app.payments p
+           LEFT JOIN app.students s ON s.id = p.student_id
+           LEFT JOIN app.terms t ON t.id = p.term_id
            WHERE ${conditions.join(" AND ")}
-           ORDER BY fp.payment_date DESC`,
+           ORDER BY p.paid_at DESC`,
           params,
         );
 
         const { rows: summary } = await client.query(
           `SELECT
-             fp.term,
+             p.term_id,
+             t.name AS term_name,
              s.programme,
              COUNT(*) AS payment_count,
-             SUM(fp.amount) AS total_collected
-           FROM app.fee_payments fp
-           LEFT JOIN app.students s ON s.id = fp.student_id
+             SUM(p.amount) AS total_collected
+           FROM app.payments p
+           LEFT JOIN app.students s ON s.id = p.student_id
+           LEFT JOIN app.terms t ON t.id = p.term_id
            WHERE ${conditions.join(" AND ")}
-           GROUP BY fp.term, s.programme
-           ORDER BY fp.term, s.programme`,
+           GROUP BY p.term_id, t.name, s.programme
+           ORDER BY t.name, s.programme`,
           params,
         );
 
@@ -761,13 +772,14 @@ export async function reportsRoutes(app: FastifyInstance) {
         return {
           payments,
           by_programme_term: summary.map((r: Record<string, string>) => ({
-            term: r.term,
+            term_id: r.term_id,
+            term_name: r.term_name,
             programme: r.programme,
             payment_count: Number(r.payment_count),
             total_collected: Number(r.total_collected),
           })),
           grand_total: totals,
-          filters: { term, from, to, programme },
+          filters: { term_id, academic_year_id, from, to, programme },
         };
       });
 
