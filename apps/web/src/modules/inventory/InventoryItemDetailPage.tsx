@@ -31,7 +31,7 @@ export default function InventoryItemDetailPage() {
     <div style={{ padding: 24, maxWidth: 900, margin: "0 auto" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
         <SecondaryBtn onClick={() => navigate("/inventory")}>← Back</SecondaryBtn>
-        <PageHeader title={data.name} subtitle={`Code: ${data.item_code}`} />
+        <PageHeader title={data.name} description={`Code: ${data.item_code}`} />
       </div>
 
       <Card padding="20px 24px" style={{ marginBottom: 16 }}>
@@ -61,20 +61,20 @@ export default function InventoryItemDetailPage() {
       {data.recent_transactions && data.recent_transactions.length > 0 && (
         <Card padding="20px 24px 0">
           <h3 style={{ marginTop: 0 }}>Recent Transactions (last 20)</h3>
-          <DataTable loading={false} headers={["Type", "Quantity", "Balance After", "Reference", "Notes", "Date"]}>
+          <DataTable isLoading={false} headers={["Type", "Quantity", "Balance After", "Reference", "Notes", "Date"]}>
             {data.recent_transactions.map((tx) => (
               <TR key={tx.id}>
                 <TD>
                   <Badge
                     label={tx.transaction_type}
-                    color={["receipt", "return"].includes(tx.transaction_type) ? "#198754" : "#dc3545"}
+                    color={["receipt", "return"].includes(tx.transaction_type) ? "green" : "red"}
                   />
                 </TD>
                 <TD style={{ color: tx.quantity > 0 ? "#198754" : "#dc3545" }}>
                   {tx.quantity > 0 ? "+" : ""}{tx.quantity}
                 </TD>
                 <TD>{tx.balance_after}</TD>
-                <TD>{tx.reference ?? "—"}</TD>
+                <TD>{tx.reference_id ?? "—"}</TD>
                 <TD>{tx.notes ?? "—"}</TD>
                 <TD>{tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "—"}</TD>
               </TR>

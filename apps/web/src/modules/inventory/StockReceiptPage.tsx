@@ -83,7 +83,7 @@ export default function StockReceiptPage() {
     <div style={{ padding: 24, maxWidth: 640, margin: "0 auto" }}>
       <PageHeader
         title="Record Stock Receipt"
-        subtitle="Record incoming stock (manual receipt or GRN receipt)"
+        description="Record incoming stock (manual receipt or GRN receipt)"
       />
 
       <Card style={{ padding: 28 }}>
