@@ -97,13 +97,12 @@ export function BulkRegistrationPage() {
         <SectionLabel>Term Info</SectionLabel>
         <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
           <select
-            className={inputCss}
             value={selectedYearId}
             onChange={(e) => {
               setSelectedYearId(e.target.value);
               setSelectedTermName("");
             }}
-            style={{ width: 240 }}
+            style={{ ...inputCss, width: 240 }}
           >
             <option value="">Select Academic Year…</option>
             {(yearsQ.data ?? []).map((y) => (
@@ -113,10 +112,9 @@ export function BulkRegistrationPage() {
             ))}
           </select>
           <select
-            className={inputCss}
             value={selectedTermName}
             onChange={(e) => setSelectedTermName(e.target.value)}
-            style={{ width: 200 }}
+            style={{ ...inputCss, width: 200 }}
             disabled={!selectedYearId}
           >
             <option value="">Select Term…</option>
@@ -144,12 +142,11 @@ export function BulkRegistrationPage() {
       <Card style={{ padding: 20 }}>
         <SectionLabel>Option 2: Register Specific Students</SectionLabel>
         <textarea
-          className={inputCss}
           placeholder="Paste student IDs — one per line or comma-separated"
           value={ids}
           onChange={(e) => setIds(e.target.value)}
           rows={6}
-          style={{ width: "100%", marginBottom: 12, fontFamily: "monospace" }}
+          style={{ ...inputCss, width: "100%", marginBottom: 12, fontFamily: "monospace" }}
         />
         <PrimaryBtn
           onClick={() => bulkMut.mutate()}

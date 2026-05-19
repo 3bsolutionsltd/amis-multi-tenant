@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -56,11 +56,14 @@ export function PCVDetailPage() {
     queryKey: ["pcv", id],
     queryFn: () => getPCV(id!),
     enabled: !!id,
-    onSuccess: (data) => {
-      setAmountApproved(String(data.amount_approved ?? data.amount_requested));
-      setAmountPaid(String(data.amount_approved ?? data.amount_requested));
-    },
   });
+
+  useEffect(() => {
+    if (pcv) {
+      setAmountApproved(String(pcv.amount_approved ?? pcv.amount_requested));
+      setAmountPaid(String(pcv.amount_approved ?? pcv.amount_requested));
+    }
+  }, [pcv]);
 
   const actionMut = useMutation({
     mutationFn: (vars: Parameters<typeof transitionPCV>) => transitionPCV(...vars),
@@ -240,25 +243,25 @@ export function PCVDetailPage() {
       {/* Details */}
       <Card padding="20px 24px" style={{ marginBottom: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-          <DetailRow label="PCV Number" value={pcv.pcv_number} />
-          <DetailRow label="Status" value={<Badge color={STATUS_COLORS[pcv.status]}>{STATUS_LABELS[pcv.status]}</Badge>} />
-          <DetailRow label="Requested By" value={pcv.requested_by} />
-          <DetailRow label="Department" value={pcv.department ?? "—"} />
-          <DetailRow label="Purpose" value={pcv.purpose} />
-          <DetailRow label="Amount Requested" value={`MK ${Number(pcv.amount_requested).toLocaleString("en-MW", { minimumFractionDigits: 2 })}`} />
+          <DetailRow label="PCV Number">{pcv.pcv_number}</DetailRow>
+          <DetailRow label="Status"><Badge color={STATUS_COLORS[pcv.status]}>{STATUS_LABELS[pcv.status]}</Badge></DetailRow>
+          <DetailRow label="Requested By">{pcv.requested_by}</DetailRow>
+          <DetailRow label="Department">{pcv.department ?? "—"}</DetailRow>
+          <DetailRow label="Purpose">{pcv.purpose}</DetailRow>
+          <DetailRow label="Amount Requested">{`MK ${Number(pcv.amount_requested).toLocaleString("en-MW", { minimumFractionDigits: 2 })}`}</DetailRow>
           {pcv.amount_approved != null && (
-            <DetailRow label="Amount Approved" value={`MK ${Number(pcv.amount_approved).toLocaleString("en-MW", { minimumFractionDigits: 2 })}`} />
+            <DetailRow label="Amount Approved">{`MK ${Number(pcv.amount_approved).toLocaleString("en-MW", { minimumFractionDigits: 2 })}`}</DetailRow>
           )}
           {pcv.amount_paid != null && (
-            <DetailRow label="Amount Paid" value={`MK ${Number(pcv.amount_paid).toLocaleString("en-MW", { minimumFractionDigits: 2 })}`} />
+            <DetailRow label="Amount Paid">{`MK ${Number(pcv.amount_paid).toLocaleString("en-MW", { minimumFractionDigits: 2 })}`}</DetailRow>
           )}
-          {pcv.payment_method && <DetailRow label="Payment Method" value={pcv.payment_method.replace("_", " ")} />}
-          {pcv.paid_by && <DetailRow label="Paid By" value={`${pcv.paid_by} on ${pcv.paid_at?.slice(0, 10)}`} />}
-          {pcv.hod_approved_by && <DetailRow label="HOD Approved By" value={`${pcv.hod_approved_by} on ${pcv.hod_approved_at?.slice(0, 10)}`} />}
-          {pcv.bursar_approved_by && <DetailRow label="Bursar Approved By" value={`${pcv.bursar_approved_by} on ${pcv.bursar_approved_at?.slice(0, 10)}`} />}
-          {pcv.receipt_ref && <DetailRow label="Receipt Ref" value={`${pcv.receipt_ref}${pcv.receipt_date ? ` (${pcv.receipt_date.slice(0, 10)})` : ""}`} />}
-          {pcv.rejection_reason && <DetailRow label="Rejection Reason" value={pcv.rejection_reason} />}
-          {pcv.notes && <DetailRow label="Notes" value={pcv.notes} />}
+          {pcv.payment_method && <DetailRow label="Payment Method">{pcv.payment_method.replace("_", " ")}</DetailRow>}
+          {pcv.paid_by && <DetailRow label="Paid By">{`${pcv.paid_by} on ${pcv.paid_at?.slice(0, 10)}`}</DetailRow>}
+          {pcv.hod_approved_by && <DetailRow label="HOD Approved By">{`${pcv.hod_approved_by} on ${pcv.hod_approved_at?.slice(0, 10)}`}</DetailRow>}
+          {pcv.bursar_approved_by && <DetailRow label="Bursar Approved By">{`${pcv.bursar_approved_by} on ${pcv.bursar_approved_at?.slice(0, 10)}`}</DetailRow>}
+          {pcv.receipt_ref && <DetailRow label="Receipt Ref">{`${pcv.receipt_ref}${pcv.receipt_date ? ` (${pcv.receipt_date.slice(0, 10)})` : ""}`}</DetailRow>}
+          {pcv.rejection_reason && <DetailRow label="Rejection Reason">{pcv.rejection_reason}</DetailRow>}
+          {pcv.notes && <DetailRow label="Notes">{pcv.notes}</DetailRow>}
         </div>
       </Card>
 
