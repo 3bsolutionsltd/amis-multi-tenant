@@ -109,7 +109,6 @@ export function IndustrialTrainingListPage() {
           <TR
             key={it.id}
             onClick={() => navigate(`/industrial-training/${it.id}`)}
-            clickable
           >
             <TD>
               {it.first_name || it.last_name ? (
@@ -137,7 +136,12 @@ export function IndustrialTrainingListPage() {
       </DataTable>
 
       {(data?.length ?? 0) === 20 && (
-        <Pagination page={page} onPageChange={setPage} />
+        <Pagination
+          page={page}
+          hasMore={(data?.length ?? 0) === 20}
+          onPrev={() => setPage(Math.max(1, page - 1))}
+          onNext={() => setPage(page + 1)}
+        />
       )}
     </div>
   );
