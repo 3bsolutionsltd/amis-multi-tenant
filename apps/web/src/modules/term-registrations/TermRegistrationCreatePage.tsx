@@ -160,7 +160,7 @@ export function TermRegistrationCreatePage() {
                         }
                       >
                         {formatStudentName(s)}
-                        {s.student_id && (
+                        {s.admission_number && (
                           <span
                             style={{
                               color: "#6b7280",
@@ -168,7 +168,7 @@ export function TermRegistrationCreatePage() {
                               fontSize: 12,
                             }}
                           >
-                            {s.student_id}
+                            {s.admission_number}
                           </span>
                         )}
                       </div>
