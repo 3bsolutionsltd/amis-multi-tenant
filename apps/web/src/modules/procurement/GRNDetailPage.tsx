@@ -4,6 +4,7 @@ import {
   ensureGlobalCss,
   PageHeader,
   Badge,
+  type BadgeColor,
   PrimaryBtn,
   SecondaryBtn,
   ErrorBanner,
@@ -67,7 +68,7 @@ export default function GRNDetailPage() {
       <Card padding="20px 24px 0">
         <h3 style={{ marginTop: 0 }}>Items Received</h3>
         <DataTable
-          loading={false}
+          isLoading={false}
           headers={["Description", "Qty Ordered", "Qty Received", "Condition", "Notes"]}
         >
           {(data.items ?? []).map((item) => (
@@ -75,7 +76,7 @@ export default function GRNDetailPage() {
               <TD>{item.description}</TD>
               <TD>{item.quantity_ordered ?? "—"}</TD>
               <TD>{item.quantity_received}</TD>
-              <TD><Badge label={item.condition} color={CONDITION_COLOR[item.condition]} /></TD>
+              <TD><Badge label={item.condition} color={CONDITION_COLOR[item.condition] as BadgeColor} /></TD>
               <TD>{item.notes ?? "—"}</TD>
             </TR>
           ))}
