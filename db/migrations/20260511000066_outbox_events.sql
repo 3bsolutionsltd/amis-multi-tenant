@@ -1,3 +1,5 @@
+-- migrate:up
+
 -- Migration 066: platform.outbox_events — outbox queue for offline sync
 -- Captures INSERT/UPDATE/DELETE on marks, fees, students as auditable events
 -- that a BullMQ worker can drain asynchronously.
@@ -71,3 +73,10 @@ DROP TRIGGER IF EXISTS trg_outbox_students ON app.students;
 CREATE TRIGGER trg_outbox_students
   AFTER INSERT OR UPDATE OR DELETE ON app.students
   FOR EACH ROW EXECUTE FUNCTION platform.capture_outbox_event();
+
+-- migrate:down
+DROP TRIGGER IF EXISTS trg_outbox_students ON app.students;
+DROP TRIGGER IF EXISTS trg_outbox_payments ON app.payments;
+DROP TRIGGER IF EXISTS trg_outbox_mark_entries ON app.mark_entries;
+DROP FUNCTION IF EXISTS platform.capture_outbox_event();
+DROP TABLE IF EXISTS platform.outbox_events;
