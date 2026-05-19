@@ -6,6 +6,7 @@ import {
   ensureGlobalCss,
   PageHeader,
   Badge,
+  type BadgeColor,
   PrimaryBtn,
   SecondaryBtn,
   ErrorBanner,
@@ -130,13 +131,13 @@ export default function RequisitionDetailPage() {
     <div style={{ padding: 24, maxWidth: 900, margin: "0 auto" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
         <SecondaryBtn onClick={() => navigate("/procurement")}>← Back</SecondaryBtn>
-        <PageHeader title={`PR: ${data.pr_number}`} subtitle={data.title} />
+        <PageHeader title={`PR: ${data.pr_number}`} description={data.title} />
       </div>
 
       <Card padding="20px 24px" style={{ marginBottom: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
           <div><label style={{ fontWeight: 600, fontSize: 12, color: "#6c757d" }}>STATUS</label><br />
-            <Badge label={STATUS_LABEL[data.status] ?? data.status} color={STATUS_COLOR[data.status]} /></div>
+            <Badge label={STATUS_LABEL[data.status] ?? data.status} color={STATUS_COLOR[data.status] as BadgeColor} /></div>
           <div><label style={{ fontWeight: 600, fontSize: 12, color: "#6c757d" }}>PRIORITY</label><br /><span>{data.priority}</span></div>
           <div><label style={{ fontWeight: 600, fontSize: 12, color: "#6c757d" }}>DEPARTMENT</label><br /><span>{data.department ?? "—"}</span></div>
           <div><label style={{ fontWeight: 600, fontSize: 12, color: "#6c757d" }}>REQUESTED BY</label><br /><span>{data.requested_by ?? "—"}</span></div>
@@ -207,7 +208,7 @@ export default function RequisitionDetailPage() {
         </div>
 
         <DataTable
-          loading={false}
+          isLoading={false}
           headers={["Particulars", "Vote/Item", "Qty", "Unit", "Est. Unit Cost", "Est. Total", "Notes", ...(data.status === "draft" ? [""] : [])]}
         >
           {(data.items ?? []).map((item) => (

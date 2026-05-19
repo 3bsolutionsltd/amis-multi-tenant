@@ -10,6 +10,7 @@ import {
   TR,
   TD,
   Badge,
+  type BadgeColor,
   PrimaryBtn,
   SecondaryBtn,
   ErrorBanner,
@@ -70,7 +71,7 @@ export default function ProcurementPage() {
 
   return (
     <div style={{ padding: "24px", maxWidth: 1100, margin: "0 auto" }}>
-      <PageHeader title="🛒 Procurement" subtitle="Manage requisitions, purchase orders, goods received & suppliers" />
+      <PageHeader title="🛒 Procurement" description="Manage requisitions, purchase orders, goods received &amp; suppliers" />
 
       <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #dee2e6", marginBottom: 24 }}>
         {TABS.map((t) => (
@@ -115,7 +116,7 @@ function RequisitionsTab() {
       {error && <ErrorBanner message={String(error)} />}
 
       <DataTable
-        loading={isLoading}
+        isLoading={isLoading}
         headers={["PR #", "Title", "Dept", "Priority", "Status", "Required By", "Created"]}
       >
         {data.map((pr) => (
@@ -124,7 +125,7 @@ function RequisitionsTab() {
             <TD>{pr.title}</TD>
             <TD>{pr.department ?? "—"}</TD>
             <TD>{pr.priority}</TD>
-            <TD><Badge label={pr.status} color={PR_STATUS_COLOR[pr.status]} /></TD>
+            <TD><Badge label={pr.status} color={PR_STATUS_COLOR[pr.status] as BadgeColor} /></TD>
             <TD>{pr.required_by ?? "—"}</TD>
             <TD>{new Date(pr.created_at).toLocaleDateString()}</TD>
           </TR>
@@ -163,7 +164,7 @@ function OrdersTab() {
       {error && <ErrorBanner message={String(error)} />}
 
       <DataTable
-        loading={isLoading}
+        isLoading={isLoading}
         headers={["PO #", "Title", "Supplier", "Status", "Total (UGX)", "Order Date", "Expected Delivery"]}
       >
         {data.map((po) => (
@@ -171,7 +172,7 @@ function OrdersTab() {
             <TD><code>{po.po_number}</code></TD>
             <TD>{po.title}</TD>
             <TD>{po.supplier_name ?? "—"}</TD>
-            <TD><Badge label={po.status} color={PO_STATUS_COLOR[po.status]} /></TD>
+            <TD><Badge label={po.status} color={PO_STATUS_COLOR[po.status] as BadgeColor} /></TD>
             <TD>{Number(po.total_amount).toLocaleString()}</TD>
             <TD>{po.order_date ?? "—"}</TD>
             <TD>{po.expected_delivery_date ?? "—"}</TD>
@@ -210,7 +211,7 @@ function GRNsTab() {
       {error && <ErrorBanner message={String(error)} />}
 
       <DataTable
-        loading={isLoading}
+        isLoading={isLoading}
         headers={["GRN #", "Received By", "Received Date", "Status", "Actions"]}
       >
         {data.map((grn) => (
@@ -218,7 +219,7 @@ function GRNsTab() {
             <TD><code>{grn.grn_number}</code></TD>
             <TD>{grn.received_by ?? "—"}</TD>
             <TD>{grn.received_date ?? "—"}</TD>
-            <TD><Badge label={grn.status} color={GRN_STATUS_COLOR[grn.status]} /></TD>
+            <TD><Badge label={grn.status} color={GRN_STATUS_COLOR[grn.status] as BadgeColor} /></TD>
             <TD onClick={(e) => e.stopPropagation()}>
               {grn.status === "draft" && (
                 <SecondaryBtn
@@ -322,7 +323,7 @@ function SuppliersTab() {
       )}
 
       <DataTable
-        loading={isLoading}
+        isLoading={isLoading}
         headers={["Name", "Contact Person", "Email", "Phone", "TIN", "Active"]}
       >
         {data.map((s) => (

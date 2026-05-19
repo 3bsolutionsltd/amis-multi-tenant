@@ -22,6 +22,8 @@ export const TermRegistrationsQuerySchema = z.object({
   student_id: z.string().uuid().optional(),
   academic_year: z.string().optional(),
   term: z.string().optional(),
+  academic_year_id: z.string().uuid().optional(),
+  term_id: z.string().uuid().optional(),
   current_state: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),

@@ -129,7 +129,6 @@ export function FieldPlacementsListPage() {
           <TR
             key={fp.id}
             onClick={() => navigate(`/field-placements/${fp.id}`)}
-            clickable
           >
             <TD>
               {fp.first_name || fp.last_name ? (
@@ -166,7 +165,12 @@ export function FieldPlacementsListPage() {
       </DataTable>
 
       {(data?.length ?? 0) === 20 && (
-        <Pagination page={page} onPageChange={setPage} />
+        <Pagination
+          page={page}
+          hasMore={(data?.length ?? 0) === 20}
+          onPrev={() => setPage(Math.max(1, page - 1))}
+          onNext={() => setPage(page + 1)}
+        />
       )}
     </div>
   );
