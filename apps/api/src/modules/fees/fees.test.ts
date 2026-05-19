@@ -247,6 +247,25 @@ describe("POST /fees/entry", () => {
     expect(res.statusCode).toBe(201);
     expect(res.json()).toMatchObject({ payment: { reference: "REF-001" } });
   });
+
+  it("returns 201 and stores term_id and academic_year_id", async () => {
+    const TERM_ID = "dd000000-0000-0000-0000-000000000001";
+    const AY_ID = "ee000000-0000-0000-0000-000000000001";
+    const paymentWithTerm = { ...fakePayment, term_id: TERM_ID, academic_year_id: AY_ID };
+    mockWithTenant.mockResolvedValueOnce({ payment: paymentWithTerm } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/fees/entry",
+      headers: financeHeaders,
+      payload: { ...validEntryBody, term_id: TERM_ID, academic_year_id: AY_ID },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().payment).toMatchObject({
+      term_id: TERM_ID,
+      academic_year_id: AY_ID,
+    });
+  });
 });
 
 // ------------------------------------------------------------------ POST /fees/import
