@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -47,17 +47,20 @@ export function SRQDetailPage() {
     queryKey: ["srq", id],
     queryFn: () => getSRQ(id!),
     enabled: !!id,
-    onSuccess: (data) => {
+  });
+
+  useEffect(() => {
+    if (srq) {
       const init: Record<string, { qty: string; cost: string }> = {};
-      data.items.forEach((item) => {
+      srq.items.forEach((item) => {
         init[item.id] = {
           qty: String(item.quantity_approved ?? item.quantity_requested),
           cost: String(item.unit_cost ?? ""),
         };
       });
       setItemApprovals(init);
-    },
-  });
+    }
+  }, [srq]);
 
   const actionMut = useMutation({
     mutationFn: (vars: Parameters<typeof transitionSRQ>) => transitionSRQ(...vars),
@@ -198,19 +201,19 @@ export function SRQDetailPage() {
       {/* Details */}
       <Card padding="20px 24px" style={{ marginBottom: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-          <DetailRow label="SRQ Number" value={srq.srq_number} />
-          <DetailRow label="Status" value={<Badge color={STATUS_COLORS[srq.status]}>{STATUS_LABELS[srq.status]}</Badge>} />
-          <DetailRow label="Requested By" value={srq.requested_by} />
-          <DetailRow label="Department" value={srq.department ?? "—"} />
-          <DetailRow label="Purpose" value={srq.purpose ?? "—"} />
-          <DetailRow label="Required By" value={srq.required_date?.slice(0, 10) ?? "—"} />
+          <DetailRow label="SRQ Number">{srq.srq_number}</DetailRow>
+          <DetailRow label="Status"><Badge color={STATUS_COLORS[srq.status]}>{STATUS_LABELS[srq.status]}</Badge></DetailRow>
+          <DetailRow label="Requested By">{srq.requested_by}</DetailRow>
+          <DetailRow label="Department">{srq.department ?? "—"}</DetailRow>
+          <DetailRow label="Purpose">{srq.purpose ?? "—"}</DetailRow>
+          <DetailRow label="Required By">{srq.required_date?.slice(0, 10) ?? "—"}</DetailRow>
           {srq.hod_approved_by && (
-            <DetailRow label="HOD Approved By" value={`${srq.hod_approved_by} on ${srq.hod_approved_at?.slice(0, 10)}`} />
+            <DetailRow label="HOD Approved By">{`${srq.hod_approved_by} on ${srq.hod_approved_at?.slice(0, 10)}`}</DetailRow>
           )}
           {srq.rejection_reason && (
-            <DetailRow label="Rejection Reason" value={srq.rejection_reason} />
+            <DetailRow label="Rejection Reason">{srq.rejection_reason}</DetailRow>
           )}
-          {srq.notes && <DetailRow label="Notes" value={srq.notes} />}
+          {srq.notes && <DetailRow label="Notes">{srq.notes}</DetailRow>}
         </div>
       </Card>
 
