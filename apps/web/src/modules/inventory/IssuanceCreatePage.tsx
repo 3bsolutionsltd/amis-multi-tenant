@@ -69,7 +69,7 @@ export default function IssuanceCreatePage() {
     try {
       const created = await createIssuance({
         issuance_number: form.issuance_number,
-        issued_to: form.issued_to || undefined,
+        issued_to: form.issued_to || "",
         issued_by: form.issued_by || undefined,
         department: form.department || undefined,
         requisition_ref: form.requisition_ref || undefined,
