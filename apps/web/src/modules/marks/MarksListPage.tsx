@@ -169,8 +169,8 @@ export function MarksListPage() {
       <Pagination
         page={page}
         hasMore={(data?.length ?? 0) >= 20}
-        onPrev={() => setPage((p) => Math.max(1, p - 1))}
-        onNext={() => setPage((p) => p + 1)}
+        onPrev={() => setPage(Math.max(1, page - 1))}
+        onNext={() => setPage(page + 1)}
       />
     </div>
   );

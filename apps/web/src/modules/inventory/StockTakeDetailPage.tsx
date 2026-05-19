@@ -4,6 +4,7 @@ import {
   ensureGlobalCss,
   PageHeader,
   Badge,
+  type BadgeColor,
   PrimaryBtn,
   SecondaryBtn,
   ErrorBanner,
@@ -71,7 +72,7 @@ export default function StockTakeDetailPage() {
         <SecondaryBtn onClick={() => navigate("/inventory")}>← Back</SecondaryBtn>
         <PageHeader
           title={`Stock Take: ${data.reference}`}
-          subtitle={data.title ?? undefined}
+          description={data.title ?? undefined}
         />
       </div>
 
@@ -80,7 +81,7 @@ export default function StockTakeDetailPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           <div>
             <label style={{ fontWeight: 600, fontSize: 12, color: "#6c757d" }}>STATUS</label><br />
-            <Badge label={STATUS_LABEL[data.status]} color={STATUS_COLOR[data.status]} />
+            <Badge label={STATUS_LABEL[data.status]} color={STATUS_COLOR[data.status] as BadgeColor} />
           </div>
           <div>
             <label style={{ fontWeight: 600, fontSize: 12, color: "#6c757d" }}>FINANCIAL YEAR</label><br />
@@ -141,7 +142,7 @@ export default function StockTakeDetailPage() {
       <Card padding="20px 24px 0">
         <h3 style={{ marginTop: 0 }}>Item Count Details</h3>
         <DataTable
-          loading={false}
+          isLoading={false}
           headers={["Item", "Code", "Department", "Expected Qty", "Counted Qty", "Variance", "Condition", "Notes"]}
         >
           {items.map((item) => {

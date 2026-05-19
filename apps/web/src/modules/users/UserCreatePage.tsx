@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createUser, VALID_ROLES } from "./users.api";
+import { createUser, VALID_ROLES, type UserRole } from "./users.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -34,7 +34,7 @@ export function UserCreatePage() {
     setSaving(true);
     setError(null);
     try {
-      await createUser(form);
+      await createUser({ ...form, role: form.role as UserRole });
       navigate("/users");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create user");

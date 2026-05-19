@@ -106,24 +106,21 @@ export function BulkMarkEntryPage() {
         <SectionLabel>Filters</SectionLabel>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
           <input
-            className={inputCss}
             placeholder="Term (e.g. Term 1)"
             value={termFilter}
             onChange={(e) => setTermFilter(e.target.value)}
-            style={{ width: 160 }}
+            style={{ ...inputCss, width: 160 }}
           />
           <input
-            className={inputCss}
             placeholder="Course ID"
             value={courseFilter}
             onChange={(e) => setCourseFilter(e.target.value)}
-            style={{ width: 200 }}
+            style={{ ...inputCss, width: 200 }}
           />
           <select
-            className={inputCss}
             value={assessmentFilter}
             onChange={(e) => setAssessmentFilter(e.target.value)}
-            style={{ width: 180 }}
+            style={{ ...inputCss, width: 180 }}
           >
             <option value="">All Types</option>
             {ASSESSMENT_TYPES.map((t) => (
@@ -141,10 +138,9 @@ export function BulkMarkEntryPage() {
           <EmptyState title="No submissions found. Adjust filters above." />
         ) : (
           <select
-            className={inputCss}
             value={selectedSubmissionId}
             onChange={(e) => setSelectedSubmissionId(e.target.value)}
-            style={{ width: "100%", marginBottom: 8 }}
+            style={{ ...inputCss, width: "100%", marginBottom: 8 }}
           >
             <option value="">— Choose a submission —</option>
             {filteredSubs.map((s: Submission & { assessment_type?: string }) => (
@@ -205,13 +201,12 @@ export function BulkMarkEntryPage() {
                     {stu.admission_number ?? "—"}
                   </span>
                   <input
-                    className={inputCss}
                     type="number"
                     min={0}
                     max={100}
                     value={scores[stu.id] ?? ""}
                     onChange={(e) => updateScore(stu.id, e.target.value)}
-                    style={{ width: 100 }}
+                    style={{ ...inputCss, width: 100 }}
                   />
                 </div>
               ))}
