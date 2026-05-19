@@ -32,10 +32,10 @@ function passRateColor(rate: number): string {
   return C.red;
 }
 
-function passRateBadgeVariant(rate: number): "success" | "warning" | "error" {
-  if (rate >= 80) return "success";
-  if (rate >= 60) return "warning";
-  return "error";
+function passRateBadgeVariant(rate: number): "green" | "yellow" | "red" {
+  if (rate >= 80) return "green";
+  if (rate >= 60) return "yellow";
+  return "red";
 }
 
 function GradeBar({ dist }: { dist: CourseAnalysis["grade_distribution"] }) {
@@ -177,8 +177,8 @@ export function MarksAnalysisPage() {
     <div>
       <PageHeader
         title="Marks Analysis"
-        subtitle="Grade distribution, pass/fail rates and mean scores"
-        actions={
+        description="Grade distribution, pass/fail rates and mean scores"
+        action={
           <div style={{ display: "flex", gap: 8 }}>
             <SecondaryBtn onClick={() => window.print()}>Print</SecondaryBtn>
             <PrimaryBtn onClick={exportCsv} disabled={!data || data.by_course.length === 0}>
@@ -295,11 +295,11 @@ export function MarksAnalysisPage() {
 
             {data.by_course.length === 0 ? (
               <EmptyState
-                message="No results found. Process term results first or adjust filters."
+                title="No results found. Process term results first or adjust filters."
               />
             ) : (
               <DataTable
-                columns={[
+                headers={[
                   "Course",
                   "Students",
                   "Mean",
@@ -335,7 +335,7 @@ export function MarksAnalysisPage() {
                     <TD>
                       <Badge
                         label={`${row.pass_rate}%`}
-                        variant={passRateBadgeVariant(row.pass_rate)}
+                        color={passRateBadgeVariant(row.pass_rate)}
                       />
                     </TD>
                     <TD>
@@ -361,10 +361,10 @@ export function MarksAnalysisPage() {
             </h3>
 
             {data.by_programme.length === 0 ? (
-              <EmptyState message="No programme data." />
+              <EmptyState title="No programme data." />
             ) : (
               <DataTable
-                columns={[
+                headers={[
                   "Programme",
                   "Students",
                   "Mean Score",
@@ -388,7 +388,7 @@ export function MarksAnalysisPage() {
                     <TD>
                       <Badge
                         label={`${row.pass_rate}%`}
-                        variant={passRateBadgeVariant(row.pass_rate)}
+                        color={passRateBadgeVariant(row.pass_rate)}
                       />
                     </TD>
                     <TD>
@@ -487,7 +487,7 @@ export function MarksAnalysisPage() {
 
       {!isLoading && !data && !error && (
         <div style={{ padding: 48, textAlign: "center" }}>
-          <EmptyState message="Use the filters above and click Generate to load the analysis." />
+          <EmptyState title="Use the filters above and click Generate to load the analysis." />
         </div>
       )}
     </div>

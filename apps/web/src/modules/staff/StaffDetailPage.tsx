@@ -29,6 +29,7 @@ import {
   DangerBtn,
   ErrorBanner,
   Badge,
+  type BadgeColor,
   DataTable,
   TR,
   TD,
@@ -566,14 +567,14 @@ export function StaffDetailPage() {
               </TD>
               <TD>
                 <Badge
-                  variant={
+                  color={
                     a.status === "present"
-                      ? "success"
+                      ? "green"
                       : a.status === "absent"
-                        ? "danger"
+                        ? "red"
                         : a.status === "late"
-                          ? "warning"
-                          : "neutral"
+                          ? "yellow"
+                          : "gray"
                   }
                 >
                   {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
