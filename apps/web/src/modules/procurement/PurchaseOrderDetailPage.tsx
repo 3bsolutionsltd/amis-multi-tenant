@@ -4,6 +4,7 @@ import {
   ensureGlobalCss,
   PageHeader,
   Badge,
+  type BadgeColor,
   PrimaryBtn,
   SecondaryBtn,
   ErrorBanner,
@@ -59,13 +60,13 @@ export default function PurchaseOrderDetailPage() {
             View Source PR
           </SecondaryBtn>
         )}
-        <PageHeader title={`LPO: ${data.po_number}`} subtitle={data.title} />
+        <PageHeader title={`LPO: ${data.po_number}`} description={data.title} />
       </div>
 
       <Card padding="20px 24px" style={{ marginBottom: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
           <div><label style={{ fontWeight: 600, fontSize: 12, color: "#6c757d" }}>STATUS</label><br />
-            <Badge label={data.status.replace("_", " ")} color={STATUS_COLOR[data.status]} /></div>
+            <Badge label={data.status.replace("_", " ")} color={STATUS_COLOR[data.status] as BadgeColor} /></div>
           <div><label style={{ fontWeight: 600, fontSize: 12, color: "#6c757d" }}>SUPPLIER</label><br /><span>{data.supplier_name ?? "—"}</span></div>
           <div><label style={{ fontWeight: 600, fontSize: 12, color: "#6c757d" }}>TOTAL AMOUNT</label><br />
             <strong style={{ color: "#198754" }}>UGX {Number(data.total_amount).toLocaleString()}</strong></div>
@@ -91,7 +92,7 @@ export default function PurchaseOrderDetailPage() {
       <Card padding="20px 24px 0">
         <h3 style={{ marginTop: 0 }}>Line Items</h3>
         <DataTable
-          loading={false}
+          isLoading={false}
           headers={["Description", "Qty", "Unit", "Unit Price (UGX)", "Total (UGX)", "Notes"]}
         >
           {(data.items ?? []).map((item) => (
