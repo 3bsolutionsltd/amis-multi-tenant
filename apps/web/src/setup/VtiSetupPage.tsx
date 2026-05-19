@@ -744,7 +744,7 @@ export function VtiSetupPage() {
                   institute.phone ? ["Phone", institute.phone] : null,
                   institute.address ? ["Address", institute.address] : null,
                 ]
-                  .filter(Boolean)
+                  .filter((x): x is string[] => x !== null)
                   .map(([k, v]) => (
                     <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 6 }}>
                       <span style={{ color: C.gray500 }}>{k}</span>
@@ -769,7 +769,7 @@ export function VtiSetupPage() {
                   tvet.licenseDate ? ["License Date", tvet.licenseDate] : null,
                   ["License Status", tvet.licenseStatus],
                 ]
-                  .filter(Boolean)
+                  .filter((x): x is string[] => x !== null)
                   .map(([k, v]) => (
                     <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 6 }}>
                       <span style={{ color: C.gray500 }}>{k}</span>
