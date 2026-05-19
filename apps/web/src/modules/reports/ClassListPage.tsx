@@ -9,6 +9,7 @@ import {
   TR,
   TD,
   Badge,
+  type BadgeColor,
   ErrorBanner,
   inputCss,
   selectCss,
@@ -42,7 +43,7 @@ export function ClassListPage() {
     <div>
       <PageHeader
         title="Class List Report"
-        actions={
+        action={
           <button
             onClick={handlePrint}
             style={{
@@ -155,7 +156,7 @@ export function ClassListPage() {
           </div>
 
           <DataTable
-            columns={["#", "Adm. No.", "Name", "Gender", "Programme", "Year", "Section", "Phone"]}
+            headers={["#", "Adm. No.", "Name", "Gender", "Programme", "Year", "Section", "Phone"]}
           >
             {data.students.map((s, i) => (
               <TR key={s.id}>
@@ -170,10 +171,10 @@ export function ClassListPage() {
                       label={s.gender}
                       color={
                         s.gender === "male"
-                          ? C.blue
+                          ? "blue"
                           : s.gender === "female"
-                            ? C.purple
-                            : C.gray400
+                            ? "purple"
+                            : "gray"
                       }
                     />
                   )}
