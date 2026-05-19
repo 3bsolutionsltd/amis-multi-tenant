@@ -33,11 +33,11 @@ const CATEGORY_OPTIONS: InventoryCategory[] = [
   "cleaning", "food", "uniform", "medical", "other",
 ];
 
-const ISSUANCE_STATUS_COLOR: Record<IssuanceStatus, string> = {
+const ISSUANCE_STATUS_COLOR: Record<IssuanceStatus, "gray" | "green"> = {
   draft: "gray", issued: "green", returned: "gray",
 };
 
-const STOCK_TAKE_STATUS_COLOR: Record<StockTakeStatus, string> = {
+const STOCK_TAKE_STATUS_COLOR: Record<StockTakeStatus, "blue" | "green" | "purple"> = {
   in_progress: "blue", completed: "green", approved: "purple",
 };
 
@@ -53,7 +53,7 @@ export default function InventoryPage() {
 
   return (
     <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
-      <PageHeader title="Inventory & Stores" subtitle="Manage stock, issuances and transactions" />
+      <PageHeader title="Inventory & Stores" description="Manage stock, issuances and transactions" />
 
       <div style={{ display: "flex", gap: 0, marginBottom: 20, borderBottom: "2px solid #dee2e6" }}>
         {(["items", "issuances", "transactions", "lowstock"] as Tab[]).map((t) => (
@@ -100,7 +100,7 @@ function ItemsTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
         <PrimaryBtn onClick={() => navigate("/inventory/items/new")}>+ New Item</PrimaryBtn>
       </FilterBar>
 
-      <DataTable loading={isLoading} headers={["Item Code", "Name", "Category", "UoM", "Current Stock", "Reorder Level", "Unit Cost (UGX)"]}>
+      <DataTable isLoading={isLoading} headers={["Item Code", "Name", "Category", "UoM", "Current Stock", "Reorder Level", "Unit Cost (UGX)"]}>
         {data.map((item) => (
           <TR key={item.id} onClick={() => navigate(`/inventory/items/${item.id}`)} style={{ cursor: "pointer" }}>
             <TD>{item.item_code}</TD>
@@ -152,7 +152,7 @@ function IssuancesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }
 
       {issueMut.isError && <ErrorBanner message={String(issueMut.error)} />}
 
-      <DataTable loading={isLoading} headers={["GIN #", "Issued To", "Department", "Req. No.", "Issued By", "Purpose", "Issue Date", "Status", "Action"]}>
+      <DataTable isLoading={isLoading} headers={["GIN #", "Issued To", "Department", "Req. No.", "Issued By", "Purpose", "Issue Date", "Status", "Action"]}>
         {data.map((iss) => (
           <TR key={iss.id}>
             <TD>{iss.issuance_number}</TD>
@@ -188,21 +188,21 @@ function TransactionsTab({ navigate }: { navigate: ReturnType<typeof useNavigate
       <FilterBar>
         <PrimaryBtn onClick={() => navigate("/inventory/receipts/new")}>+ Record Receipt</PrimaryBtn>
       </FilterBar>
-      <DataTable loading={isLoading} headers={["Item", "Type", "Quantity", "Balance After", "Reference", "Notes", "Date"]}>
+      <DataTable isLoading={isLoading} headers={["Item", "Type", "Quantity", "Balance After", "Reference", "Notes", "Date"]}>
         {data.map((tx) => (
           <TR key={tx.id}>
             <TD>{tx.item_name ?? tx.item_id}</TD>
             <TD>
               <Badge
                 label={tx.transaction_type}
-                color={["receipt", "return"].includes(tx.transaction_type) ? "#198754" : "#dc3545"}
+                color={["receipt", "return"].includes(tx.transaction_type) ? "green" : "red"}
               />
             </TD>
             <TD style={{ color: tx.quantity > 0 ? "#198754" : "#dc3545" }}>
               {tx.quantity > 0 ? "+" : ""}{tx.quantity}
             </TD>
             <TD>{tx.balance_after}</TD>
-            <TD>{tx.reference ?? "—"}</TD>
+            <TD>{tx.reference_id ?? "—"}</TD>
             <TD>{tx.notes ?? "—"}</TD>
             <TD>{tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "—"}</TD>
           </TR>
@@ -225,7 +225,7 @@ function LowStockTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
           ✅ No items below reorder level.
         </Card>
       )}
-      <DataTable loading={isLoading} headers={["Item Code", "Name", "Category", "Current Stock", "Reorder Level", "Deficit"]}>
+      <DataTable isLoading={isLoading} headers={["Item Code", "Name", "Category", "Current Stock", "Reorder Level", "Deficit"]}>
         {data.map((item) => (
           <TR key={item.id} onClick={() => navigate(`/inventory/items/${item.id}`)} style={{ cursor: "pointer", background: "#fff3f3" }}>
             <TD>{item.item_code}</TD>
@@ -261,7 +261,7 @@ function StockTakesTab({ navigate }: { navigate: ReturnType<typeof useNavigate> 
         <PrimaryBtn onClick={() => navigate("/inventory/stock-takes/new")}>+ New Stock Take</PrimaryBtn>
       </FilterBar>
 
-      <DataTable loading={isLoading} headers={["Reference", "Title", "Financial Year", "Date", "Conducted By", "Status", "Actions"]}>
+      <DataTable isLoading={isLoading} headers={["Reference", "Title", "Financial Year", "Date", "Conducted By", "Status", "Actions"]}>
         {data.map((st) => (
           <TR key={st.id}>
             <TD>{st.reference}</TD>

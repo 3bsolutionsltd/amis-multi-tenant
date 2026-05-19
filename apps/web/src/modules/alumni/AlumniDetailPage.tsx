@@ -52,17 +52,11 @@ export function AlumniDetailPage() {
       />
 
       <Card>
-        <DetailRow label="Programme" value={alumni.programme ?? "—"} />
-        <DetailRow label="Admission #" value={alumni.admission_number ?? "—"} />
-        <DetailRow label="Graduation Date" value={alumni.graduation_date} />
-        <DetailRow
-          label="Graduation Notes"
-          value={alumni.graduation_notes ?? "—"}
-        />
-        <DetailRow
-          label="Record Created"
-          value={new Date(alumni.created_at).toLocaleDateString()}
-        />
+        <DetailRow label="Programme">{alumni.programme ?? "—"}</DetailRow>
+        <DetailRow label="Admission #">{alumni.admission_number ?? "—"}</DetailRow>
+        <DetailRow label="Graduation Date">{alumni.graduation_date}</DetailRow>
+        <DetailRow label="Graduation Notes">{alumni.graduation_notes ?? "—"}</DetailRow>
+        <DetailRow label="Record Created">{new Date(alumni.created_at).toLocaleDateString()}</DetailRow>
       </Card>
     </div>
   );
