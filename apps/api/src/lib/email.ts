@@ -1,15 +1,16 @@
 import { Resend } from "resend";
 
-const FROM = "AMIS <noreply@amis.institute>";
+const FROM = process.env.RESEND_FROM ?? "AMIS <noreply@amis.institute>";
 
-function getResend(): Resend {
+function getResend(): Resend | null {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "[email] RESEND_API_KEY environment variable is required. Add it to .env before starting the server.",
-    );
-  }
+  if (!apiKey) return null;
   return new Resend(apiKey);
+}
+
+/** True when transactional email transport is configured. */
+export function isEmailConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY);
 }
 
 interface SendMailOptions {
@@ -21,6 +22,16 @@ interface SendMailOptions {
 
 export async function sendMail(options: SendMailOptions): Promise<void> {
   const resend = getResend();
+  if (!resend) {
+    // Graceful no-op when email infrastructure isn't configured (e.g.
+    // local dev, staging before SMTP/Resend secrets are provisioned).
+    // The caller's flow (password reset, welcome) still completes; the
+    // operator sees the would-be email in the log.
+    console.warn(
+      `[email] RESEND_API_KEY not set — skipping email to ${options.to} (subject: "${options.subject}")`,
+    );
+    return;
+  }
   const { error } = await resend.emails.send({
     from: FROM,
     to: options.to,
@@ -29,7 +40,9 @@ export async function sendMail(options: SendMailOptions): Promise<void> {
     text: options.text,
   });
   if (error) {
-    throw new Error(`[email] Resend error: ${error.message}`);
+    // Log but don't throw — a transient email outage shouldn't block
+    // the user-visible request (e.g. forgot-password returning 200).
+    console.error(`[email] Resend error sending "${options.subject}" to ${options.to}:`, error.message);
   }
 }
 
