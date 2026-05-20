@@ -49,6 +49,8 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis_staging}
       JWT_SECRET: ${JWT_SECRET:?required}
       CORS_ORIGIN: ${CORS_ORIGIN:?required}
+      # Frontend URL used to build email links (reset password, welcome)
+      APP_URL: ${APP_URL:?required}
       # BullMQ outbox queue (Issue #149 — offline/PWA support)
       REDIS_URL: redis://redis:6379
       # Transactional email — set in .env.staging (Issue #148)
