@@ -25,6 +25,8 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}
       JWT_SECRET: ${JWT_SECRET:?required}
       CORS_ORIGIN: ${CORS_ORIGIN:?required}
+      # Frontend URL used to build email links (reset password, welcome)
+      APP_URL: ${APP_URL:?required}
     # Published on 3001 so native Nginx can proxy_pass to localhost:3001
     ports:
       - "127.0.0.1:3001:3000"
