@@ -17,9 +17,9 @@ function createPool(): pg.Pool {
   const p = new Pool({
     connectionString,
     max: parseInt(process.env.PG_POOL_MAX ?? "10", 10),
-    // Keep idle connections alive for 10 minutes; after that the pool
-    // discards them cleanly and reconnects on demand.
-    idleTimeoutMillis: 600_000,
+    // Recycle idle connections after 30 s so the pool never reuses a
+    // connection that was silently dropped by the OS / NAT / firewall.
+    idleTimeoutMillis: 30_000,
     // Allow 10 s to establish a new connection — enough for Docker networking
     connectionTimeoutMillis: 10_000,
     // TCP keepalives prevent NAT/firewall from silently dropping idle conns
@@ -64,7 +64,7 @@ function getSuperPool(): pg.Pool {
     const p = new Pool({
       connectionString,
       max: 5, // small — only used for auth
-      idleTimeoutMillis: 600_000,
+      idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
       keepAlive: true,
       keepAliveInitialDelayMillis: 10_000,
