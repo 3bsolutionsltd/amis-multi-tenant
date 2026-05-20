@@ -126,7 +126,7 @@ export function LoginPage() {
         const slugs = body?.tenantSlugs ?? [];
         setAvailableSlugs(slugs);
         setShowSlug(true);
-        setError("Your email is registered at multiple institutions. Enter your institution code below.");
+        setError("Your email is registered at more than one institution. Pick the right one below or enter your institution code (e.g. \"kti\", \"greenfield-vti\").");
       } else if (err instanceof ApiError && err.status === 401) {
         setError("Invalid email or password.");
       } else {
@@ -402,7 +402,7 @@ export function LoginPage() {
                   onChange={setSlugInput}
                   placeholder="e.g. kti"
                   autoComplete="off"
-                  hint="Your institution code was provided at setup."
+                  hint="Short code your institute uses in the AMIS URL (e.g. kti, greenfield-vti). Ask your administrator if unsure."
                 />
                 {availableSlugs.length > 0 && (
                   <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
