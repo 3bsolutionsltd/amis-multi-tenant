@@ -60,7 +60,9 @@ const UsersQuerySchema = z.object({
 
 const CreateUserSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1),
+  // password is optional — when omitted the API auto-generates a random
+  // temporary password; the user sets their own via the welcome-email link
+  password: z.string().min(1).optional(),
   role: z.enum(VALID_ROLES),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
@@ -240,10 +242,13 @@ export async function usersRoutes(app: FastifyInstance) {
         });
       }
 
-      const { email, password, role, firstName, lastName } = parsed.data;
+      const { email, role, firstName, lastName } = parsed.data;
+      // Use caller-supplied password or auto-generate a secure random one
+      // (admin invite flow: the user will set their own via the setup link)
+      const password = parsed.data.password ?? randomBytes(24).toString("base64url");
 
-      // Validate password strength
-      if (!isValidPassword(password)) {
+      // Only validate strength when the admin explicitly supplies a password
+      if (parsed.data.password !== undefined && !isValidPassword(password)) {
         return reply
           .status(400)
           .send({ message: "Password does not meet requirements" });
