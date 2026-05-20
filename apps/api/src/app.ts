@@ -6,6 +6,7 @@ import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import { resolve } from "path";
 import { pool } from "./db/pool.js";
+import { isEmailConfigured } from "./lib/email.js";
 import { studentsRoutes } from "./modules/students/students.routes.js";
 import { configRoutes } from "./modules/config/config.routes.js";
 import { workflowRoutes } from "./modules/workflow/workflow.routes.js";
@@ -113,13 +114,23 @@ export function buildApp() {
   });
 
   app.get("/health", async (_req, _reply) => {
+    const checks: Record<string, string> = {};
+    let dbOk = true;
     try {
       await pool.query("SELECT 1");
-      return { status: "ok" };
+      checks.database = "ok";
     } catch {
-      _reply.status(503);
-      return { status: "error", message: "database unreachable" };
+      dbOk = false;
+      checks.database = "error";
     }
+    checks.email = isEmailConfigured() ? "configured" : "not_configured";
+    checks.redis = process.env.REDIS_URL ? "configured" : "not_configured";
+
+    if (!dbOk) {
+      _reply.status(503);
+      return { status: "error", message: "database unreachable", checks };
+    }
+    return { status: "ok", checks };
   });
 
   app.register(authRoutes);
