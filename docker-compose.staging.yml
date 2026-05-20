@@ -27,6 +27,18 @@ services:
       retries: 5
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    # No host port published — internal only
+    volumes:
+      - redis_staging:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -37,6 +49,18 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis_staging}
       JWT_SECRET: ${JWT_SECRET:?required}
       CORS_ORIGIN: ${CORS_ORIGIN:?required}
+      # BullMQ outbox queue (Issue #149 — offline/PWA support)
+      REDIS_URL: redis://redis:6379
+      # Transactional email — set in .env.staging (Issue #148)
+      # Either Resend (default) or SMTP via mailer.ts
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-AMIS <noreply@amis.institute>}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-AMIS <noreply@amis.local>}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
     # Published on 3002 so native Nginx can proxy_pass to localhost:3002
     ports:
       - "127.0.0.1:3002:3000"
@@ -44,6 +68,8 @@ services:
       - uploads_staging:/app/apps/api/uploads
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
@@ -82,3 +108,4 @@ services:
 volumes:
   pgdata_staging:
   uploads_staging:
+  redis_staging:

@@ -276,6 +276,61 @@ Or use the AMIS platform admin at `https://amis.institute` to create the KTI ten
 
 ---
 
+## Part 6b — Transactional Email (SMTP / Resend)
+
+AMIS sends transactional email for: password reset, account-setup welcome,
+and outbound notifications. Two transports are supported; configure **one**.
+
+### Option A — Resend (recommended for cloud SaaS)
+
+1. Sign up at <https://resend.com> and add `amis.institute` as a sending domain.
+2. Add the DNS records Resend gives you to the `amis.institute` zone:
+   - **SPF**:  `v=spf1 include:_spf.resend.com -all`
+   - **DKIM**: `<resend>._domainkey  CNAME  <selector>.dkim.resend.com`
+   - **DMARC**: `_dmarc  TXT  "v=DMARC1; p=quarantine; rua=mailto:postmaster@amis.institute"`
+3. After Resend verifies the domain, copy the API key into `.env.staging` /
+   `.env.prod`:
+   ```env
+   RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxx
+   RESEND_FROM=AMIS <noreply@amis.institute>
+   ```
+4. Restart the api container:
+   ```bash
+   docker compose -f docker-compose.staging.yml --project-name amis-staging up -d --no-deps api
+   ```
+5. Verify with `curl -s https://api.pre.amis.institute/health` — `checks.email`
+   should now be `configured`.
+
+### Option B — SMTP (used for VTI-hosted / on-prem deployments)
+
+If the deployment cannot reach Resend (offline VTI, sovereign-cloud requirement),
+configure a self-managed SMTP relay (Postfix, Amazon SES, MailerSend, etc.):
+
+```env
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=postmaster@amis.local
+SMTP_PASS=…
+SMTP_FROM=AMIS <noreply@amis.local>
+SMTP_SECURE=false   # true → implicit TLS on 465
+```
+
+The same SPF / DKIM / DMARC guidance applies — publish the records on
+whichever domain you set in `SMTP_FROM`, otherwise mail will land in spam.
+
+### Verifying delivery
+
+- Trigger a password reset for a test account and watch the api logs:
+  ```bash
+  docker compose -f docker-compose.staging.yml --project-name amis-staging logs -f api | grep -E "mailer|email"
+  ```
+- A line containing `Sent "Password Reset Request"` (SMTP) or absence of a
+  `RESEND_API_KEY not set` warning (Resend) confirms the transport is wired.
+- If neither is configured, email is silently skipped and AMIS continues to
+  work; the api logs the would-be recipient and subject.
+
+---
+
 ## Part 7 — UTC Kyema On-Premises (Offline) Deployment
 
 Uganda Technical College — Kyema operates on a local LAN with no guaranteed internet access.
