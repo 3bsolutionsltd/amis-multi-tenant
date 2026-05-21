@@ -9,4 +9,4 @@
 - 🛠️ One-command installer for Linux & Windows
 
 [GitHub](https://github.com/3bsolutionsltd/amis-multi-tenant)
-[Get Started](#/01-overview)
+[Get Started](01-overview.md)

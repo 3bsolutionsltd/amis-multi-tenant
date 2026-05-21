@@ -4,7 +4,7 @@ This is the **single source of truth** for installing and running AMIS at your i
 
 Use the sidebar (or the search bar) to navigate.
 
-If you only have 5 minutes, read **[Quick Start](../QUICK-START.md)** and then **[Offline install](05-install-offline.md)**.
+If you only have 5 minutes, read **[Offline install](05-install-offline.md)** (§5 covers everything from image load to first login in under 30 minutes).
 
 ## At a glance
 
