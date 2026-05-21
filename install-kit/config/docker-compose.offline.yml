@@ -1,35 +1,37 @@
+# ── AMIS Offline / On-Premises Stack ─────────────────────────────────────────
+# Bundled copy — identical to the repo root's docker-compose.offline.yml.
+# Run from install-kit/ root:
+#   docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
 services:
   db:
-    image: postgres:16-alpine
+    image: amis-postgres:offline
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-amis}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
       POSTGRES_DB: ${POSTGRES_DB:-amis}
-    # No host port published — only reachable by other containers on this network
+    expose:
+      - "5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_offline:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-amis}"]
       interval: 5s
       timeout: 3s
-      retries: 5
-    restart: unless-stopped
+      retries: 10
+    restart: always
 
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    image: amis-api:offline
     environment:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}
       JWT_SECRET: ${JWT_SECRET:?required}
       CORS_ORIGIN: ${CORS_ORIGIN:?required}
-      # Frontend URL used to build email links (reset password, welcome)
-      APP_URL: ${APP_URL:?required}
-    # Published on 3001 so native Nginx can proxy_pass to localhost:3001
     ports:
-      - "127.0.0.1:3001:3000"
+      - "0.0.0.0:3001:3000"
     volumes:
       - uploads:/app/apps/api/uploads
     depends_on:
@@ -39,35 +41,31 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health || exit 1"]
       interval: 20s
       timeout: 5s
-      retries: 3
-      start_period: 20s
-    restart: unless-stopped
+      retries: 5
+      start_period: 30s
+    restart: always
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        VITE_API_URL: ${VITE_API_URL:?required}
-    # Published on 8095 so native Nginx can proxy_pass to localhost:8095
+    image: amis-web:offline
     ports:
-      - "127.0.0.1:8095:80"
+      - "0.0.0.0:80:80"
     depends_on:
-      - api
-    restart: unless-stopped
+      api:
+        condition: service_healthy
+    restart: always
 
   migrate:
-    image: ghcr.io/amacneil/dbmate:latest
+    image: amis-dbmate:offline
     command: up
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}?sslmode=disable
     volumes:
-      - ./db/migrations:/db/migrations:ro
+      - ../db/migrations:/db/migrations:ro
     depends_on:
       db:
         condition: service_healthy
     restart: "no"
 
 volumes:
-  pgdata:
+  pgdata_offline:
   uploads:

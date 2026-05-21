@@ -9,9 +9,33 @@ db/data-migration/*/raw/
 
 # Test output files
 apps/api/vitest_out*.txt
+apps/web/tsc_out*.txt
 
 # Seed/script output logs
 db/seed_out.txt
 
 # Binary/document files
 *.docx
+
+# Private/PII files — never commit
+DEMO-*.csv
+*_otter_ai_transcript*
+db/data-migration/
+.copilot-context/
+
+# Internal planning/ops docs
+DEMO-PREP.md
+PROJECT_TODO.md
+QA-TRACKER.md
+QA-STAGING-CHECKLIST.md
+copilot-instructions.md
+USER_TESTING_GUIDE.md
+
+# Internal GitHub management scripts
+scripts/close-*.ps1
+scripts/close-*.js
+scripts/create-*-issues.*
+scripts/get-issues.js
+scripts/get-project-items.js
+scripts/list-all-issues.js
+scripts/mark-done.js
