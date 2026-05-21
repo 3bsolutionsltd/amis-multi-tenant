@@ -1,16 +1,32 @@
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const FROM = process.env.RESEND_FROM ?? "AMIS <noreply@amis.institute>";
+// ── Resend transport ─────────────────────────────────────────────────────────
+const RESEND_FROM = process.env.RESEND_FROM ?? "AMIS <noreply@amis.institute>";
 
-function getResend(): Resend | null {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return null;
-  return new Resend(apiKey);
+// ── SMTP transport (takes priority when SMTP_HOST / SMTP_USER / SMTP_PASS set) ─
+const SMTP_HOST   = process.env.SMTP_HOST;
+const SMTP_PORT   = parseInt(process.env.SMTP_PORT ?? "587", 10);
+const SMTP_USER   = process.env.SMTP_USER;
+const SMTP_PASS   = process.env.SMTP_PASS;
+const SMTP_FROM   = process.env.SMTP_FROM ?? "AMIS <noreply@amis.institute>";
+const SMTP_SECURE = process.env.SMTP_SECURE === "true";
+
+function getSmtpTransporter(): nodemailer.Transporter | null {
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) return null;
+  return nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_SECURE,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
 }
 
-/** True when transactional email transport is configured. */
+/** True when any transactional email transport is configured. */
 export function isEmailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY);
+  return Boolean(
+    (SMTP_HOST && SMTP_USER && SMTP_PASS) || process.env.RESEND_API_KEY,
+  );
 }
 
 interface SendMailOptions {
@@ -21,29 +37,46 @@ interface SendMailOptions {
 }
 
 export async function sendMail(options: SendMailOptions): Promise<void> {
-  const resend = getResend();
-  if (!resend) {
-    // Graceful no-op when email infrastructure isn't configured (e.g.
-    // local dev, staging before SMTP/Resend secrets are provisioned).
-    // The caller's flow (password reset, welcome) still completes; the
-    // operator sees the would-be email in the log.
-    console.warn(
-      `[email] RESEND_API_KEY not set — skipping email to ${options.to} (subject: "${options.subject}")`,
-    );
+  // ── 1. Prefer SMTP when credentials are present ────────────────────────────
+  const smtpTransporter = getSmtpTransporter();
+  if (smtpTransporter) {
+    try {
+      const info = await smtpTransporter.sendMail({
+        from: SMTP_FROM,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        text: options.text ?? options.html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+      });
+      console.log(`[email] SMTP sent "${options.subject}" to ${options.to} (${info.messageId})`);
+      return;
+    } catch (err) {
+      console.error(`[email] SMTP error sending "${options.subject}" to ${options.to}:`, err);
+      return;
+    }
+  }
+
+  // ── 2. Fall back to Resend ─────────────────────────────────────────────────
+  const apiKey = process.env.RESEND_API_KEY;
+  if (apiKey) {
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from: RESEND_FROM,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text,
+    });
+    if (error) {
+      console.error(`[email] Resend error sending "${options.subject}" to ${options.to}:`, error.message);
+    }
     return;
   }
-  const { error } = await resend.emails.send({
-    from: FROM,
-    to: options.to,
-    subject: options.subject,
-    html: options.html,
-    text: options.text,
-  });
-  if (error) {
-    // Log but don't throw — a transient email outage shouldn't block
-    // the user-visible request (e.g. forgot-password returning 200).
-    console.error(`[email] Resend error sending "${options.subject}" to ${options.to}:`, error.message);
-  }
+
+  // ── 3. Nothing configured — log and continue ───────────────────────────────
+  console.warn(
+    `[email] No transport configured — skipping email to ${options.to} (subject: "${options.subject}")`,
+  );
 }
 
 export function buildPasswordResetEmail(resetUrl: string): { html: string; text: string } {
