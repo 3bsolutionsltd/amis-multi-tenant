@@ -1,5 +1,7 @@
 # 5. Offline / On-Premises Installation
 
+> **Before you begin** — confirm that all hardware, OS, and software requirements in [§3 — Requirements](03-requirements.md) have been met, and that the [§4 — Pre-install checklist](04-pre-install.md) is fully ticked off. Skipping either will likely result in a failed install.
+
 This is the **primary** install mode. It assumes no internet on the server itself.
 
 ## Fast path — one command
