@@ -115,6 +115,132 @@ If you did not request this, you can safely ignore this email.
   return { html, text };
 }
 
+/** Notification sent to a user whose password was reset by an administrator. */
+export function buildPasswordChangedByAdminEmail(
+  loginUrl: string,
+  firstName?: string | null,
+): { html: string; text: string } {
+  const greeting = firstName ? `Hello ${firstName},` : "Hello,";
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color: #1d4ed8;">Your Password Has Been Reset</h2>
+      <p>${greeting}</p>
+      <p>
+        An administrator has reset your password on <strong>AMIS</strong>.
+        You can now log in with your new password.
+      </p>
+      <p style="margin: 24px 0;">
+        <a href="${loginUrl}"
+           style="background:#1d4ed8;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
+          Log In to AMIS
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:13px;">
+        If you did not expect this change, please contact your administrator immediately.
+      </p>
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
+      <p style="color:#9ca3af;font-size:12px;">AMIS — Academic Management Information System</p>
+    </div>
+  `;
+
+  const text = `
+${greeting}
+
+An administrator has reset your password on AMIS. You can now log in with your new password.
+
+Login: ${loginUrl}
+
+If you did not expect this change, please contact your administrator immediately.
+  `.trim();
+
+  return { html, text };
+}
+
+/** Notification sent when a user's account is activated or deactivated by an admin. */
+export function buildAccountStatusEmail(
+  isActive: boolean,
+  loginUrl: string,
+  firstName?: string | null,
+): { html: string; text: string } {
+  const greeting = firstName ? `Hello ${firstName},` : "Hello,";
+  const headline = isActive ? "Your Account Has Been Reactivated" : "Your Account Has Been Deactivated";
+  const color = isActive ? "#059669" : "#dc2626";
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color: ${color};">${headline}</h2>
+      <p>${greeting}</p>
+      <p>Your AMIS account has been <strong>${isActive ? "reactivated" : "deactivated"}</strong> by an administrator.</p>
+      ${isActive
+        ? `<p style="margin: 24px 0;">
+        <a href="${loginUrl}"
+           style="background:#059669;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
+          Log In to AMIS
+        </a>
+      </p>`
+        : `<p style="color:#6b7280;font-size:13px;">
+        You will not be able to log in until your account is reactivated.
+        Contact your administrator if you believe this is an error.
+      </p>`}
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
+      <p style="color:#9ca3af;font-size:12px;">AMIS — Academic Management Information System</p>
+    </div>
+  `;
+
+  const text = isActive
+    ? `${greeting}\n\nYour AMIS account has been reactivated. You can now log in at:\n${loginUrl}`
+    : `${greeting}\n\nYour AMIS account has been deactivated by an administrator. Contact your administrator if you believe this is an error.`;
+
+  return { html, text };
+}
+
+/** Verification email sent to a tenant's contact email on VTI creation. */
+export function buildTenantVerificationEmail(
+  institutionName: string,
+  verifyUrl: string,
+): { html: string; text: string } {
+  const html = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color: #1d4ed8;">Verify Your Institution Email — AMIS</h2>
+      <p>Hello,</p>
+      <p>
+        Your institution <strong>${institutionName}</strong> has been registered on the
+        <strong>Academic Management Information System (AMIS)</strong>.
+      </p>
+      <p>
+        Please verify this email address to confirm it as the official contact for
+        <strong>${institutionName}</strong>. This link expires in <strong>72 hours</strong>.
+      </p>
+      <p style="margin: 24px 0;">
+        <a href="${verifyUrl}"
+           style="background:#1d4ed8;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
+          Verify Email Address
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:13px;">
+        If you were not expecting this email, you can safely ignore it.
+      </p>
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
+      <p style="color:#9ca3af;font-size:12px;">AMIS — Academic Management Information System</p>
+    </div>
+  `;
+
+  const text = `
+Hello,
+
+Your institution "${institutionName}" has been registered on the Academic Management Information System (AMIS).
+
+Please verify this email address by visiting the link below. This link expires in 72 hours.
+
+${verifyUrl}
+
+If you were not expecting this email, you can safely ignore it.
+  `.trim();
+
+  return { html, text };
+}
+
 export function buildWelcomeEmail(
   setupUrl: string,
   firstName?: string | null,

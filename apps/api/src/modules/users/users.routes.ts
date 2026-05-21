@@ -17,7 +17,7 @@ import { superPool as pool } from "../../db/pool.js";
 import { hashPasswordAsync } from "../../lib/password.js";
 import { isValidPassword } from "../../lib/passwordValidator.js";
 import { requireRole } from "../../middleware/requireRole.js";
-import { sendMail, buildWelcomeEmail } from "../../lib/email.js";
+import { sendMail, buildWelcomeEmail, buildPasswordChangedByAdminEmail, buildAccountStatusEmail } from "../../lib/email.js";
 
 // ------------------------------------------------------------------ constants
 
@@ -336,11 +336,12 @@ export async function usersRoutes(app: FastifyInstance) {
       const { rows: existing } = await pool.query<{
         id: string;
         email: string;
+        first_name: string | null;
         role: string;
         is_active: boolean;
         created_at: string;
       }>(
-        `SELECT id, email, role, is_active, created_at
+        `SELECT id, email, first_name, role, is_active, created_at
          FROM platform.users
          WHERE id = $1 AND tenant_id = $2`,
         [id, tenantId],
@@ -410,6 +411,15 @@ export async function usersRoutes(app: FastifyInstance) {
           isActive ? "activated" : "deactivated",
           null, null,
         );
+        // Notify user their account status changed
+        try {
+          const appUrl = process.env.APP_URL ?? "http://localhost:5173";
+          const { html, text } = buildAccountStatusEmail(isActive, `${appUrl}/login`, existing[0].first_name);
+          const subject = isActive ? "Your AMIS Account Has Been Reactivated" : "Your AMIS Account Has Been Deactivated";
+          await sendMail({ to: existing[0].email, subject, html, text });
+        } catch (emailErr) {
+          console.error("[users] Account status notification failed:", emailErr);
+        }
       }
 
       return reply.status(200).send(toPublic(updated));
@@ -443,9 +453,9 @@ export async function usersRoutes(app: FastifyInstance) {
           .send({ message: "Password does not meet requirements" });
       }
 
-      // Verify user belongs to same tenant
-      const { rows: existing } = await pool.query<{ id: string }>(
-        `SELECT id FROM platform.users WHERE id = $1 AND tenant_id = $2`,
+      // Verify user belongs to same tenant and fetch details for notification
+      const { rows: existing } = await pool.query<{ id: string; email: string; first_name: string | null }>(
+        `SELECT id, email, first_name FROM platform.users WHERE id = $1 AND tenant_id = $2`,
         [id, tenantId],
       );
 
@@ -463,6 +473,16 @@ export async function usersRoutes(app: FastifyInstance) {
       await revokeAllRefreshTokens(id);
 
       writeAuditLog(tenantId, req.user.userId, id, "password_reset", null, null);
+
+      // Notify user their password was changed by an admin
+      try {
+        const appUrl = process.env.APP_URL ?? "http://localhost:5173";
+        const loginUrl = `${appUrl}/login`;
+        const { html, text } = buildPasswordChangedByAdminEmail(loginUrl, existing[0].first_name);
+        await sendMail({ to: existing[0].email, subject: "Your AMIS Password Has Been Reset", html, text });
+      } catch (emailErr) {
+        console.error("[users] Password reset notification failed:", emailErr);
+      }
 
       return reply.status(200).send({ message: "Password updated" });
     },

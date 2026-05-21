@@ -1,17 +1,21 @@
 /**
  * Tenant management routes — Phase 1.2
  *
- * GET    /tenants           — list all tenants (admin only)
- * GET    /tenants/:id       — get single tenant (admin only)
- * POST   /tenants           — create tenant (admin only)
- * PUT    /tenants/:id       — update tenant (admin only)
+ * GET    /tenants                   — list all tenants (platform_admin only)
+ * GET    /tenants/:id               — get single tenant (platform_admin only)
+ * POST   /tenants                   — create tenant (platform_admin only)
+ * PUT    /tenants/:id               — update tenant (platform_admin only)
+ * DELETE /tenants/:id               — delete tenant (platform_admin only)
+ * GET    /tenants/verify-email      — verify contact email via token (public)
  *
- * All endpoints are admin-only and operate on the platform.tenants table.
+ * All write endpoints are platform_admin-only and operate on the platform.tenants table.
  */
 import type { FastifyInstance } from "fastify";
+import { createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import { pool, superPool } from "../../db/pool.js";
 import { requireRole } from "../../middleware/requireRole.js";
+import { sendMail, buildTenantVerificationEmail } from "../../lib/email.js";
 
 // ------------------------------------------------------------------ schemas
 
@@ -305,7 +309,29 @@ export async function tenantsRoutes(app: FastifyInstance) {
            RETURNING id, slug, name, is_active, contact_email, address, phone, logo_url, created_at`,
           [slug, name, contactEmail ?? null, address ?? null, phone ?? null, logoUrl ?? null, isActive ?? true],
         );
-        return reply.status(201).send(toPublic(result.rows[0]));
+        const created = result.rows[0];
+
+        // Send verification email to contactEmail if provided
+        if (contactEmail) {
+          try {
+            const rawToken = randomBytes(32).toString("hex");
+            const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+            const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72 hours
+            await pool.query(
+              `INSERT INTO platform.tenant_email_verifications (tenant_id, email, token_hash, expires_at)
+               VALUES ($1, $2, $3, $4)`,
+              [created.id, contactEmail, tokenHash, expiresAt],
+            );
+            const appUrl = process.env.APP_URL ?? "http://localhost:5173";
+            const verifyUrl = `${appUrl}/verify-tenant-email?token=${rawToken}`;
+            const { html, text } = buildTenantVerificationEmail(name, verifyUrl);
+            await sendMail({ to: contactEmail, subject: `Verify Contact Email for ${name} — AMIS`, html, text });
+          } catch (emailErr) {
+            console.error("[tenants] Contact email verification send failed:", emailErr);
+          }
+        }
+
+        return reply.status(201).send(toPublic(created));
       } catch (err: unknown) {
         const pgErr = err as { code?: string };
         if (pgErr.code === "23505") {
@@ -424,6 +450,64 @@ export async function tenantsRoutes(app: FastifyInstance) {
       }
 
       return reply.status(200).send({ message: "Tenant deleted" });
+    },
+  );
+
+  /**
+   * GET /tenants/verify-email?token=xxx  — public route
+   * Verifies the contact email of a tenant using a token from the verification email.
+   */
+  app.get(
+    "/tenants/verify-email",
+    async (req, reply) => {
+      const { token } = req.query as { token?: string };
+
+      if (!token || typeof token !== "string" || token.length < 16) {
+        return reply.status(400).send({ statusCode: 400, message: "Invalid or missing token" });
+      }
+
+      const tokenHash = createHash("sha256").update(token).digest("hex");
+
+      const { rows } = await pool.query<{
+        id: string;
+        tenant_id: string;
+        email: string;
+        expires_at: string;
+        used_at: string | null;
+      }>(
+        `SELECT id, tenant_id, email, expires_at, used_at
+         FROM platform.tenant_email_verifications
+         WHERE token_hash = $1`,
+        [tokenHash],
+      );
+
+      if (rows.length === 0) {
+        return reply.status(400).send({ statusCode: 400, message: "Invalid or expired verification link" });
+      }
+
+      const record = rows[0];
+
+      if (record.used_at) {
+        return reply.status(200).send({ message: "Email already verified" });
+      }
+
+      if (new Date(record.expires_at) < new Date()) {
+        return reply.status(400).send({ statusCode: 400, message: "Verification link has expired" });
+      }
+
+      // Mark token as used and update tenant verified flag
+      await pool.query(
+        `UPDATE platform.tenant_email_verifications SET used_at = now() WHERE id = $1`,
+        [record.id],
+      );
+      await pool.query(
+        `UPDATE platform.tenants
+         SET contact_email_verified = true, contact_email_verified_at = now()
+         WHERE id = $1`,
+        [record.tenant_id],
+      );
+
+      return reply.status(200).send({ message: "Email verified successfully" });
     },
   );
 }
