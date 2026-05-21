@@ -1,0 +1,71 @@
+# ── AMIS Offline / On-Premises Stack ─────────────────────────────────────────
+# Bundled copy — identical to the repo root's docker-compose.offline.yml.
+# Run from install-kit/ root:
+#   docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  db:
+    image: amis-postgres:offline
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-amis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      POSTGRES_DB: ${POSTGRES_DB:-amis}
+    expose:
+      - "5432"
+    volumes:
+      - pgdata_offline:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-amis}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: always
+
+  api:
+    image: amis-api:offline
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}
+      JWT_SECRET: ${JWT_SECRET:?required}
+      CORS_ORIGIN: ${CORS_ORIGIN:?required}
+    ports:
+      - "0.0.0.0:3001:3000"
+    volumes:
+      - uploads:/app/apps/api/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+  web:
+    image: amis-web:offline
+    ports:
+      - "0.0.0.0:80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: always
+
+  migrate:
+    image: amis-dbmate:offline
+    command: up
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}?sslmode=disable
+    volumes:
+      - ../db/migrations:/db/migrations:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  pgdata_offline:
+  uploads:

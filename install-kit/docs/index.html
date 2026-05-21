@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AMIS — Installation & Operations Manual</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="AMIS Academic Management Information System — Installation, configuration and operations." />
+  <!--
+    Asset loading strategy:
+      - If the bundle ships with ./vendor/* (vendor ran scripts/prepare-offline-docs.sh)
+        we use those for fully-offline operation.
+      - Otherwise we fall back to the jsDelivr CDN (requires internet on the viewer).
+    A tiny <script> below decides which to use.
+  -->
+  <link rel="stylesheet" id="theme-css" />
+  <script>
+    (function () {
+      // Try vendor first
+      var probe = new XMLHttpRequest();
+      probe.open('HEAD', 'vendor/docsify.min.js', false);
+      try { probe.send(); } catch (e) {}
+      var offline = probe.status >= 200 && probe.status < 400;
+      var base = offline
+        ? { theme: 'vendor/vue.css',
+            docsify: 'vendor/docsify.min.js',
+            bash: 'vendor/prism-bash.min.js',
+            ps: 'vendor/prism-powershell.min.js',
+            sql: 'vendor/prism-sql.min.js',
+            copy: 'vendor/docsify-copy-code.min.js' }
+        : { theme: 'https://cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css',
+            docsify: 'https://cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js',
+            bash: 'https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js',
+            ps: 'https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-powershell.min.js',
+            sql: 'https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-sql.min.js',
+            copy: 'https://cdn.jsdelivr.net/npm/docsify-copy-code@2/dist/docsify-copy-code.min.js' };
+
+      document.getElementById('theme-css').href = base.theme;
+      window.__amisAssets = base;
+    })();
+  </script>
+  <style>
+    :root {
+      --theme-color: #0a6b3d;
+      --text-color-base: #2c3e50;
+    }
+    .app-name-link img { max-width: 140px; }
+    .sidebar > h1 { font-size: 1.3rem; }
+    .markdown-section pre > code { font-size: 0.85rem; }
+    .cover-main blockquote { border-left: 4px solid var(--theme-color); }
+  </style>
+</head>
+<body>
+  <div id="app">Loading the AMIS manual…</div>
+
+  <script>
+    window.$docsify = {
+      name: 'AMIS Manual',
+      repo: '3bsolutionsltd/amis-multi-tenant',
+      loadSidebar: true,
+      loadNavbar: false,
+      coverpage: true,
+      onlyCover: false,
+      auto2top: true,
+      maxLevel: 3,
+      subMaxLevel: 2,
+      search: {
+        placeholder: 'Search the manual…',
+        noData: 'No results.',
+        depth: 3
+      },
+      copyCode: {
+        buttonText: 'Copy',
+        successText: 'Copied!'
+      },
+      themeColor: '#0a6b3d'
+    };
+  </script>
+
+  <!-- Loaders -->
+  <script>
+    function s(src){var t=document.createElement('script');t.src=src;t.async=false;document.head.appendChild(t);}
+    s(window.__amisAssets.docsify);
+    s(window.__amisAssets.copy);
+    s(window.__amisAssets.bash);
+    s(window.__amisAssets.ps);
+    s(window.__amisAssets.sql);
+  </script>
+</body>
+</html>
