@@ -15,3 +15,25 @@ db/seed_out.txt
 
 # Binary/document files
 *.docx
+
+# Private/PII files — never commit
+DEMO-*.csv
+*_otter_ai_transcript*
+db/data-migration/
+.copilot-context/
+
+# Internal planning/ops docs
+DEMO-PREP.md
+PROJECT_TODO.md
+QA-TRACKER.md
+copilot-instructions.md
+USER_TESTING_GUIDE.md
+
+# Internal GitHub management scripts
+scripts/close-*.ps1
+scripts/close-*.js
+scripts/create-*-issues.*
+scripts/get-issues.js
+scripts/get-project-items.js
+scripts/list-all-issues.js
+scripts/mark-done.js
