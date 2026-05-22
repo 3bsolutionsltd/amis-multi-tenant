@@ -38,11 +38,9 @@ describeIf("RLS isolation — marks (integration)", () => {
     tenantAId = resA.rows[0].id;
     tenantBId = resB.rows[0].id;
 
-    await adminPool.query(
-      `GRANT USAGE ON SCHEMA app TO amis_app;
-       GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA app TO amis_app;
-       GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA platform TO amis_app;`,
-    );
+    // Note: amis_app grants on app + platform schemas are handled by migration 064.
+    // Do NOT re-issue GRANT here — concurrent test files cause "tuple
+    // concurrently updated" on pg system catalogs when grants run in parallel.
 
     const adminClient = await adminPool.connect();
     try {
