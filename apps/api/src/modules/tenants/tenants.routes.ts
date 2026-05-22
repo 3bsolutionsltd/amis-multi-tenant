@@ -438,9 +438,11 @@ export async function tenantsRoutes(app: FastifyInstance) {
         });
       }
 
-      // Delete the tenant. ON DELETE CASCADE in the schema automatically removes
-      // all related users, roles, app data for this tenant.
-      const result = await pool.query(
+      // Delete the tenant using the superuser connection so that ON DELETE CASCADE
+      // cascades correctly through RLS-protected tables (amis_app is subject to
+      // RLS; without a tenant context set, cascade deletes would be blocked by the
+      // RLS USING policy and cause a FK constraint violation → 500).
+      const result = await superPool.query(
         `DELETE FROM platform.tenants WHERE id = $1 RETURNING id`,
         [id],
       );
