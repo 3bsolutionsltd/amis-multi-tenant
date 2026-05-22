@@ -12,7 +12,7 @@
  */
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { pool } from "../../db/pool.js";
+import { pool, superPool } from "../../db/pool.js";
 import { hashPasswordAsync } from "../../lib/password.js";
 import { signToken } from "../../lib/jwt.js";
 import { requireRole } from "../../middleware/requireRole.js";
@@ -228,7 +228,10 @@ export async function onboardingRoutes(app: FastifyInstance) {
       const tempPassword =
         parsed.data.adminPassword ?? randomBytes(8).toString("hex");
 
-      const client = await pool.connect();
+      // Use superPool: platform.users has RLS (users_tenant_isolation) that
+      // blocks INSERT when app.tenant_id is not set. Provisioning is a
+      // platform-admin operation so the superuser connection is correct.
+      const client = await superPool.connect();
       try {
         await client.query("BEGIN");
 
@@ -257,7 +260,7 @@ export async function onboardingRoutes(app: FastifyInstance) {
           const verifyToken = randomBytes(32).toString("hex");
           const verifyHash = createHash("sha256").update(verifyToken).digest("hex");
           const verifyExpiry = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72 h
-          await pool.query(
+          await superPool.query(
             `INSERT INTO platform.tenant_email_verifications (tenant_id, email, token_hash, expires_at)
              VALUES ($1, $2, $3, $4)`,
             [tenantId, contactEmail, verifyHash, verifyExpiry],
@@ -280,7 +283,7 @@ export async function onboardingRoutes(app: FastifyInstance) {
           const setupToken = randomBytes(32).toString("hex");
           const setupHash = createHash("sha256").update(setupToken).digest("hex");
           const setupExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 h
-          await pool.query(
+          await superPool.query(
             `INSERT INTO platform.password_reset_tokens (user_id, token_hash, expires_at)
              VALUES ($1, $2, $3)`,
             [userId, setupHash, setupExpiry],
