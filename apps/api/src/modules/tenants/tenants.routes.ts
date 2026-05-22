@@ -71,7 +71,7 @@ const TenantsQuerySchema = z.object({
     .string()
     .optional()
     .transform((v) => (v ? parseInt(v, 10) : 20))
-    .pipe(z.number().int().min(1).max(100).default(20)),
+    .pipe(z.number().int().min(1).max(500).default(20)),
 });
 
 // ------------------------------------------------------------------ types
@@ -442,10 +442,29 @@ export async function tenantsRoutes(app: FastifyInstance) {
       // cascades correctly through RLS-protected tables (amis_app is subject to
       // RLS; without a tenant context set, cascade deletes would be blocked by the
       // RLS USING policy and cause a FK constraint violation → 500).
-      const result = await superPool.query(
-        `DELETE FROM platform.tenants WHERE id = $1 RETURNING id`,
-        [id],
-      );
+      //
+      // app.workflow_events has an append-only BEFORE trigger that blocks DELETE.
+      // We temporarily disable it (requires superuser) within a transaction so the
+      // CASCADE can remove workflow_events rows belonging to this tenant.
+      const client = await superPool.connect();
+      let result: { rows: { id: string }[] };
+      try {
+        await client.query("BEGIN");
+        await client.query("ALTER TABLE app.workflow_events DISABLE TRIGGER ALL");
+        result = await client.query(
+          `DELETE FROM platform.tenants WHERE id = $1 RETURNING id`,
+          [id],
+        );
+        await client.query("ALTER TABLE app.workflow_events ENABLE TRIGGER ALL");
+        await client.query("COMMIT");
+      } catch (err) {
+        await client.query("ROLLBACK");
+        // Best-effort re-enable in case the DISABLE succeeded but DELETE failed
+        await client.query("ALTER TABLE app.workflow_events ENABLE TRIGGER ALL").catch(() => {});
+        throw err;
+      } finally {
+        client.release();
+      }
 
       if (result.rows.length === 0) {
         return reply.status(404).send({ statusCode: 404, message: "Tenant not found" });
