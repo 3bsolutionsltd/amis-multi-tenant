@@ -51,6 +51,7 @@ import { LoginPage } from "./auth/LoginPage";
 import { PlatformLoginPage } from "./auth/PlatformLoginPage";
 import { ForgotPasswordPage } from "./auth/ForgotPasswordPage";
 import { ResetPasswordPage } from "./auth/ResetPasswordPage";
+import { VerifyTenantEmailPage } from "./auth/VerifyTenantEmailPage";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { RequireRole } from "./auth/RequireRole";
 import { ProgrammesListPage } from "./modules/programmes/ProgrammesListPage";
@@ -122,6 +123,10 @@ export const router = createBrowserRouter([
   {
     path: "/reset-password",
     element: <ResetPasswordPage />,
+  },
+  {
+    path: "/verify-tenant-email",
+    element: <VerifyTenantEmailPage />,
   },
   {
     path: "/apply/:tenantSlug",
