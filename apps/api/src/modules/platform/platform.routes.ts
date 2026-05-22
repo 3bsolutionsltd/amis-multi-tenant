@@ -4,7 +4,7 @@
  * GET /platform/users  — list all platform admin users (platform_admin only)
  */
 import type { FastifyInstance } from "fastify";
-import { pool } from "../../db/pool.js";
+import { superPool } from "../../db/pool.js";
 import { requireRole } from "../../middleware/requireRole.js";
 
 export async function platformRoutes(app: FastifyInstance) {
@@ -17,7 +17,7 @@ export async function platformRoutes(app: FastifyInstance) {
     "/platform/users",
     { preHandler: requireRole("platform_admin") },
     async (_req, reply) => {
-      const { rows } = await pool.query<{
+      const { rows } = await superPool.query<{
         id: string;
         email: string;
         role: string;

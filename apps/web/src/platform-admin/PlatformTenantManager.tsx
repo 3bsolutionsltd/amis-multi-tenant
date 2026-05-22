@@ -46,7 +46,7 @@ export function PlatformTenantManager() {
 
   const { data, isLoading, error: loadErr } = useQuery<TenantsResponse>({
     queryKey: ["platform/tenants"],
-    queryFn: () => apiFetch<TenantsResponse>("/tenants?limit=200"),
+    queryFn: () => apiFetch<TenantsResponse>("/tenants?limit=500"),
     staleTime: 30_000,
   });
 
