@@ -16,8 +16,8 @@ import { pool } from "../../db/pool.js";
 import { hashPasswordAsync } from "../../lib/password.js";
 import { signToken } from "../../lib/jwt.js";
 import { requireRole } from "../../middleware/requireRole.js";
-import { randomBytes } from "crypto";
-import { createHash } from "crypto";
+import { randomBytes, createHash } from "crypto";
+import { sendMail, buildTenantVerificationEmail, buildWelcomeEmail } from "../../lib/email.js";
 
 // ------------------------------------------------------------------ helpers
 
@@ -242,13 +242,61 @@ export async function onboardingRoutes(app: FastifyInstance) {
         const tenantId: string = tenantRes.rows[0].id;
 
         const passwordHash = await hashPasswordAsync(tempPassword);
-        await client.query(
+        const userRes = await client.query(
           `INSERT INTO platform.users (tenant_id, email, password_hash, role, is_active)
-           VALUES ($1, $2, $3, 'admin', true)`,
+           VALUES ($1, $2, $3, 'admin', true)
+           RETURNING id`,
           [tenantId, adminEmail, passwordHash],
         );
+        const userId: string = userRes.rows[0].id;
 
         await client.query("COMMIT");
+
+        // Send contact email verification (outside transaction — non-fatal if it fails)
+        try {
+          const verifyToken = randomBytes(32).toString("hex");
+          const verifyHash = createHash("sha256").update(verifyToken).digest("hex");
+          const verifyExpiry = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72 h
+          await pool.query(
+            `INSERT INTO platform.tenant_email_verifications (tenant_id, email, token_hash, expires_at)
+             VALUES ($1, $2, $3, $4)`,
+            [tenantId, contactEmail, verifyHash, verifyExpiry],
+          );
+          const appUrl = process.env.APP_URL ?? "http://localhost:5173";
+          const verifyUrl = `${appUrl}/verify-tenant-email?token=${verifyToken}`;
+          const { html, text } = buildTenantVerificationEmail(instituteName, verifyUrl);
+          await sendMail({
+            to: contactEmail,
+            subject: `Verify Contact Email for ${instituteName} — AMIS`,
+            html,
+            text,
+          });
+        } catch (emailErr) {
+          console.error("[onboarding] Contact email verification send failed:", emailErr);
+        }
+
+        // Send welcome / account-setup email to the admin user
+        try {
+          const setupToken = randomBytes(32).toString("hex");
+          const setupHash = createHash("sha256").update(setupToken).digest("hex");
+          const setupExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 h
+          await pool.query(
+            `INSERT INTO platform.password_reset_tokens (user_id, token_hash, expires_at)
+             VALUES ($1, $2, $3)`,
+            [userId, setupHash, setupExpiry],
+          );
+          const appUrl = process.env.APP_URL ?? "http://localhost:5173";
+          const setupUrl = `${appUrl}/reset-password?token=${setupToken}&mode=setup`;
+          const { html, text } = buildWelcomeEmail(setupUrl, null);
+          await sendMail({
+            to: adminEmail,
+            subject: "Welcome to AMIS — Set Up Your Account",
+            html,
+            text,
+          });
+        } catch (emailErr) {
+          console.error("[onboarding] Welcome email send failed:", emailErr);
+        }
 
         return reply.status(201).send({
           message: "VTI provisioned successfully",
