@@ -23,6 +23,10 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}
+      # Non-superuser connection used for all application queries so that
+      # PostgreSQL Row-Level Security (RLS) is enforced. MUST be set so that
+      # tenants cannot see each other's data.
+      APP_DATABASE_URL: ${APP_DATABASE_URL:?required}
       JWT_SECRET: ${JWT_SECRET:?required}
       CORS_ORIGIN: ${CORS_ORIGIN:?required}
       # Frontend URL used to build email links (reset password, welcome)
