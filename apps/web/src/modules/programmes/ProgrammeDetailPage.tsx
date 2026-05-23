@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getProgramme, updateProgramme, deleteProgramme, type UpdateProgrammeBody } from "./programmes.api";
-import { listCourses, createCourse, deleteCourse, type CreateCourseBody } from "../courses/courses.api";
+import { listCourses, createCourse, deleteCourse, updateCourse, type CreateCourseBody, type UpdateCourseBody, type Course } from "../courses/courses.api";
 import { useConfig } from "../../app/ConfigProvider";
 import {
   ensureGlobalCss,
@@ -59,6 +59,11 @@ export function ProgrammeDetailPage() {
     course_type: "theory" | "practical" | "both"; year_of_study: string; semester: string;
   }>({ code: "", title: "", credit_hours: "3", course_type: "theory", year_of_study: "1", semester: "1" });
   const [courseError, setCourseError] = useState<string | null>(null);
+  const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
+  const [editCourseForm, setEditCourseForm] = useState<{
+    code: string; title: string; credit_hours: string;
+    course_type: "theory" | "practical" | "both"; year_of_study: string; semester: string;
+  }>({ code: "", title: "", credit_hours: "3", course_type: "theory", year_of_study: "1", semester: "1" });
 
   const { data: programme, isLoading, error } = useQuery({
     queryKey: ["programmes", id],
@@ -104,6 +109,28 @@ export function ProgrammeDetailPage() {
     mutationFn: (courseId: string) => deleteCourse(courseId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["courses", id] }),
   });
+
+  const updateCourseMutation = useMutation({
+    mutationFn: ({ courseId, body }: { courseId: string; body: UpdateCourseBody }) => updateCourse(courseId, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["courses", id] });
+      setEditingCourseId(null);
+      setCourseError(null);
+    },
+    onError: (err: Error) => setCourseError(err.message),
+  });
+
+  function startEditCourse(course: Course) {
+    setEditingCourseId(course.id);
+    setEditCourseForm({
+      code: course.code,
+      title: course.title,
+      credit_hours: course.credit_hours != null ? String(course.credit_hours) : "3",
+      course_type: course.course_type ?? "theory",
+      year_of_study: course.year_of_study != null ? String(course.year_of_study) : "1",
+      semester: course.semester != null ? String(course.semester) : "1",
+    });
+  }
 
   function startEdit() {
     setForm({
@@ -303,30 +330,95 @@ export function ProgrammeDetailPage() {
               </tr>
             </thead>
             <tbody>
-              {courses.map((course) => (
-                <tr key={course.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <td style={{ padding: "8px 10px", fontFamily: "monospace", color: C.primary }}>{course.code}</td>
-                  <td style={{ padding: "8px 10px" }}>{course.title}</td>
-                  <td style={{ padding: "8px 10px", textAlign: "center" }}>{course.year_of_study}</td>
-                  <td style={{ padding: "8px 10px", textAlign: "center" }}>{course.semester}</td>
-                  <td style={{ padding: "8px 10px", textAlign: "center" }}>{course.credit_hours}</td>
-                  <td style={{ padding: "8px 10px" }}>
-                    <Badge
-                      label={course.course_type ?? "theory"}
-                      color={course.course_type === "practical" ? "blue" : course.course_type === "both" ? "purple" : "gray"}
-                    />
-                  </td>
-                  <td style={{ padding: "8px 10px" }}>
-                    <button
-                      onClick={() => { if (confirm(`Remove "${course.code}"?`)) deleteCourseMutation.mutate(course.id); }}
-                      style={{ background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 12, padding: "2px 6px" }}
-                      title="Remove course"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {courses.map((course) =>
+                editingCourseId === course.id ? (
+                  <tr key={course.id} style={{ borderBottom: `1px solid ${C.border}`, background: "#f0f9ff" }}>
+                    <td style={{ padding: "6px 8px" }}>
+                      <input style={{ ...inputCss, width: 80 }} value={editCourseForm.code}
+                        onChange={(e) => setEditCourseForm((f) => ({ ...f, code: e.target.value }))} />
+                    </td>
+                    <td style={{ padding: "6px 8px" }}>
+                      <input style={inputCss} value={editCourseForm.title}
+                        onChange={(e) => setEditCourseForm((f) => ({ ...f, title: e.target.value }))} />
+                    </td>
+                    <td style={{ padding: "6px 8px" }}>
+                      <input type="number" min={1} max={6} style={{ ...inputCss, width: 52 }} value={editCourseForm.year_of_study}
+                        onChange={(e) => setEditCourseForm((f) => ({ ...f, year_of_study: e.target.value }))} />
+                    </td>
+                    <td style={{ padding: "6px 8px" }}>
+                      <input type="number" min={1} max={3} style={{ ...inputCss, width: 52 }} value={editCourseForm.semester}
+                        onChange={(e) => setEditCourseForm((f) => ({ ...f, semester: e.target.value }))} />
+                    </td>
+                    <td style={{ padding: "6px 8px" }}>
+                      <input type="number" min={1} max={10} style={{ ...inputCss, width: 60 }} value={editCourseForm.credit_hours}
+                        onChange={(e) => setEditCourseForm((f) => ({ ...f, credit_hours: e.target.value }))} />
+                    </td>
+                    <td style={{ padding: "6px 8px" }}>
+                      <select style={selectCss} value={editCourseForm.course_type}
+                        onChange={(e) => setEditCourseForm((f) => ({ ...f, course_type: e.target.value as typeof f.course_type }))}>
+                        <option value="theory">Theory</option>
+                        <option value="practical">Practical</option>
+                        <option value="both">Both</option>
+                      </select>
+                    </td>
+                    <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
+                      <button
+                        onClick={() => updateCourseMutation.mutate({
+                          courseId: course.id,
+                          body: {
+                            code: editCourseForm.code,
+                            title: editCourseForm.title,
+                            credit_hours: Number(editCourseForm.credit_hours),
+                            course_type: editCourseForm.course_type,
+                            year_of_study: Number(editCourseForm.year_of_study),
+                            semester: Number(editCourseForm.semester),
+                          },
+                        })}
+                        disabled={updateCourseMutation.isPending}
+                        style={{ background: "none", border: "none", color: C.primary, cursor: "pointer", fontSize: 12, padding: "2px 6px", fontWeight: 600 }}
+                      >
+                        {updateCourseMutation.isPending ? "…" : "Save"}
+                      </button>
+                      <button
+                        onClick={() => { setEditingCourseId(null); setCourseError(null); }}
+                        style={{ background: "none", border: "none", color: C.textSecondary, cursor: "pointer", fontSize: 12, padding: "2px 6px" }}
+                      >
+                        Cancel
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={course.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                    <td style={{ padding: "8px 10px", fontFamily: "monospace", color: C.primary }}>{course.code}</td>
+                    <td style={{ padding: "8px 10px" }}>{course.title}</td>
+                    <td style={{ padding: "8px 10px", textAlign: "center" }}>{course.year_of_study}</td>
+                    <td style={{ padding: "8px 10px", textAlign: "center" }}>{course.semester}</td>
+                    <td style={{ padding: "8px 10px", textAlign: "center" }}>{course.credit_hours}</td>
+                    <td style={{ padding: "8px 10px" }}>
+                      <Badge
+                        label={course.course_type ?? "theory"}
+                        color={course.course_type === "practical" ? "blue" : course.course_type === "both" ? "purple" : "gray"}
+                      />
+                    </td>
+                    <td style={{ padding: "8px 10px", whiteSpace: "nowrap" }}>
+                      <button
+                        onClick={() => startEditCourse(course)}
+                        style={{ background: "none", border: "none", color: C.primary, cursor: "pointer", fontSize: 12, padding: "2px 6px" }}
+                        title="Edit course"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`Remove "${course.code}"?`)) deleteCourseMutation.mutate(course.id); }}
+                        style={{ background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 12, padding: "2px 6px" }}
+                        title="Remove course"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                )
+              )}
             </tbody>
           </table>
         )}
