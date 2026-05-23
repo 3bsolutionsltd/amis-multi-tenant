@@ -100,7 +100,7 @@ export function GradingScaleEditor() {
 
   const updateScaleMut = useMutation({
     mutationFn: ({ id, body }: { id: string; body: object }) =>
-      apiFetch(`/grading-scales/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+      apiFetch(`/grading-scales/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["grading-scales"] });
       qc.invalidateQueries({ queryKey: ["grading-scale", selectedId] });
@@ -111,7 +111,7 @@ export function GradingScaleEditor() {
 
   const bulkMut = useMutation({
     mutationFn: (rows: object[]) =>
-      apiFetch(`/grading-scales/${selectedId}/boundaries/bulk`, { method: "POST", body: JSON.stringify(rows) }),
+      apiFetch(`/grading-scales/${selectedId}/boundaries`, { method: "POST", body: JSON.stringify(rows) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["grading-scale", selectedId] });
       setBoundaryError(null);

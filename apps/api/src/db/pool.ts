@@ -29,9 +29,31 @@ function createPool(): pg.Pool {
   // Prevent unhandled 'error' events from crashing the process.
   // node-postgres emits this when an idle client has its connection dropped
   // by the server — the pool will discard the client and create a new one.
+  //
+  // Recovery: after RECOVERY_THRESHOLD consecutive idle-client errors the pool
+  // is considered wedged (all connections simultaneously stale).  We end it
+  // and clear _pool so the next request transparently creates a fresh pool —
+  // no container restart required.
+  const RECOVERY_THRESHOLD = 3;
+  let consecutiveErrors = 0;
+
   p.on("error", (err) => {
     console.error("[pg-pool] idle client error — will be discarded:", err.message);
+    consecutiveErrors++;
+    if (consecutiveErrors >= RECOVERY_THRESHOLD && _pool === p) {
+      consecutiveErrors = 0;
+      _pool = null;
+      console.error("[pg-pool] pool replaced after consecutive idle-client errors");
+      p.end().catch((e: Error) =>
+        console.error("[pg-pool] error ending stale pool:", e.message),
+      );
+    }
   });
+
+  p.on("connect", () => {
+    consecutiveErrors = 0;
+  });
+
   return p;
 }
 
@@ -82,6 +104,12 @@ export const superPool: pg.Pool = new Proxy({} as pg.Pool, {
     return (getSuperPool() as unknown as Record<string | symbol, unknown>)[prop];
   },
 });
+
+/** @internal — test-only; resets the lazy pool singleton so the next access creates a fresh pool. */
+export function _resetPoolForTesting(): void {
+  _pool = null;
+  _superPool = null;
+}
 
 // Keepalive ping every 5 minutes — prevents NAT/firewall from silently
 // dropping idle connections between the API and Postgres containers.

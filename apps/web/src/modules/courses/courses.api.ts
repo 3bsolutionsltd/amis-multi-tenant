@@ -53,3 +53,19 @@ export function createCourse(body: CreateCourseBody): Promise<Course> {
 export function deleteCourse(id: string): Promise<void> {
   return apiFetch<void>(`/courses/${id}`, { method: "DELETE" });
 }
+
+export interface UpdateCourseBody {
+  code?: string;
+  title?: string;
+  credit_hours?: number;
+  course_type?: "theory" | "practical" | "both";
+  year_of_study?: number;
+  semester?: number;
+}
+
+export function updateCourse(id: string, body: UpdateCourseBody): Promise<Course> {
+  return apiFetch<Course>(`/courses/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
