@@ -58,12 +58,22 @@ async function seed() {
        ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
        RETURNING id`,
     );
+    // Issue #176: demovti tenant must exist so the public portal can accept applications.
+    // This tenant is used for UAT/staging testing of the public application form.
+    const tenantC = await client.query<{ id: string }>(
+      `INSERT INTO platform.tenants (id, slug, name)
+       VALUES ('de000000-0000-0000-0000-000000000003', 'demovti', 'Demo Vocational Training Institute')
+       ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
+       RETURNING id`,
+    );
 
     const idA = tenantA.rows[0].id;
     const idB = tenantB.rows[0].id;
+    const idC = tenantC.rows[0].id;
 
     console.log(`Tenant A (Greenfield VTI):        ${idA}`);
     console.log(`Tenant B (Riverside Tech College): ${idB}`);
+    console.log(`Tenant C (Demo VTI):               ${idC}`);
 
     // Seed students for Tenant A
     await withTenant(client, idA, async () => {
@@ -122,6 +132,32 @@ async function seed() {
         [idB],
       );
       console.log("Seeded 5 programmes for Tenant B");
+    });
+
+    // Seed students for Tenant C (Demo VTI)
+    await withTenant(client, idC, async () => {
+      await client.query(
+        `INSERT INTO app.students (tenant_id, first_name, last_name, date_of_birth)
+         VALUES ($1, 'Amara', 'Osei',    '2004-05-20'),
+                ($1, 'Kwame', 'Boateng', '2003-11-03')
+         ON CONFLICT DO NOTHING`,
+        [idC],
+      );
+      console.log("Seeded 2 students for Tenant C");
+    });
+
+    // Seed programmes for Tenant C (Demo VTI)
+    await withTenant(client, idC, async () => {
+      await client.query(
+        `INSERT INTO app.programmes (tenant_id, code, title, department, duration_months, level, is_active)
+         VALUES
+           ($1, 'NCBC', 'National Certificate in Business Computing',   'Business & ICT', 12, 'National Certificate', true),
+           ($1, 'NCES', 'National Certificate in Electrical Systems',   'Engineering',    24, 'National Certificate', true),
+           ($1, 'NCAM', 'National Certificate in Automotive Mechanics', 'Engineering',    24, 'National Certificate', true)
+         ON CONFLICT (tenant_id, code) DO NOTHING`,
+        [idC],
+      );
+      console.log("Seeded 3 programmes for Tenant C");
     });
 
     // Seed staff for Tenant A (Greenfield VTI)
@@ -735,7 +771,7 @@ async function seed() {
     // IDs can be inserted cleanly.
     await client.query(
       `DELETE FROM platform.users
-       WHERE email LIKE '%@greenfield.test' OR email LIKE '%@riverside.test'`,
+       WHERE email LIKE '%@greenfield.test' OR email LIKE '%@riverside.test' OR email LIKE '%@demovti.test'`,
     );
 
     const devUsers: Array<{
@@ -756,6 +792,12 @@ async function seed() {
         email: `${role}@tenant-b.test`,
         role,
       })),
+      ...ROLES.map(({ role, idSuffix }) => ({
+        id: `00000000-0000-0000-0000-00000000002${idSuffix}`,
+        tenantId: idC,
+        email: `${role}@demovti.test`,
+        role,
+      })),
     ];
 
     for (const u of devUsers) {
@@ -771,7 +813,7 @@ async function seed() {
       );
     }
     console.log(
-      `Seeded ${devUsers.length} dev users (7 roles × 2 tenants, password: ${DEV_PASSWORD})`,
+      `Seeded ${devUsers.length} dev users (9 roles × 3 tenants, password: ${DEV_PASSWORD})`,
     );
 
     // Seed one platform_admin — no tenant_id (platform admins are cross-tenant)
