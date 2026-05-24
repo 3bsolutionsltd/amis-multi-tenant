@@ -92,6 +92,39 @@ describe("POST /public/:tenantSlug/apply", () => {
     expect(body.application.first_name).toBe("Jane");
     expect(body.application.programme).toBe("Nursing");
   });
+
+  it("inserts source='online' for public portal submissions", async () => {
+    // Regression for issue #176 — the INSERT must include source='online'
+    // so online applications are distinguishable from staff-created ones.
+    stubSlugLookup(true);
+    let capturedSql = "";
+    mockWithTenant.mockImplementation(async (_tid, cb) => {
+      const mockClient = {
+        query: vi.fn().mockImplementation((sql: string) => {
+          capturedSql = sql;
+          return Promise.resolve({
+            rows: [{
+              id: APP_ID,
+              first_name: "Jane",
+              last_name: "Doe",
+              programme: "Nursing",
+              intake: "2026-Sept",
+              created_at: new Date().toISOString(),
+            }],
+          });
+        }),
+      };
+      return cb(mockClient as never);
+    });
+
+    const app = buildApp();
+    await app.inject({
+      method: "POST",
+      url: "/public/demo-school/apply",
+      payload: validBody,
+    });
+    expect(capturedSql).toContain("'online'");
+  });
 });
 
 // ------------------------------------------------------------------ GET /public/:tenantSlug/applications/:id/status
