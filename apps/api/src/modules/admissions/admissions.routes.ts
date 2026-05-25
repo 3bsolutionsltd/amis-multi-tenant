@@ -403,9 +403,18 @@ export async function admissionsRoutes(app: FastifyInstance) {
           return { alreadyEnrolled: true, studentId: application.student_id } as const;
         }
 
-        // Check workflow state allows enrollment
+        // Check workflow state allows enrollment.
+        // Allowed states:
+        //   "admitted" / "accepted"  — legacy competitive-admissions workflow (lowercase)
+        //   "REGISTERED"             — new reporting-day workflow (student cleared all pre-enrolment steps)
+        //   "enrolled" / "ENROLLED"  — already enrolled (caught by student_id check above, but guard here as safety)
         const state = application.current_state;
-        if (state !== "enrolled" && state !== "admitted" && state !== "accepted") {
+        const enrollableStates = new Set([
+          "admitted", "accepted",   // legacy lowercase
+          "REGISTERED",             // new reporting-day workflow
+          "enrolled", "ENROLLED",   // terminal (already handled above, safety)
+        ]);
+        if (!enrollableStates.has(state)) {
           return {
             invalidState: true,
             message: `Cannot enroll: application is in "${state}" state`,
@@ -473,6 +482,23 @@ export async function admissionsRoutes(app: FastifyInstance) {
           `UPDATE app.admission_applications SET student_id = $1 WHERE id = $2`,
           [student.id, id],
         );
+
+        // Advance workflow state to ENROLLED (for new reporting-day workflow where
+        // the pre-enrollment state is "REGISTERED"). Legacy states ("admitted","accepted")
+        // have no further workflow transition defined, so we skip for those.
+        if (state === "REGISTERED") {
+          await client.query(
+            `UPDATE app.workflow_instances SET current_state = 'ENROLLED'
+             WHERE entity_type = 'admissions' AND entity_id = $1`,
+            [id],
+          );
+          await client.query(
+            `INSERT INTO app.workflow_events
+               (tenant_id, entity_type, entity_id, workflow_key, from_state, to_state, action_key, actor_user_id)
+             VALUES ($1, 'admissions', $2, 'admissions', 'REGISTERED', 'ENROLLED', 'enroll', $3)`,
+            [tid, id, req.user?.userId ?? null],
+          );
+        }
 
         return { student, admissionNumber };
       });
