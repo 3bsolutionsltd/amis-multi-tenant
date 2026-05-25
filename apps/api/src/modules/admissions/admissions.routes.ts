@@ -405,7 +405,7 @@ export async function admissionsRoutes(app: FastifyInstance) {
 
         // Check workflow state allows enrollment
         const state = application.current_state;
-        if (state !== "enrolled" && state !== "admitted") {
+        if (state !== "enrolled" && state !== "admitted" && state !== "accepted") {
           return {
             invalidState: true,
             message: `Cannot enroll: application is in "${state}" state`,
