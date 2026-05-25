@@ -66,14 +66,14 @@ export const DEFAULT_WORKFLOWS: Record<string, WorkflowDefinition> = {
       { action: "publish", from: "APPROVED", to: "PUBLISHED", required_role: "registrar" },
     ],
   },
-  admission: {
-    key: "admission",
+  admissions: {
+    key: "admissions",
     initial_state: "submitted",
-    states: ["submitted", "shortlisted", "interview", "accepted", "rejected"],
+    states: ["submitted", "shortlisted", "interview", "admitted", "rejected"],
     transitions: [
       { action: "shortlist", from: "submitted", to: "shortlisted", required_role: "registrar" },
       { action: "interview", from: "shortlisted", to: "interview", required_role: "registrar" },
-      { action: "accept", from: "interview", to: "accepted", required_role: "principal" },
+      { action: "admit", from: "interview", to: "admitted", required_role: "principal" },
       { action: "reject", from: "interview", to: "rejected", required_role: "principal" },
     ],
   },
