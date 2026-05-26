@@ -68,13 +68,16 @@ export const DEFAULT_WORKFLOWS: Record<string, WorkflowDefinition> = {
   },
   admissions: {
     key: "admissions",
-    initial_state: "submitted",
-    states: ["submitted", "shortlisted", "interview", "admitted", "rejected"],
+    initial_state: "ADMITTED",
+    states: ["ADMITTED", "REPORTED", "FEE_CLEARED", "REGISTERED", "ENROLLED", "WITHDRAWN"],
     transitions: [
-      { action: "shortlist", from: "submitted", to: "shortlisted", required_role: "registrar" },
-      { action: "interview", from: "shortlisted", to: "interview", required_role: "registrar" },
-      { action: "admit", from: "interview", to: "admitted", required_role: "principal" },
-      { action: "reject", from: "interview", to: "rejected", required_role: "principal" },
+      { action: "report_in", from: "ADMITTED", to: "REPORTED", roles: ["registrar", "admin"], label: "Mark as Reported" },
+      { action: "clear_fees", from: "REPORTED", to: "FEE_CLEARED", roles: ["finance", "admin"], label: "Clear Fees" },
+      { action: "register", from: "FEE_CLEARED", to: "REGISTERED", roles: ["registrar", "admin"], label: "Issue ID & Register" },
+      { action: "enroll", from: "REGISTERED", to: "ENROLLED", roles: ["registrar", "admin"], label: "Enrol as Student" },
+      { action: "withdraw", from: "ADMITTED", to: "WITHDRAWN", roles: ["registrar", "admin"], label: "Withdraw" },
+      { action: "withdraw", from: "REPORTED", to: "WITHDRAWN", roles: ["registrar", "admin"], label: "Withdraw" },
+      { action: "withdraw", from: "FEE_CLEARED", to: "WITHDRAWN", roles: ["registrar", "admin"], label: "Withdraw" },
     ],
   },
   purchase_requisition: {
