@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -6,6 +6,7 @@ import {
   confirmImport,
   type ImportPreviewResult,
 } from "./admissions.api";
+import { ApiError } from "../../lib/apiFetch";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -71,6 +72,9 @@ function parseCsv(text: string): Record<string, string>[] {
   });
 }
 
+// Key used to persist the current import batch across page reloads / re-login
+const PENDING_BATCH_KEY = "admissions_import_preview";
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -87,6 +91,19 @@ export function AdmissionsImportPage() {
   } | null>(null);
   const [filename, setFilename] = useState("");
 
+  // Restore a pending batch from sessionStorage (survives session expiry + re-login)
+  useEffect(() => {
+    const stored = sessionStorage.getItem(PENDING_BATCH_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as ImportPreviewResult;
+        if (parsed.batchId) setPreview(parsed);
+      } catch {
+        sessionStorage.removeItem(PENDING_BATCH_KEY);
+      }
+    }
+  }, []);
+
   const previewMut = useMutation({
     mutationFn: ({
       name,
@@ -97,6 +114,7 @@ export function AdmissionsImportPage() {
     }) => previewImport(name, rows),
     onSuccess: (result) => {
       setPreview(result);
+      sessionStorage.setItem(PENDING_BATCH_KEY, JSON.stringify(result));
     },
   });
 
@@ -105,6 +123,7 @@ export function AdmissionsImportPage() {
     onSuccess: (result) => {
       setDone(result);
       setPreview(null);
+      sessionStorage.removeItem(PENDING_BATCH_KEY);
     },
   });
 
@@ -379,9 +398,11 @@ export function AdmissionsImportPage() {
           {confirmMut.isError && (
             <ErrorBanner
               message={
-                confirmMut.error instanceof Error
-                  ? confirmMut.error.message
-                  : "Import failed"
+                confirmMut.error instanceof ApiError && confirmMut.error.status === 401
+                  ? "Session expired — you will be redirected to log in. Your import batch is saved and will resume automatically when you return."
+                  : confirmMut.error instanceof Error
+                    ? confirmMut.error.message
+                    : "Import failed"
               }
             />
           )}
@@ -400,6 +421,7 @@ export function AdmissionsImportPage() {
             <SecondaryBtn
               onClick={() => {
                 setPreview(null);
+                sessionStorage.removeItem(PENDING_BATCH_KEY);
                 if (fileRef.current) fileRef.current.value = "";
               }}
             >

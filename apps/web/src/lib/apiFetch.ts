@@ -42,6 +42,17 @@ async function doFetch(
 }
 
 /**
+ * Build the /login URL, including a ?redirect= param for the current path so
+ * the user is returned to their page after logging in again.  We skip the
+ * redirect param when already on /login to prevent redirect loops.
+ */
+function loginRedirectUrl(): string {
+  const path = window.location.pathname + window.location.search;
+  if (path === "/login" || path.startsWith("/login?")) return "/login";
+  return `/login?redirect=${encodeURIComponent(path)}`;
+}
+
+/**
  * Singleton refresh promise — if multiple 401s arrive simultaneously (e.g. the
  * dashboard fires 4 queries at once after the 15-min access token expires),
  * they all await the SAME refresh call instead of each trying to rotate the
@@ -57,7 +68,7 @@ async function refreshAccessToken(): Promise<string> {
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
       clearTokens();
-      window.location.href = "/login";
+      window.location.href = loginRedirectUrl();
       throw new ApiError(401, null);
     }
 
@@ -70,7 +81,7 @@ async function refreshAccessToken(): Promise<string> {
 
     if (!res.ok) {
       clearTokens();
-      window.location.href = "/login";
+      window.location.href = loginRedirectUrl();
       throw new ApiError(401, null);
     }
 
@@ -125,7 +136,7 @@ export async function apiFetch<T>(
     } catch (err) {
       if (err instanceof ApiError) throw err;
       clearTokens();
-      window.location.href = "/login";
+      window.location.href = loginRedirectUrl();
       throw new ApiError(401, null);
     }
   }

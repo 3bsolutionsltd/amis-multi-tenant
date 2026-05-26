@@ -258,6 +258,20 @@ describe("POST /admissions/import/:batchId/confirm", () => {
     expect(res.json()).toHaveProperty("error", "x-tenant-id header required");
   });
 
+  it("returns 400 when x-tenant-id header is present but empty (session-loss scenario)", async () => {
+    // Simulates the case where the frontend clears tokens before the request is
+    // made: doFetch sends x-tenant-id="" (empty string) and no Bearer header.
+    // devIdentity sets req.user.tenantId="" → getTenantId returns null → 400.
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/admissions/import/bb000000-0000-0000-0000-000000000001/confirm",
+      headers: { "x-tenant-id": "", "x-dev-role": "admin" },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toHaveProperty("error", "x-tenant-id header required");
+  });
+
   it("returns 403 when role is not registrar or admin", async () => {
     const app = buildApp();
     const res = await app.inject({
