@@ -15,6 +15,7 @@ SELECT
   'admissions',
   'ADMITTED'
 FROM app.admission_applications a
+JOIN platform.tenants t ON t.id = a.tenant_id   -- skip orphaned apps whose tenant has been deleted
 WHERE NOT EXISTS (
   SELECT 1
   FROM app.workflow_instances wi
