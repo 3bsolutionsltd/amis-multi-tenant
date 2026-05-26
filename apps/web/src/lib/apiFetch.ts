@@ -31,10 +31,16 @@ async function doFetch(
     ? { Authorization: `Bearer ${accessToken}`, "x-tenant-id": tenantId }
     : { "x-tenant-id": tenantId, "x-dev-role": devRole };
 
+  // Only send Content-Type: application/json when there is a body.
+  // Fastify 4 rejects requests that declare application/json but have an
+  // empty body (FST_ERR_CTP_EMPTY_JSON_BODY → 400).
+  const contentTypeHeader: Record<string, string> =
+    init?.body != null ? { "Content-Type": "application/json" } : {};
+
   return fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      ...contentTypeHeader,
       ...authHeaders,
       ...(init?.headers ?? {}),
     },
