@@ -33,6 +33,7 @@ const fakePayment = {
   student_id: STUDENT_ID,
   amount: "5000",
   currency: "ZAR",
+  payment_method: "Bank Draft",
   reference: "REF-001",
   paid_at: "2026-01-15T00:00:00.000Z",
   source: "manual",
@@ -44,6 +45,7 @@ const validEntryBody = {
   student_id: STUDENT_ID,
   amount: 5000,
   currency: "ZAR",
+  payment_method: "Bank Draft",
   reference: "REF-001",
   paid_at: "2026-01-15T00:00:00.000Z",
 };
@@ -149,6 +151,71 @@ describe("GET /fees/students/:studentId/summary", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ badge: "PAID", balance: 0 });
   });
+
+  it("calculates total due from active fee structures for the student", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ payload: { fees: { defaultTotalDue: 0 } } }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: STUDENT_ID,
+          programme_id: "11111111-1111-1111-1111-111111111111",
+          programme: "Diploma in ICT",
+          programme_code: "DICT",
+          sponsorship_type: "Day Scholar",
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "fs-1",
+            fee_type: "tuition",
+            student_category: "day",
+            description: "Tuition",
+            amount: "539000",
+            currency: "UGX",
+            academic_year_name: "2025/2026",
+            term_name: "Term 1",
+            programme_code: "DICT",
+            programme_title: "Diploma in ICT",
+          },
+          {
+            id: "fs-2",
+            fee_type: "functional",
+            student_category: "all",
+            description: "Guild Fee",
+            amount: "15000",
+            currency: "UGX",
+            academic_year_name: "2025/2026",
+            term_name: "Term 1",
+            programme_code: "DICT",
+            programme_title: "Diploma in ICT",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ total_paid: "500000", last_payment: "2026-01-15T00:00:00.000Z" }] });
+
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/fees/students/${STUDENT_ID}/summary`,
+      headers: financeHeaders,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      totalDue: 554000,
+      totalPaid: 500000,
+      balance: 54000,
+      totalDueSource: "fee_structures",
+      badge: "PARTIAL",
+    });
+    expect(res.json().feeStructures).toHaveLength(2);
+  });
 });
 
 // ------------------------------------------------------------------ GET /fees/students/:studentId/transactions
@@ -245,7 +312,9 @@ describe("POST /fees/entry", () => {
       payload: validEntryBody,
     });
     expect(res.statusCode).toBe(201);
-    expect(res.json()).toMatchObject({ payment: { reference: "REF-001" } });
+    expect(res.json()).toMatchObject({
+      payment: { reference: "REF-001", payment_method: "Bank Draft" },
+    });
   });
 
   it("returns 201 and stores term_id and academic_year_id", async () => {

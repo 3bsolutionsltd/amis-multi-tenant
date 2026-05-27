@@ -6,6 +6,22 @@ export interface FeeSummary {
   balance: number;
   badge: "PAID" | "PARTIAL" | "OWING";
   lastPayment: string | null;
+  totalDueSource: "fee_structures" | "config_default";
+  defaultTotalDue: number;
+  feeStructures: FeeStructureLine[];
+}
+
+export interface FeeStructureLine {
+  id: string;
+  fee_type: string;
+  student_category: string;
+  description: string | null;
+  amount: number;
+  currency: string;
+  academic_year_name: string | null;
+  term_name: string | null;
+  programme_code: string | null;
+  programme_title: string | null;
 }
 
 export interface Transaction {
@@ -14,6 +30,7 @@ export interface Transaction {
   amount: number;
   currency: string;
   reference: string | null;
+  payment_method: string | null;
   paid_at: string;
   source: string;
   imported_by: string | null;
@@ -23,6 +40,7 @@ export interface Transaction {
 export interface FeeEntryBody {
   student_id: string;
   amount: number;
+  payment_method?: string;
   reference: string;
   paid_at: string;
 }

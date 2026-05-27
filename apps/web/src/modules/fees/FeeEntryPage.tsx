@@ -17,6 +17,15 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+const PAYMENT_METHODS = [
+  "Cash",
+  "Mobile Money",
+  "Bank Draft",
+  "Bank Transfer",
+  "Card",
+  "Cheque",
+];
+
 export function FeeEntryPage() {
   ensureGlobalCss();
   const navigate = useNavigate();
@@ -38,6 +47,7 @@ export function FeeEntryPage() {
   );
   const [form, setForm] = useState({
     amount: "",
+    payment_method: "Bank Draft",
     reference: "",
     paid_at: todayIso(),
   });
@@ -70,6 +80,7 @@ export function FeeEntryPage() {
       await recordFeeEntry({
         student_id: selectedStudent.id,
         amount: Number(form.amount),
+        payment_method: form.payment_method,
         reference: form.reference,
         paid_at: form.paid_at,
       });
@@ -190,6 +201,21 @@ export function FeeEntryPage() {
             />
           </Field>
 
+          <Field label="Payment Method" required>
+            <select
+              required
+              style={inputCss}
+              value={form.payment_method}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, payment_method: e.target.value }))
+              }
+            >
+              {PAYMENT_METHODS.map((method) => (
+                <option key={method} value={method}>{method}</option>
+              ))}
+            </select>
+          </Field>
+
           <Field label="Payment Date" required>
             <input
               required
@@ -219,7 +245,7 @@ export function FeeEntryPage() {
               <button
                 type="button"
                 onClick={() =>
-                  navigate(`/students/${selectedStudent!.id}`)
+                  navigate(`/finance?student_id=${selectedStudent!.id}&student_name=${encodeURIComponent(`${selectedStudent!.first_name} ${selectedStudent!.last_name}`)}`)
                 }
                 style={{
                   color: "#065f46",
@@ -232,7 +258,7 @@ export function FeeEntryPage() {
                   fontSize: 13,
                 }}
               >
-                View student →
+                View fee ledger →
               </button>
             </div>
           )}
