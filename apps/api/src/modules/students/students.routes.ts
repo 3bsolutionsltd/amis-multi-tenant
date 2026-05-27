@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { withTenant } from "../../db/tenant.js";
 import { requireRole } from "../../middleware/requireRole.js";
+import { resolveProgramme } from "../../lib/programmes.js";
 import {
   CreateStudentSchema,
   UpdateStudentSchema,
@@ -14,7 +15,7 @@ import {
 
 const SELECT_COLS =
   "id, first_name, last_name, other_names, date_of_birth, gender, nin, " +
-  "admission_number, sponsorship_type, programme, programme_code, email, phone, " +
+  "admission_number, sponsorship_type, programme, programme_id, programme_code, email, phone, " +
   "year_of_study, class_section, assessment_level, previous_index, extension, " +
   "guardian_name, guardian_phone, guardian_email, guardian_relationship, " +
   "dropout_reason, dropout_date, dropout_notes, " +
@@ -226,6 +227,7 @@ export async function studentsRoutes(app: FastifyInstance) {
         admission_number,
         sponsorship_type,
         programme,
+        programme_id,
         programme_code,
         email,
         phone,
@@ -240,14 +242,23 @@ export async function studentsRoutes(app: FastifyInstance) {
         guardian_relationship,
       } = parsed.data;
 
-      const row = await withTenant(tenantId, (client) =>
-        client.query(
+      const result = await withTenant(tenantId, async (client) => {
+        const hasProgrammeInput = Boolean(programme || programme_id || programme_code);
+        const programmeRef = hasProgrammeInput
+          ? await resolveProgramme(client, { programme, programme_id, programme_code })
+          : null;
+
+        if (hasProgrammeInput && !programmeRef) {
+          return { invalidProgramme: true } as const;
+        }
+
+        return client.query(
           `INSERT INTO app.students
              (tenant_id, first_name, last_name, other_names, date_of_birth, gender, nin,
-              admission_number, sponsorship_type, programme, programme_code, email, phone,
+              admission_number, sponsorship_type, programme, programme_id, programme_code, email, phone,
               year_of_study, class_section, assessment_level, previous_index, extension,
               guardian_name, guardian_phone, guardian_email, guardian_relationship)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
            RETURNING ${SELECT_COLS}`,
           [
             tenantId,
@@ -259,8 +270,9 @@ export async function studentsRoutes(app: FastifyInstance) {
             nin ?? null,
             admission_number ?? null,
             sponsorship_type ?? null,
-            programme ?? null,
-            programme_code ?? null,
+            programmeRef?.title ?? programme ?? null,
+            programmeRef?.id ?? programme_id ?? null,
+            programmeRef?.code ?? programme_code ?? null,
             email ?? null,
             phone ?? null,
             year_of_study ?? null,
@@ -273,10 +285,14 @@ export async function studentsRoutes(app: FastifyInstance) {
             guardian_email ?? null,
             guardian_relationship ?? null,
           ],
-        ),
-      );
+        );
+      });
 
-      return reply.status(201).send(row.rows[0]);
+      if ("invalidProgramme" in result) {
+        return reply.status(422).send({ error: "programme not found" });
+      }
+
+      return reply.status(201).send(result.rows[0]);
     },
   );
 
@@ -320,8 +336,17 @@ export async function studentsRoutes(app: FastifyInstance) {
         guardian_relationship,
       } = parsed.data;
 
-      const row = await withTenant(tenantId, (client) =>
-        client.query(
+      const result = await withTenant(tenantId, async (client) => {
+        const hasProgrammeInput = Boolean(programme || programme_id || programme_code);
+        const programmeRef = hasProgrammeInput
+          ? await resolveProgramme(client, { programme, programme_id, programme_code })
+          : null;
+
+        if (hasProgrammeInput && !programmeRef) {
+          return { invalidProgramme: true } as const;
+        }
+
+        return client.query(
           `UPDATE app.students
            SET
              first_name            = COALESCE($2, first_name),
@@ -359,9 +384,9 @@ export async function studentsRoutes(app: FastifyInstance) {
             nin ?? null,
             admission_number ?? null,
             sponsorship_type ?? null,
-            programme ?? null,
-            programme_id ?? null,
-            programme_code ?? null,
+            programmeRef?.title ?? programme ?? null,
+            programmeRef?.id ?? programme_id ?? null,
+            programmeRef?.code ?? programme_code ?? null,
             email ?? null,
             phone ?? null,
             year_of_study ?? null,
@@ -374,14 +399,18 @@ export async function studentsRoutes(app: FastifyInstance) {
             guardian_email ?? null,
             guardian_relationship ?? null,
           ],
-        ),
-      );
+        );
+      });
 
-      if (row.rows.length === 0) {
+      if ("invalidProgramme" in result) {
+        return reply.status(422).send({ error: "programme not found" });
+      }
+
+      if (result.rows.length === 0) {
         return reply.status(404).send({ error: "student not found" });
       }
 
-      return row.rows[0];
+      return result.rows[0];
     },
   );
 

@@ -17,6 +17,7 @@ export const CreateStudentSchema = z.object({
   admission_number: z.string().optional(),
   sponsorship_type: z.string().optional(),
   programme: z.string().optional(),
+  programme_id: z.string().uuid().optional(),
   programme_code: z.string().optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),
