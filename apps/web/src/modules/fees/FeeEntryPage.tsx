@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { recordFeeEntry } from "./fees.api";
+import { getFeeSummary, recordFeeEntry } from "./fees.api";
 import { listStudents, type Student } from "../students/students.api";
+import { ApiError } from "../../lib/apiFetch";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -25,6 +26,10 @@ const PAYMENT_METHODS = [
   "Card",
   "Cheque",
 ];
+
+function formatUgx(amount: number) {
+  return `UGX ${amount.toLocaleString()}`;
+}
 
 export function FeeEntryPage() {
   ensureGlobalCss();
@@ -61,6 +66,21 @@ export function FeeEntryPage() {
     enabled: search.length >= 2,
   });
 
+  const selectedStudentId = selectedStudent?.id;
+  const summaryQ = useQuery({
+    queryKey: ["fee-summary-entry", selectedStudentId],
+    queryFn: () => getFeeSummary(selectedStudentId!),
+    enabled: Boolean(selectedStudentId),
+  });
+
+  const amountValue = Number(form.amount);
+  const hasAmount = form.amount.trim() !== "" && Number.isFinite(amountValue);
+  const outstandingBalance = summaryQ.data
+    ? Math.max(summaryQ.data.balance, 0)
+    : null;
+  const exceedsOutstandingBalance =
+    outstandingBalance != null && hasAmount && amountValue > outstandingBalance;
+
   function selectStudent(s: Student) {
     setSelectedStudent(s);
     setSearch(`${s.first_name} ${s.last_name}`);
@@ -71,6 +91,10 @@ export function FeeEntryPage() {
     e.preventDefault();
     if (!selectedStudent) {
       setError("Please select a student");
+      return;
+    }
+    if (exceedsOutstandingBalance) {
+      setError(`Payment cannot exceed the outstanding balance of ${formatUgx(outstandingBalance)}.`);
       return;
     }
     setSaving(true);
@@ -86,7 +110,13 @@ export function FeeEntryPage() {
       });
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to record payment");
+      if (err instanceof ApiError && err.status === 409) {
+        const body = err.body as { error?: string; balance?: number } | null;
+        const balance = typeof body?.balance === "number" ? ` ${formatUgx(Math.max(body.balance, 0))}.` : ".";
+        setError(`${body?.error ?? "Payment amount exceeds the outstanding balance"}${balance}`);
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to record payment");
+      }
     } finally {
       setSaving(false);
     }
@@ -174,6 +204,29 @@ export function FeeEntryPage() {
             </div>
           </Field>
 
+          {selectedStudent && (
+            <div
+              style={{
+                padding: "10px 12px",
+                borderRadius: 6,
+                border: "1px solid #d1d5db",
+                background: "#f9fafb",
+                fontSize: 13,
+                color: "#374151",
+              }}
+            >
+              {summaryQ.isLoading ? (
+                "Checking outstanding balance..."
+              ) : summaryQ.data ? (
+                <>
+                  Outstanding balance: <strong>{formatUgx(Math.max(summaryQ.data.balance, 0))}</strong>
+                </>
+              ) : (
+                "Outstanding balance unavailable. The server will still validate the payment before saving."
+              )}
+            </div>
+          )}
+
           <Field label="Amount" required>
             <input
               required
@@ -188,6 +241,10 @@ export function FeeEntryPage() {
               }
             />
           </Field>
+
+          {exceedsOutstandingBalance && (
+            <ErrorBanner message={`Amount is higher than the outstanding balance (${formatUgx(outstandingBalance)}).`} />
+          )}
 
           <Field label="Reference" required>
             <input
@@ -264,7 +321,7 @@ export function FeeEntryPage() {
           )}
 
           <div style={{ marginTop: 4 }}>
-            <PrimaryBtn type="submit" disabled={saving}>
+            <PrimaryBtn type="submit" disabled={saving || summaryQ.isLoading || exceedsOutstandingBalance}>
               {saving ? "Recording…" : "Record Payment"}
             </PrimaryBtn>
           </div>

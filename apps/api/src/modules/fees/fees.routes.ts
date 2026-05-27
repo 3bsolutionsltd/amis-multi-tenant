@@ -51,6 +51,29 @@ type Queryable = {
   query<T = unknown>(text: string, params?: unknown[]): Promise<{ rows: T[] }>;
 };
 
+type FeeBalanceResult =
+  | { notFound: true }
+  | { totalDue: number; totalPaid: number; balance: number };
+
+type PaymentRow = {
+  id: string;
+  amount: string | number;
+  currency: string | null;
+  reference: string | null;
+  [key: string]: unknown;
+};
+
+type StudentSmsContact = {
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+};
+
+type ManualFeeEntryResult =
+  | { notFound: true }
+  | { overpayment: true; totalDue: number; totalPaid: number; balance: number }
+  | { payment: PaymentRow; student: StudentSmsContact | null };
+
 function studentCategory(sponsorshipType: string | null) {
   const normalized = sponsorshipType?.toLowerCase() ?? "";
   if (normalized.includes("boarding") || normalized.includes("boarder")) return "boarding";
@@ -138,6 +161,29 @@ async function calculateStudentTotalDue(
     totalDue,
     totalDueSource: structuredTotalDue > 0 ? "fee_structures" : "config_default",
     defaultTotalDue,
+  };
+}
+
+async function calculateStudentFeeBalance(
+  client: Queryable,
+  tid: string,
+  studentId: string,
+): Promise<FeeBalanceResult> {
+  const due = await calculateStudentTotalDue(client, tid, studentId);
+  if ("notFound" in due) return { notFound: true as const };
+
+  const { rows } = await client.query<{ total_paid: string }>(
+    `SELECT COALESCE(SUM(amount), 0) AS total_paid
+     FROM app.payments
+     WHERE student_id = $1`,
+    [studentId],
+  );
+
+  const totalPaid = Number(rows[0].total_paid);
+  return {
+    totalDue: due.totalDue,
+    totalPaid,
+    balance: due.totalDue - totalPaid,
   };
 }
 
@@ -243,8 +289,20 @@ export async function feesRoutes(app: FastifyInstance) {
       const { student_id, amount, currency, payment_method, reference, paid_at, academic_year_id, term_id } = parsed.data;
       const actorUserId = req.user?.userId ?? null;
 
-      const result = await withTenant(tid, async (client) => {
-        const { rows: payRows } = await client.query(
+      const result = await withTenant(tid, async (client): Promise<ManualFeeEntryResult> => {
+        const feeBalance = await calculateStudentFeeBalance(client, tid, student_id);
+        if ("notFound" in feeBalance) return feeBalance;
+
+        if (amount > Math.max(feeBalance.balance, 0)) {
+          return {
+            overpayment: true as const,
+            totalDue: feeBalance.totalDue,
+            totalPaid: feeBalance.totalPaid,
+            balance: feeBalance.balance,
+          };
+        }
+
+        const { rows: payRows } = await client.query<PaymentRow>(
           `INSERT INTO app.payments
              (tenant_id, student_id, amount, currency, payment_method, reference, paid_at, source, academic_year_id, term_id)
            VALUES ($1, $2, $3, $4, $5, $6, $7, 'manual', $8, $9)
@@ -263,7 +321,7 @@ export async function feesRoutes(app: FastifyInstance) {
         );
 
         // Fetch student phone for SMS
-        const { rows: stuRows } = await client.query<{ first_name: string; last_name: string; phone: string | null }>(
+        const { rows: stuRows } = await client.query<StudentSmsContact>(
           `SELECT first_name, last_name, phone FROM app.students WHERE id = $1`,
           [student_id],
         );
@@ -271,11 +329,23 @@ export async function feesRoutes(app: FastifyInstance) {
         return { payment, student: stuRows[0] ?? null };
       });
 
+      if ("notFound" in result)
+        return reply.status(404).send({ error: "student not found" });
+
+      if ("overpayment" in result)
+        return reply.status(409).send({
+          error: "Payment amount exceeds the outstanding balance",
+          code: "PAYMENT_EXCEEDS_BALANCE",
+          totalDue: result.totalDue,
+          totalPaid: result.totalPaid,
+          balance: result.balance,
+        });
+
       // Fire-and-forget SMS (don't fail the response on SMS error)
       if (result.student?.phone) {
         const msg = buildPaymentConfirmationSms({
           studentName: `${result.student.first_name} ${result.student.last_name}`,
-          amount: result.payment.amount,
+          amount: Number(result.payment.amount),
           currency: result.payment.currency ?? "UGX",
           reference: result.payment.reference ?? result.payment.id,
         });
