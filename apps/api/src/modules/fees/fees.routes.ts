@@ -55,6 +55,7 @@ function studentCategory(sponsorshipType: string | null) {
   const normalized = sponsorshipType?.toLowerCase() ?? "";
   if (normalized.includes("boarding") || normalized.includes("boarder")) return "boarding";
   if (normalized.includes("day")) return "day";
+  if (normalized.trim()) return "day";
   return "all";
 }
 

@@ -9,7 +9,7 @@ export const PublicApplySchema = z.object({
   gender: z.string().optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),
-  sponsorship_type: z.string().optional(),
+  sponsorship_type: z.enum(["Day Scholar", "Boarding"]),
 });
 
 export type PublicApply = z.infer<typeof PublicApplySchema>;
