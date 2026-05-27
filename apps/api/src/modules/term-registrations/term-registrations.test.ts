@@ -5,8 +5,14 @@ vi.mock("../../db/tenant.js", () => ({
   withTenant: vi.fn(),
 }));
 
+vi.mock("../../lib/workflowDef.js", () => ({
+  loadWorkflowDef: vi.fn(),
+}));
+
 import { withTenant } from "../../db/tenant.js";
+import { loadWorkflowDef } from "../../lib/workflowDef.js";
 const mockWithTenant = vi.mocked(withTenant);
+const mockLoadWorkflowDef = vi.mocked(loadWorkflowDef);
 
 const TID = "00000000-0000-0000-0000-000000000030";
 const headers = { "x-tenant-id": TID };
@@ -15,7 +21,15 @@ const hodHeaders = { "x-tenant-id": TID, "x-dev-role": "hod" };
 const adminHeaders = { "x-tenant-id": TID, "x-dev-role": "admin" };
 const financeHeaders = { "x-tenant-id": TID, "x-dev-role": "finance" };
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  mockLoadWorkflowDef.mockResolvedValue({
+    key: "term_registration",
+    initial_state: "REGISTRATION_STARTED",
+    states: [],
+    transitions: [],
+  });
+});
 
 // ------------------------------------------------------------------ stub data
 
@@ -322,5 +336,80 @@ describe("GET /term-registrations/:id", () => {
       headers: hodHeaders,
     });
     expect(res.statusCode).toBe(200);
+  });
+});
+
+// ------------------------------------------------------------------ POST /term-registrations/bulk
+
+describe("POST /term-registrations/bulk", () => {
+  it("skips rows that conflict during insert instead of returning 500", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ id: "ay-1" }] })
+      .mockResolvedValueOnce({ rows: [{ id: "term-1" }] })
+      .mockResolvedValueOnce({ rows: [{ id: fakeStudent.id }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/term-registrations/bulk",
+      headers: registrarHeaders,
+      payload: {
+        academic_year: "2026/2027",
+        term: "Term 1",
+        student_ids: [fakeStudent.id],
+      },
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({ created: 0, skipped: 1, errors: [] });
+    expect(query).not.toHaveBeenCalledWith(
+      expect.stringContaining("workflow_instances"),
+      expect.anything(),
+    );
+  });
+});
+
+// ------------------------------------------------------------------ POST /term-registrations/promote
+
+describe("POST /term-registrations/promote", () => {
+  it("ignores insert conflicts while registering all active students", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ id: fakeStudent.id }] })
+      .mockResolvedValueOnce({ rows: [{ id: "ay-1" }] })
+      .mockResolvedValueOnce({ rows: [{ id: "term-1" }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/term-registrations/promote",
+      headers: registrarHeaders,
+      payload: {
+        academic_year: "2026/2027",
+        term: "Term 1",
+      },
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({
+      created: 0,
+      total_active_students: 1,
+    });
+    expect(query).not.toHaveBeenCalledWith(
+      expect.stringContaining("workflow_instances"),
+      expect.anything(),
+    );
   });
 });
