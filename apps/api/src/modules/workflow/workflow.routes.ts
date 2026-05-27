@@ -262,7 +262,7 @@ export async function workflowRoutes(app: FastifyInstance) {
   }>(
     "/workflow/:entityType/:entityId",
     {
-      preHandler: requireRole("admin", "registrar", "hod", "principal", "dean"),
+      preHandler: requireRole("admin", "registrar", "finance", "hod", "principal", "dean"),
     },
     async (req, reply) => {
       const tid = getTenantId(req);

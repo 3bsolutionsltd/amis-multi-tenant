@@ -18,6 +18,10 @@ import {
 } from "../../lib/ui";
 
 const ADMISSION_STATES = [
+  "ADMITTED",
+  "REPORTED",
+  "FEE_CLEARED",
+  "REGISTERED",
   "DRAFT",
   "SUBMITTED",
   "UNDER_REVIEW",
@@ -26,6 +30,7 @@ const ADMISSION_STATES = [
   "APPROVED_PRIVATE",
   "REJECTED",
   "ENROLLED",
+  "WITHDRAWN",
 ];
 
 type BadgeColor =
@@ -37,6 +42,10 @@ type BadgeColor =
   | "red"
   | "cyan";
 const STATE_BADGE: Record<string, BadgeColor> = {
+  ADMITTED: "blue",
+  REPORTED: "yellow",
+  FEE_CLEARED: "green",
+  REGISTERED: "purple",
   DRAFT: "gray",
   SUBMITTED: "blue",
   UNDER_REVIEW: "yellow",
@@ -45,6 +54,7 @@ const STATE_BADGE: Record<string, BadgeColor> = {
   APPROVED_PRIVATE: "green",
   REJECTED: "red",
   ENROLLED: "cyan",
+  WITHDRAWN: "red",
 };
 
 export function AdmissionsListPage() {

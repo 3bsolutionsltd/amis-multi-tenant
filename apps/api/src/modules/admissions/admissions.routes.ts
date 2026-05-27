@@ -111,7 +111,7 @@ export async function admissionsRoutes(app: FastifyInstance) {
   app.get(
     "/admissions/applications",
     {
-      preHandler: requireRole("admin", "registrar", "hod", "principal", "dean"),
+      preHandler: requireRole("admin", "registrar", "finance", "hod", "principal", "dean"),
     },
     async (req, reply) => {
       const tid = getTenantId(req);
@@ -175,7 +175,7 @@ export async function admissionsRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>(
     "/admissions/applications/:id",
     {
-      preHandler: requireRole("admin", "registrar", "hod", "principal", "dean"),
+      preHandler: requireRole("admin", "registrar", "finance", "hod", "principal", "dean"),
     },
     async (req, reply) => {
       const tid = getTenantId(req);

@@ -30,6 +30,10 @@ const STATE_BADGE_COLOR: Record<
   string,
   "gray" | "blue" | "yellow" | "purple" | "green" | "red" | "cyan"
 > = {
+  ADMITTED: "blue",
+  REPORTED: "yellow",
+  FEE_CLEARED: "green",
+  REGISTERED: "purple",
   DRAFT: "gray",
   SUBMITTED: "blue",
   UNDER_REVIEW: "yellow",
@@ -38,6 +42,7 @@ const STATE_BADGE_COLOR: Record<
   APPROVED_PRIVATE: "green",
   REJECTED: "red",
   ENROLLED: "cyan",
+  WITHDRAWN: "red",
 };
 
 const ENROLLABLE_STATES = new Set(["REGISTERED", "admitted", "accepted", "ENROLLED", "enrolled"]);
@@ -415,7 +420,7 @@ export function ApplicationDetailPage() {
     );
 
   const currentState = app.current_state;
-  const canEnrol = ENROLLABLE_STATES.has(currentState);
+  const canEnrol = currentState !== null && ENROLLABLE_STATES.has(currentState);
   const myRole = user?.role ?? null;
   const superRoles = ["admin", "platform_admin"];
 
