@@ -31,14 +31,14 @@ function bulkRegister(body: {
   term: string;
   student_ids: string[];
 }) {
-  return apiFetch<{ registered: number; skipped: number }>(
+  return apiFetch<{ created: number; skipped: number; errors?: unknown[] }>(
     "/term-registrations/bulk",
     { method: "POST", body: JSON.stringify(body) },
   );
 }
 
-function promote(body: { academic_year: string; term: string }) {
-  return apiFetch<{ registered: number }>(
+function registerAllActive(body: { academic_year: string; term: string }) {
+  return apiFetch<{ created: number; total_active_students: number }>(
     "/term-registrations/promote",
     { method: "POST", body: JSON.stringify(body) },
   );
@@ -78,14 +78,15 @@ export function BulkRegistrationPage() {
           .filter(Boolean),
       }),
     onSuccess: (d) =>
-      setResult(`Registered: ${d.registered}, Skipped: ${d.skipped}`),
+      setResult(`Registered: ${d.created}, Skipped: ${d.skipped}`),
     onError: (e: Error) => setResult(`Error: ${e.message}`),
   });
 
-  const promoteMut = useMutation({
-    mutationFn: () => promote({ academic_year: academicYearName, term: selectedTermName }),
+  const registerAllMut = useMutation({
+    mutationFn: () =>
+      registerAllActive({ academic_year: academicYearName, term: selectedTermName }),
     onSuccess: (d) =>
-      setResult(`Auto-promoted ${d.registered} active students`),
+      setResult(`Registered ${d.created} active students for this term`),
     onError: (e: Error) => setResult(`Error: ${e.message}`),
   });
 
@@ -126,16 +127,16 @@ export function BulkRegistrationPage() {
           </select>
         </div>
 
-        <SectionLabel>Option 1: Promote All Active Students</SectionLabel>
+        <SectionLabel>Option 1: Register All Active Students</SectionLabel>
         <p style={{ fontSize: 13, color: C.textSecondary, marginBottom: 8 }}>
-          Auto-registers all active students who are not yet registered for this
+          Registers all active students who are not yet registered for this
           term.
         </p>
         <SecondaryBtn
-          onClick={() => promoteMut.mutate()}
-          disabled={!academicYearName || !selectedTermName || promoteMut.isPending}
+          onClick={() => registerAllMut.mutate()}
+          disabled={!academicYearName || !selectedTermName || registerAllMut.isPending}
         >
-          {promoteMut.isPending ? "Promoting…" : "Promote All Active"}
+          {registerAllMut.isPending ? "Registering…" : "Register All Active"}
         </SecondaryBtn>
       </Card>
 
