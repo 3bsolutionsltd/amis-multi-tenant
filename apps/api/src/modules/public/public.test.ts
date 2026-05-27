@@ -9,16 +9,30 @@ vi.mock("../../db/pool.js", () => ({
   pool: { query: vi.fn() },
 }));
 
+vi.mock("../../lib/workflowDef.js", () => ({
+  loadWorkflowDef: vi.fn(),
+}));
+
 import { withTenant } from "../../db/tenant.js";
 import { pool } from "../../db/pool.js";
+import { loadWorkflowDef } from "../../lib/workflowDef.js";
 
 const mockWithTenant = vi.mocked(withTenant);
 const mockPoolQuery = vi.mocked(pool.query);
+const mockLoadWorkflowDef = vi.mocked(loadWorkflowDef);
 
 const TID = "00000000-0000-0000-0000-000000000099";
 const APP_ID = "aa000000-0000-0000-0000-000000000001";
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  mockLoadWorkflowDef.mockResolvedValue({
+    key: "admissions",
+    initial_state: "ADMITTED",
+    states: ["ADMITTED", "REPORTED"],
+    transitions: [],
+  });
+});
 
 // ------------------------------------------------------------------ helpers
 
@@ -121,12 +135,15 @@ describe("POST /public/:tenantSlug/apply", () => {
       intake: "2026-Sept",
       created_at: new Date().toISOString(),
     };
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [programme] })
+      .mockResolvedValueOnce({ rows: [fakeApp] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
     mockWithTenant.mockImplementation(async (_tid, cb) => {
       const mockClient = {
-        query: vi
-          .fn()
-          .mockResolvedValueOnce({ rows: [programme] })
-          .mockResolvedValueOnce({ rows: [fakeApp] }),
+        query,
       };
       return cb(mockClient as never);
     });
@@ -141,6 +158,42 @@ describe("POST /public/:tenantSlug/apply", () => {
     const body = res.json();
     expect(body.application.first_name).toBe("Jane");
     expect(body.application.programme).toBe("DICT");
+    expect(body.workflowState).toBe("ADMITTED");
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO app.workflow_instances"),
+      [TID, APP_ID, "ADMITTED"],
+    );
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO app.workflow_events"),
+      [TID, APP_ID, "ADMITTED"],
+    );
+  });
+
+  it("returns 422 when admissions workflow is unavailable", async () => {
+    stubSlugLookup(true);
+    mockLoadWorkflowDef.mockResolvedValueOnce(null);
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
+      const mockClient = {
+        query: vi.fn().mockResolvedValue({
+          rows: [{
+            id: "11111111-1111-1111-1111-111111111111",
+            code: "DICT",
+            title: "Diploma in ICT",
+          }],
+        }),
+      };
+      return cb(mockClient as never);
+    });
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/public/demo-school/apply",
+      payload: validBody,
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error).toMatch(/workflow "admissions"/);
   });
 
   it("returns 422 when programme code does not exist", async () => {
@@ -165,11 +218,10 @@ describe("POST /public/:tenantSlug/apply", () => {
     // Regression for issue #176 — the INSERT must include source='online'
     // so online applications are distinguishable from staff-created ones.
     stubSlugLookup(true);
-    let capturedSql = "";
+    let insertedOnlineSource = false;
     mockWithTenant.mockImplementation(async (_tid, cb) => {
       const mockClient = {
         query: vi.fn().mockImplementation((sql: string) => {
-          capturedSql = sql;
           if (sql.includes("FROM app.programmes")) {
             return Promise.resolve({
               rows: [{
@@ -179,6 +231,7 @@ describe("POST /public/:tenantSlug/apply", () => {
               }],
             });
           }
+          if (sql.includes("'online'")) insertedOnlineSource = true;
           return Promise.resolve({
             rows: [{
               id: APP_ID,
@@ -200,7 +253,7 @@ describe("POST /public/:tenantSlug/apply", () => {
       url: "/public/demo-school/apply",
       payload: validBody,
     });
-    expect(capturedSql).toContain("'online'");
+    expect(insertedOnlineSource).toBe(true);
   });
 });
 

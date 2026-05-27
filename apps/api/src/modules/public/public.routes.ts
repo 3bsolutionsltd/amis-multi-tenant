@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { pool } from "../../db/pool.js";
 import { withTenant } from "../../db/tenant.js";
 import { resolveProgramme } from "../../lib/programmes.js";
+import { loadWorkflowDef } from "../../lib/workflowDef.js";
 import { PublicApplySchema } from "./public.schema.js";
 
 // ------------------------------------------------------------------ helpers
@@ -65,7 +66,15 @@ export async function publicRoutes(app: FastifyInstance) {
         });
         if (!programmeRef) return { invalidProgramme: true } as const;
 
-        const { rows } = await client.query(
+        const wf = await loadWorkflowDef(tenantId, "admissions", client);
+        if (!wf) {
+          return {
+            configError: true,
+            message: `workflow "admissions" not found in published config`,
+          } as const;
+        }
+
+        const { rows: appRows } = await client.query(
           `INSERT INTO app.admission_applications
              (tenant_id, first_name, last_name, programme, programme_id, intake,
               dob, gender, email, phone, sponsorship_type, source)
@@ -85,13 +94,31 @@ export async function publicRoutes(app: FastifyInstance) {
             d.sponsorship_type ?? null,
           ],
         );
-        return rows[0];
+        const application = appRows[0];
+
+        await client.query(
+          `INSERT INTO app.workflow_instances
+             (tenant_id, entity_type, entity_id, workflow_key, current_state)
+           VALUES ($1, 'admissions', $2, 'admissions', $3)`,
+          [tenantId, application.id, wf.initial_state],
+        );
+
+        await client.query(
+          `INSERT INTO app.workflow_events
+             (tenant_id, entity_type, entity_id, workflow_key, from_state, to_state, action_key, actor_user_id)
+           VALUES ($1, 'admissions', $2, 'admissions', NULL, $3, '__init__', NULL)`,
+          [tenantId, application.id, wf.initial_state],
+        );
+
+        return { application, workflowState: wf.initial_state };
       });
 
       if ("invalidProgramme" in result)
         return reply.status(422).send({ error: "programme not found" });
+      if ("configError" in result)
+        return reply.status(422).send({ error: result.message });
 
-      return reply.status(201).send({ application: result });
+      return reply.status(201).send(result);
     },
   );
 
