@@ -95,6 +95,7 @@ describe("POST /public/:tenantSlug/apply", () => {
     programme: "DICT",
     intake: "2026-Sept",
     email: "jane@example.com",
+    sponsorship_type: "Day Scholar",
   };
 
   it("returns 404 if tenant slug not found", async () => {

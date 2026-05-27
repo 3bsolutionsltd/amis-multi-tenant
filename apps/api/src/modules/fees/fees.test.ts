@@ -216,6 +216,68 @@ describe("GET /fees/students/:studentId/summary", () => {
     });
     expect(res.json().feeStructures).toHaveLength(2);
   });
+
+  it("treats private sponsorship as day scholar for fee matching", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ payload: { fees: { defaultTotalDue: 0 } } }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: STUDENT_ID,
+          programme_id: "11111111-1111-1111-1111-111111111111",
+          programme: "Diploma in ICT",
+          programme_code: "DICT",
+          sponsorship_type: "Private",
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "fs-1",
+            fee_type: "tuition",
+            student_category: "day",
+            description: "Tuition",
+            amount: "539000",
+            currency: "UGX",
+            academic_year_name: "2025/2026",
+            term_name: "Term 1",
+            programme_code: "DICT",
+            programme_title: "Diploma in ICT",
+          },
+          {
+            id: "fs-2",
+            fee_type: "functional",
+            student_category: "all",
+            description: "Guild Fee",
+            amount: "15000",
+            currency: "UGX",
+            academic_year_name: "2025/2026",
+            term_name: "Term 1",
+            programme_code: "DICT",
+            programme_title: "Diploma in ICT",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ total_paid: "0", last_payment: null }] });
+
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/fees/students/${STUDENT_ID}/summary`,
+      headers: financeHeaders,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      totalDue: 554000,
+      balance: 554000,
+      totalDueSource: "fee_structures",
+    });
+  });
 });
 
 // ------------------------------------------------------------------ GET /fees/students/:studentId/transactions

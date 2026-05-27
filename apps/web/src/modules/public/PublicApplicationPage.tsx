@@ -27,6 +27,7 @@ export function PublicApplicationPage() {
     last_name: "",
     programme: "",
     intake: "",
+    sponsorship_type: "",
     email: "",
     phone: "",
   });
@@ -179,6 +180,20 @@ export function PublicApplicationPage() {
             required
             placeholder="e.g. 2026-Sept"
           />
+        </div>
+
+        <div style={fieldWrap}>
+          <label style={labelCss}>Study Category *</label>
+          <select
+            style={inputCss}
+            value={form.sponsorship_type ?? ""}
+            onChange={(e) => set("sponsorship_type", e.target.value)}
+            required
+          >
+            <option value="">Select Category</option>
+            <option value="Day Scholar">Day Scholar</option>
+            <option value="Boarding">Boarding</option>
+          </select>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
