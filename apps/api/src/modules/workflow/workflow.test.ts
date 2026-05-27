@@ -12,6 +12,7 @@ const TID = "00000000-0000-0000-0000-000000000001";
 const ENTITY_TYPE = "admission_application";
 const ENTITY_ID = "aaaaaaaa-0000-0000-0000-000000000001";
 const headers = { "x-tenant-id": TID };
+const financeHeaders = { "x-tenant-id": TID, "x-dev-role": "finance" };
 
 const BASE_URL = `/workflow/${ENTITY_TYPE}/${ENTITY_ID}`;
 
@@ -243,6 +244,17 @@ describe("GET /workflow/:entityType/:entityId", () => {
     mockWithTenant.mockResolvedValueOnce(fakeInstance as never);
     const app = makeApp();
     const res = await app.inject({ method: "GET", url: BASE_URL, headers });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      workflowKey: "admissions",
+      currentState: "submitted",
+    });
+  });
+
+  it("allows finance to read workflow state for fee-clearance queues", async () => {
+    mockWithTenant.mockResolvedValueOnce(fakeInstance as never);
+    const app = makeApp();
+    const res = await app.inject({ method: "GET", url: BASE_URL, headers: financeHeaders });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({
       workflowKey: "admissions",

@@ -20,27 +20,27 @@ describe("DEFAULT_WORKFLOWS", () => {
       expect(DEFAULT_WORKFLOWS.admissions.key).toBe("admissions");
     });
 
-    it('initial_state is "submitted"', () => {
-      expect(DEFAULT_WORKFLOWS.admissions.initial_state).toBe("submitted");
+    it('initial_state is "ADMITTED"', () => {
+      expect(DEFAULT_WORKFLOWS.admissions.initial_state).toBe("ADMITTED");
     });
 
-    it('includes "admitted" state to allow enrollment', () => {
-      expect(DEFAULT_WORKFLOWS.admissions.states).toContain("admitted");
+    it('includes "REGISTERED" state to allow enrollment', () => {
+      expect(DEFAULT_WORKFLOWS.admissions.states).toContain("REGISTERED");
     });
 
-    it('does not include "accepted" state (renamed to "admitted")', () => {
+    it('does not include legacy "accepted" state', () => {
       expect(DEFAULT_WORKFLOWS.admissions.states).not.toContain("accepted");
     });
 
-    it('has a transition that leads to "admitted" state', () => {
-      const toAdmitted = DEFAULT_WORKFLOWS.admissions.transitions.find(
-        (t) => t.to === "admitted",
+    it('has a transition that leads to "REGISTERED" state', () => {
+      const toRegistered = DEFAULT_WORKFLOWS.admissions.transitions.find(
+        (t) => t.to === "REGISTERED",
       );
-      expect(toAdmitted).toBeDefined();
+      expect(toRegistered).toBeDefined();
     });
 
-    it('includes "rejected" state', () => {
-      expect(DEFAULT_WORKFLOWS.admissions.states).toContain("rejected");
+    it('includes "WITHDRAWN" state', () => {
+      expect(DEFAULT_WORKFLOWS.admissions.states).toContain("WITHDRAWN");
     });
   });
 });

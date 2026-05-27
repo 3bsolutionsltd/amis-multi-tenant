@@ -30,6 +30,10 @@ const STATE_BADGE_COLOR: Record<
   string,
   "gray" | "blue" | "yellow" | "purple" | "green" | "red" | "cyan"
 > = {
+  ADMITTED: "blue",
+  REPORTED: "yellow",
+  FEE_CLEARED: "green",
+  REGISTERED: "purple",
   DRAFT: "gray",
   SUBMITTED: "blue",
   UNDER_REVIEW: "yellow",
@@ -38,7 +42,10 @@ const STATE_BADGE_COLOR: Record<
   APPROVED_PRIVATE: "green",
   REJECTED: "red",
   ENROLLED: "cyan",
+  WITHDRAWN: "red",
 };
+
+const ENROLLABLE_STATES = new Set(["REGISTERED", "admitted", "accepted", "ENROLLED", "enrolled"]);
 
 function formatExtKey(key: string): string {
   return key
@@ -413,6 +420,7 @@ export function ApplicationDetailPage() {
     );
 
   const currentState = app.current_state;
+  const canEnrol = currentState !== null && ENROLLABLE_STATES.has(currentState);
   const myRole = user?.role ?? null;
   const superRoles = ["admin", "platform_admin"];
 
@@ -420,6 +428,7 @@ export function ApplicationDetailPage() {
   const availableTransitions = wfDef
     ? wfDef.transitions.filter((t) => {
         if (t.from !== currentState) return false;
+        if (t.action === "enroll") return false;
         // Roles array takes precedence; fall back to required_role string.
         const allowed: string[] | null =
           t.roles && t.roles.length > 0
@@ -503,7 +512,7 @@ export function ApplicationDetailPage() {
             View Student Record →
           </SecondaryBtn>
         </Card>
-      ) : (
+      ) : canEnrol ? (
         <Card
           padding="20px 24px"
           style={{
@@ -521,6 +530,16 @@ export function ApplicationDetailPage() {
           <PrimaryBtn onClick={() => setShowEnrolModal(true)}>
             🎓 Enrol as Student
           </PrimaryBtn>
+        </Card>
+      ) : (
+        <Card padding="20px 24px" style={{ marginBottom: 16 }}>
+          <SectionLabel>Enrol as Student</SectionLabel>
+          <p
+            style={{ fontSize: 14, color: "#6b7280", margin: 0 }}
+          >
+            Complete the available workflow actions until this application reaches
+            REGISTERED before creating the student record.
+          </p>
         </Card>
       )}
 

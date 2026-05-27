@@ -135,7 +135,7 @@ const ROLE_FALLBACK_NAV: Record<string, string[]> = {
     "/marks", "/results", "/clearance", "/users",
   ],
   finance: [
-    "/", "/finance", "/finance/reconciliation", "/students",
+    "/", "/finance", "/finance/reconciliation", "/students", "/admissions",
   ],
   hod: [
     "/", "/marks", "/results", "/staff", "/timetable", "/attendance", "/clearance",

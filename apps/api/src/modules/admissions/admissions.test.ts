@@ -11,6 +11,7 @@ const mockWithTenant = vi.mocked(withTenant);
 const TID = "00000000-0000-0000-0000-000000000010";
 const headers = { "x-tenant-id": TID };
 const registrarHeaders = { "x-tenant-id": TID, "x-dev-role": "registrar" };
+const financeHeaders = { "x-tenant-id": TID, "x-dev-role": "finance" };
 const hodHeaders = { "x-tenant-id": TID, "x-dev-role": "hod" };
 
 beforeEach(() => vi.resetAllMocks());
@@ -147,6 +148,18 @@ describe("GET /admissions/applications", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toHaveLength(1);
   });
+
+  it("allows finance to list applications for fee clearance", async () => {
+    mockWithTenant.mockResolvedValueOnce({ rows: [fakeApplication] } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/admissions/applications?current_state=REPORTED",
+      headers: financeHeaders,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([fakeApplication]);
+  });
 });
 
 // ------------------------------------------------------------------ GET /admissions/applications/:id
@@ -187,6 +200,18 @@ describe("GET /admissions/applications/:id", () => {
       id: fakeApplication.id,
       current_state: "submitted",
     });
+  });
+
+  it("allows finance to view an application for fee clearance", async () => {
+    mockWithTenant.mockResolvedValueOnce(fakeApplication as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/admissions/applications/${fakeApplication.id}`,
+      headers: financeHeaders,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ id: fakeApplication.id });
   });
 });
 
