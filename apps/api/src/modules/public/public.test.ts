@@ -34,11 +34,51 @@ function stubSlugLookup(found: boolean) {
 
 // ------------------------------------------------------------------ POST /public/:tenantSlug/apply
 
+describe("GET /public/:tenantSlug/programmes", () => {
+  it("returns 404 if tenant slug not found", async () => {
+    stubSlugLookup(false);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/public/unknown-school/programmes",
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toMatch(/institution/i);
+  });
+
+  it("returns active programmes for the tenant", async () => {
+    stubSlugLookup(true);
+    const programmes = [{
+      id: "11111111-1111-1111-1111-111111111111",
+      code: "DICT",
+      title: "Diploma in ICT",
+      department: null,
+      duration_months: null,
+      level: null,
+    }];
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
+      const mockClient = { query: vi.fn().mockResolvedValue({ rows: programmes }) };
+      return cb(mockClient as never);
+    });
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/public/demo-school/programmes",
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(programmes);
+  });
+});
+
+// ------------------------------------------------------------------ POST /public/:tenantSlug/apply
+
 describe("POST /public/:tenantSlug/apply", () => {
   const validBody = {
     first_name: "Jane",
     last_name: "Doe",
-    programme: "Nursing",
+    programme: "DICT",
     intake: "2026-Sept",
     email: "jane@example.com",
   };
@@ -68,16 +108,26 @@ describe("POST /public/:tenantSlug/apply", () => {
 
   it("creates application and returns 201", async () => {
     stubSlugLookup(true);
+    const programme = {
+      id: "11111111-1111-1111-1111-111111111111",
+      code: "DICT",
+      title: "Diploma in ICT",
+    };
     const fakeApp = {
       id: APP_ID,
       first_name: "Jane",
       last_name: "Doe",
-      programme: "Nursing",
+      programme: "DICT",
       intake: "2026-Sept",
       created_at: new Date().toISOString(),
     };
     mockWithTenant.mockImplementation(async (_tid, cb) => {
-      const mockClient = { query: vi.fn().mockResolvedValue({ rows: [fakeApp] }) };
+      const mockClient = {
+        query: vi
+          .fn()
+          .mockResolvedValueOnce({ rows: [programme] })
+          .mockResolvedValueOnce({ rows: [fakeApp] }),
+      };
       return cb(mockClient as never);
     });
 
@@ -90,7 +140,25 @@ describe("POST /public/:tenantSlug/apply", () => {
     expect(res.statusCode).toBe(201);
     const body = res.json();
     expect(body.application.first_name).toBe("Jane");
-    expect(body.application.programme).toBe("Nursing");
+    expect(body.application.programme).toBe("DICT");
+  });
+
+  it("returns 422 when programme code does not exist", async () => {
+    stubSlugLookup(true);
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
+      const mockClient = { query: vi.fn().mockResolvedValue({ rows: [] }) };
+      return cb(mockClient as never);
+    });
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/public/demo-school/apply",
+      payload: { ...validBody, programme: "DCIT" },
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json()).toEqual({ error: "programme not found" });
   });
 
   it("inserts source='online' for public portal submissions", async () => {
@@ -102,12 +170,21 @@ describe("POST /public/:tenantSlug/apply", () => {
       const mockClient = {
         query: vi.fn().mockImplementation((sql: string) => {
           capturedSql = sql;
+          if (sql.includes("FROM app.programmes")) {
+            return Promise.resolve({
+              rows: [{
+                id: "11111111-1111-1111-1111-111111111111",
+                code: "DICT",
+                title: "Diploma in ICT",
+              }],
+            });
+          }
           return Promise.resolve({
             rows: [{
               id: APP_ID,
               first_name: "Jane",
               last_name: "Doe",
-              programme: "Nursing",
+              programme: "DICT",
               intake: "2026-Sept",
               created_at: new Date().toISOString(),
             }],

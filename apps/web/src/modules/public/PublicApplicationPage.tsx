@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
-import { submitPublicApplication, type PublicApplyBody } from "./public.api";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  listPublicProgrammes,
+  submitPublicApplication,
+  type PublicApplyBody,
+} from "./public.api";
 import { ensureGlobalCss, inputCss } from "../../lib/ui";
 
 const labelCss: React.CSSProperties = {
@@ -29,10 +33,19 @@ export function PublicApplicationPage() {
 
   const [submittedId, setSubmittedId] = useState<string | null>(null);
 
+  const { data: programmes = [], isLoading: programmesLoading } = useQuery({
+    queryKey: ["public-programmes", tenantSlug],
+    queryFn: () => listPublicProgrammes(tenantSlug!),
+    enabled: Boolean(tenantSlug),
+  });
+
   const mutation = useMutation({
     mutationFn: () => submitPublicApplication(tenantSlug!, form),
     onSuccess: (data) => setSubmittedId(data.application.id),
   });
+
+  const submitDisabled =
+    mutation.isPending || programmesLoading || programmes.length === 0;
 
   function set(field: keyof PublicApplyBody, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -106,7 +119,7 @@ export function PublicApplicationPage() {
             marginBottom: 16,
           }}
         >
-          Failed to submit application. Please try again.
+          Failed to submit application. Please check the selected programme and try again.
         </div>
       )}
 
@@ -139,13 +152,22 @@ export function PublicApplicationPage() {
 
         <div style={fieldWrap}>
           <label style={labelCss}>Programme *</label>
-          <input
+          <select
             style={inputCss}
             value={form.programme}
             onChange={(e) => set("programme", e.target.value)}
             required
-            placeholder="e.g. Nursing, Electrical Engineering"
-          />
+            disabled={programmesLoading || programmes.length === 0}
+          >
+            <option value="">
+              {programmesLoading ? "Loading programmes..." : "Select Programme"}
+            </option>
+            {programmes.map((programme) => (
+              <option key={programme.id} value={programme.code}>
+                {programme.code} — {programme.title}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div style={fieldWrap}>
@@ -181,17 +203,17 @@ export function PublicApplicationPage() {
 
         <button
           type="submit"
-          disabled={mutation.isPending}
+          disabled={submitDisabled}
           style={{
             width: "100%",
             padding: "10px 20px",
-            background: mutation.isPending ? "#9ca3af" : "#4f46e5",
+            background: submitDisabled ? "#9ca3af" : "#4f46e5",
             color: "white",
             border: "none",
             borderRadius: 6,
             fontSize: 14,
             fontWeight: 600,
-            cursor: mutation.isPending ? "not-allowed" : "pointer",
+            cursor: submitDisabled ? "not-allowed" : "pointer",
             marginTop: 8,
           }}
         >
