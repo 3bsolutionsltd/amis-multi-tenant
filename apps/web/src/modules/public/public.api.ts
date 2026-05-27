@@ -22,6 +22,21 @@ export interface PublicApplyBody {
   sponsorship_type?: string;
 }
 
+export interface PublicProgramme {
+  id: string;
+  code: string;
+  title: string;
+  department: string | null;
+  duration_months: number | null;
+  level: string | null;
+}
+
+export function listPublicProgrammes(
+  tenantSlug: string,
+): Promise<PublicProgramme[]> {
+  return apiFetch<PublicProgramme[]>(`/public/${tenantSlug}/programmes`);
+}
+
 export function submitPublicApplication(
   tenantSlug: string,
   body: PublicApplyBody,
