@@ -82,6 +82,45 @@ function FeeSummaryCards({ summary }: { summary: FeeSummary }) {
   );
 }
 
+function FeeStructureBreakdown({ summary }: { summary: FeeSummary }) {
+  if (summary.feeStructures.length === 0) {
+    return (
+      <Card padding="16px 20px" style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 13, color: "#92400e", fontWeight: 600 }}>
+          No active fee structure matched this student. Using configured default total due.
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <SectionLabel>Applicable Fee Structure</SectionLabel>
+      <DataTable headers={["Fee", "Category", "Period", "Amount"]} colCount={4}>
+        {summary.feeStructures.map((fee) => (
+          <TR key={fee.id}>
+            <TD>
+              <span style={{ fontWeight: 600 }}>{fee.description ?? fee.fee_type}</span>
+              <div style={{ color: "#6b7280", fontSize: 12 }}>
+                {fee.programme_code ?? fee.programme_title ?? "—"}
+              </div>
+            </TD>
+            <TD muted>{fee.student_category}</TD>
+            <TD muted>
+              {fee.academic_year_name ?? "—"}{fee.term_name ? ` · ${fee.term_name}` : ""}
+            </TD>
+            <TD>
+              <span style={{ fontWeight: 600 }}>
+                {fee.currency} {fee.amount.toLocaleString()}
+              </span>
+            </TD>
+          </TR>
+        ))}
+      </DataTable>
+    </div>
+  );
+}
+
 export function FeesPage() {
   ensureGlobalCss();
   const navigate = useNavigate();
@@ -89,7 +128,9 @@ export function FeesPage() {
   const prefillId = params.get("student_id");
   const prefillName = params.get("student_name");
 
-  const [activeTab, setActiveTab] = useState<"overview" | "student">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "student">(
+    prefillId ? "student" : "overview",
+  );
   const [search, setSearch] = useState(prefillName ?? "");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
     prefillId,
@@ -346,7 +387,12 @@ export function FeesPage() {
             {selectedStudent.first_name} {selectedStudent.last_name}
           </div>
 
-          {summary && <FeeSummaryCards summary={summary} />}
+          {summary && (
+            <>
+              <FeeSummaryCards summary={summary} />
+              <FeeStructureBreakdown summary={summary} />
+            </>
+          )}
 
           <div
             style={{
@@ -362,13 +408,13 @@ export function FeesPage() {
           </div>
 
           <DataTable
-            headers={["Date", "Amount", "Currency", "Reference", "Source"]}
+            headers={["Date", "Amount", "Currency", "Method", "Reference", "Source"]}
             isLoading={txnLoading}
             isEmpty={!txnLoading && transactions.length === 0}
             emptyIcon="💳"
             emptyTitle="No payments recorded"
             emptyDescription='Click "+ Record Payment" to add the first.'
-            colCount={5}
+            colCount={6}
           >
             {transactions.map((txn) => (
               <TR key={txn.id}>
@@ -379,6 +425,7 @@ export function FeesPage() {
                   </span>
                 </TD>
                 <TD muted>{txn.currency}</TD>
+                <TD muted>{txn.payment_method ?? "—"}</TD>
                 <TD muted>{txn.reference ?? "—"}</TD>
                 <TD muted>{txn.source}</TD>
               </TR>
