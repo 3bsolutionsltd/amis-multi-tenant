@@ -602,25 +602,69 @@ export async function feesRoutes(app: FastifyInstance) {
         );
         const totalCollected = Number(sumRows[0].total_collected);
 
-        // Total expected
-        const totalExpected = totalStudents * defaultTotalDue;
+        // Total expected + fullyPaid: computed per-student from fee structures.
+        // Each student's due is the sum of active fee structure lines that match
+        // their programme and sponsorship category (same logic as the per-student
+        // summary endpoint). Falls back to defaultTotalDue when no structures match.
+        const { rows: dueRows } = await client.query<{
+          total_expected: string;
+          fully_paid: number;
+        }>(
+          `WITH student_cats AS (
+             SELECT
+               id,
+               programme_id,
+               programme_code,
+               programme,
+               CASE
+                 WHEN LOWER(sponsorship_type) LIKE '%boarding%'
+                   OR LOWER(sponsorship_type) LIKE '%boarder%' THEN 'boarding'
+                 WHEN sponsorship_type IS NOT NULL AND TRIM(sponsorship_type) != '' THEN 'day'
+                 ELSE 'all'
+               END AS cat
+             FROM app.students
+             WHERE is_active = true
+           ),
+           student_due AS (
+             SELECT
+               sc.id,
+               COALESCE(
+                 (SELECT SUM(fs.amount)
+                  FROM app.fee_structures fs
+                  JOIN app.programmes p ON p.id = fs.programme_id
+                  JOIN app.academic_years ay ON ay.id = fs.academic_year_id AND ay.is_current = true
+                  LEFT JOIN app.terms t ON t.id = fs.term_id
+                  WHERE fs.is_active = true
+                    AND (fs.term_id IS NULL OR t.is_current = true)
+                    AND fs.student_category = ANY(ARRAY['all', sc.cat])
+                    AND (
+                      fs.programme_id = sc.programme_id
+                      OR LOWER(p.code) = LOWER(COALESCE(sc.programme_code, ''))
+                      OR LOWER(p.title) = LOWER(COALESCE(sc.programme, ''))
+                    )
+                 ),
+                 $1
+               ) AS due,
+               COALESCE(
+                 (SELECT SUM(amount) FROM app.payments WHERE student_id = sc.id),
+                 0
+               ) AS paid
+             FROM student_cats sc
+           )
+           SELECT
+             COALESCE(SUM(due), 0)::numeric AS total_expected,
+             COUNT(*) FILTER (WHERE paid >= due)::int AS fully_paid
+           FROM student_due`,
+          [defaultTotalDue],
+        );
+        const totalExpected = Number(dueRows[0]?.total_expected ?? 0);
+        const fullyPaid = dueRows[0]?.fully_paid ?? 0;
 
         // Collection rate
         const collectionRate =
           totalExpected > 0
             ? Math.round((totalCollected / totalExpected) * 10000) / 100
             : 0;
-
-        // Students who have paid in full
-        const { rows: paidRows } = await client.query(
-          `SELECT COUNT(DISTINCT p.student_id)::int AS paid_count
-           FROM app.payments p
-           JOIN app.students s ON s.id = p.student_id AND s.is_active = true
-           GROUP BY p.student_id
-           HAVING SUM(p.amount) >= $1`,
-          [defaultTotalDue],
-        );
-        const fullyPaid = paidRows.length;
 
         return {
           totalStudents,
