@@ -10,7 +10,7 @@ export const CreateSubmissionSchema = z.object({
   course_id: z.string().min(1),
   programme: z.string().min(1),
   intake: z.string().min(1),
-  term: z.enum(VALID_TERMS),
+  term: z.string().min(1),
   assessment_type: z.enum(ASSESSMENT_TYPES).default("end_of_term"),
   weight: z.number().min(0).max(100).optional(),
   correction_of_submission_id: z.string().uuid().optional(),
