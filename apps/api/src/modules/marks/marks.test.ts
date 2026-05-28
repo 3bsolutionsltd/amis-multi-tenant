@@ -122,6 +122,21 @@ describe("POST /marks/submissions", () => {
       workflowState: "DRAFT",
     });
   });
+
+  it("returns 201 when term is a tenant-defined name (e.g. 'Term I (Continuing Trainees)')", async () => {
+    mockWithTenant.mockResolvedValueOnce({
+      submission: { ...fakeSubmission, term: "Term I (Continuing Trainees)" },
+      workflowState: "DRAFT",
+    } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/marks/submissions",
+      headers: instructorHeaders,
+      payload: { ...validSubmissionBody, term: "Term I (Continuing Trainees)" },
+    });
+    expect(res.statusCode).toBe(201);
+  });
 });
 
 // ------------------------------------------------------------------ PUT /marks/submissions/:id/entries
