@@ -114,23 +114,34 @@ export async function academicCalendarRoutes(app: FastifyInstance) {
 
       const { name, start_date, end_date, is_current } = parsed.data;
 
-      const row = await withTenant(tid, async (client) => {
-        if (is_current) {
-          await client.query(
-            `UPDATE app.academic_years SET is_current = false WHERE tenant_id = $1`,
-            [tid],
+      try {
+        const row = await withTenant(tid, async (client) => {
+          if (is_current) {
+            await client.query(
+              `UPDATE app.academic_years SET is_current = false WHERE tenant_id = $1`,
+              [tid],
+            );
+          }
+          return client.query(
+            `INSERT INTO app.academic_years
+               (tenant_id, name, start_date, end_date, is_current)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING ${AY_COLS}`,
+            [tid, name, start_date, end_date, is_current ?? false],
           );
-        }
-        return client.query(
-          `INSERT INTO app.academic_years
-             (tenant_id, name, start_date, end_date, is_current)
-           VALUES ($1, $2, $3, $4, $5)
-           RETURNING ${AY_COLS}`,
-          [tid, name, start_date, end_date, is_current ?? false],
-        );
-      });
+        });
 
-      return reply.status(201).send(row.rows[0]);
+        return reply.status(201).send(row.rows[0]);
+      } catch (err: unknown) {
+        const pgCode = (err as { code?: string })?.code;
+        if (pgCode === "23505") {
+          return reply.status(409).send({ error: "An academic year with that name already exists for this tenant." });
+        }
+        if (pgCode === "23514") {
+          return reply.status(422).send({ error: "End date must be after start date." });
+        }
+        throw err;
+      }
     },
   );
 
