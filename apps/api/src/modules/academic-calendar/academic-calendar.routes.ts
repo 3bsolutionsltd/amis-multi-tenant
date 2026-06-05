@@ -114,15 +114,21 @@ export async function academicCalendarRoutes(app: FastifyInstance) {
 
       const { name, start_date, end_date, is_current } = parsed.data;
 
-      const row = await withTenant(tid, (client) =>
-        client.query(
+      const row = await withTenant(tid, async (client) => {
+        if (is_current) {
+          await client.query(
+            `UPDATE app.academic_years SET is_current = false WHERE tenant_id = $1`,
+            [tid],
+          );
+        }
+        return client.query(
           `INSERT INTO app.academic_years
              (tenant_id, name, start_date, end_date, is_current)
            VALUES ($1, $2, $3, $4, $5)
            RETURNING ${AY_COLS}`,
           [tid, name, start_date, end_date, is_current ?? false],
-        ),
-      );
+        );
+      });
 
       return reply.status(201).send(row.rows[0]);
     },
@@ -149,15 +155,21 @@ export async function academicCalendarRoutes(app: FastifyInstance) {
       const setClauses = fields.map((k, i) => `${k} = $${i + 2}`).join(", ");
       const values = fields.map((k) => updates[k]);
 
-      const row = await withTenant(tid, (client) =>
-        client.query(
+      const row = await withTenant(tid, async (client) => {
+        if (updates.is_current === true) {
+          await client.query(
+            `UPDATE app.academic_years SET is_current = false WHERE tenant_id = $1`,
+            [tid],
+          );
+        }
+        return client.query(
           `UPDATE app.academic_years
            SET ${setClauses}, updated_at = now()
            WHERE id = $1
            RETURNING ${AY_COLS}`,
           [req.params.id, ...values],
-        ),
-      );
+        );
+      });
 
       if (row.rows.length === 0)
         return reply.status(404).send({ error: "academic year not found" });
