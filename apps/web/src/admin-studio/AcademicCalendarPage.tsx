@@ -77,13 +77,13 @@ export function AcademicCalendarPage() {
   const createYearMut = useMutation({
     mutationFn: (body: object) => apiFetch("/academic-years", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["academic-years"] }); setShowYearForm(false); resetYearForm(); setSuccessMsg("Academic year created."); },
-    onError: () => setYearError("Failed to create academic year"),
+    onError: (err: unknown) => setYearError(err instanceof ApiError && err.body && typeof err.body === "object" && "error" in err.body ? String((err.body as { error: unknown }).error) : "Failed to create academic year"),
   });
 
   const updateYearMut = useMutation({
     mutationFn: ({ id, body }: { id: string; body: object }) => apiFetch(`/academic-years/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["academic-years"] }); setEditYear(null); setSuccessMsg("Updated."); },
-    onError: () => setYearError("Failed to update"),
+    onError: (err: unknown) => setYearError(err instanceof ApiError && err.body && typeof err.body === "object" && "error" in err.body ? String((err.body as { error: unknown }).error) : "Failed to update"),
   });
 
   const createTermMut = useMutation({
