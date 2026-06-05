@@ -24,7 +24,7 @@ const createdPools: MockPool[] = [];
 // Mock the pg module — hoisted by Vitest before any imports.
 vi.mock("pg", () => ({
   default: {
-    Pool: vi.fn().mockImplementation(() => {
+    Pool: vi.fn().mockImplementation(function () {
       const p = new MockPool();
       createdPools.push(p);
       return p;

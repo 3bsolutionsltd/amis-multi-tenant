@@ -73,6 +73,7 @@ export const configPayloadSchema = z
           .regex(/^#[0-9a-fA-F]{6}$/, "must be a valid hex color")
           .default("#2563EB"),
       })
+      .passthrough()
       .optional(),
     navigation: z.record(z.string(), z.array(navItemSchema)).optional(),
     dashboards: z.record(z.string(), z.array(dashCardSchema)).optional(),

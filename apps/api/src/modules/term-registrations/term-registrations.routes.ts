@@ -310,10 +310,15 @@ export async function termRegistrationsRoutes(app: FastifyInstance) {
             `INSERT INTO app.term_registrations
                (tenant_id, student_id, academic_year, term, academic_year_id, term_id, extension, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, '{}', $7)
+             ON CONFLICT (tenant_id, student_id, academic_year, term) DO NOTHING
              RETURNING id`,
             [tid, student_id, academic_year, term, academicYearId, termFkId, actorUserId],
           );
-          const regId = regRows[0].id;
+          const regId = regRows[0]?.id;
+          if (!regId) {
+            skipped++;
+            continue;
+          }
 
           // Init workflow
           await client.query(
@@ -397,10 +402,12 @@ export async function termRegistrationsRoutes(app: FastifyInstance) {
             `INSERT INTO app.term_registrations
                (tenant_id, student_id, academic_year, term, academic_year_id, term_id, extension, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, '{}', $7)
+             ON CONFLICT (tenant_id, student_id, academic_year, term) DO NOTHING
              RETURNING id`,
             [tid, student_id, academic_year, term, promoteAcademicYearId, promoteTermId, actorUserId],
           );
-          const regId = regRows[0].id;
+          const regId = regRows[0]?.id;
+          if (!regId) continue;
 
           await client.query(
             `INSERT INTO app.workflow_instances

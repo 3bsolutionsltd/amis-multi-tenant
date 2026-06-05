@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { recordFeeEntry } from "./fees.api";
+import { getFeeSummary, recordFeeEntry } from "./fees.api";
 import { listStudents, type Student } from "../students/students.api";
+import { ApiError } from "../../lib/apiFetch";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -15,6 +16,19 @@ import {
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
+}
+
+const PAYMENT_METHODS = [
+  "Cash",
+  "Mobile Money",
+  "Bank Draft",
+  "Bank Transfer",
+  "Card",
+  "Cheque",
+];
+
+function formatUgx(amount: number) {
+  return `UGX ${amount.toLocaleString()}`;
 }
 
 export function FeeEntryPage() {
@@ -38,6 +52,7 @@ export function FeeEntryPage() {
   );
   const [form, setForm] = useState({
     amount: "",
+    payment_method: "Bank Draft",
     reference: "",
     paid_at: todayIso(),
   });
@@ -51,6 +66,21 @@ export function FeeEntryPage() {
     enabled: search.length >= 2,
   });
 
+  const selectedStudentId = selectedStudent?.id;
+  const summaryQ = useQuery({
+    queryKey: ["fee-summary-entry", selectedStudentId],
+    queryFn: () => getFeeSummary(selectedStudentId!),
+    enabled: Boolean(selectedStudentId),
+  });
+
+  const amountValue = Number(form.amount);
+  const hasAmount = form.amount.trim() !== "" && Number.isFinite(amountValue);
+  const outstandingBalance = summaryQ.data
+    ? Math.max(summaryQ.data.balance, 0)
+    : null;
+  const exceedsOutstandingBalance =
+    outstandingBalance != null && hasAmount && amountValue > outstandingBalance;
+
   function selectStudent(s: Student) {
     setSelectedStudent(s);
     setSearch(`${s.first_name} ${s.last_name}`);
@@ -63,6 +93,10 @@ export function FeeEntryPage() {
       setError("Please select a student");
       return;
     }
+    if (exceedsOutstandingBalance) {
+      setError(`Payment cannot exceed the outstanding balance of ${formatUgx(outstandingBalance)}.`);
+      return;
+    }
     setSaving(true);
     setError(null);
     setSuccess(false);
@@ -70,12 +104,19 @@ export function FeeEntryPage() {
       await recordFeeEntry({
         student_id: selectedStudent.id,
         amount: Number(form.amount),
+        payment_method: form.payment_method,
         reference: form.reference,
         paid_at: form.paid_at,
       });
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to record payment");
+      if (err instanceof ApiError && err.status === 409) {
+        const body = err.body as { error?: string; balance?: number } | null;
+        const balance = typeof body?.balance === "number" ? ` ${formatUgx(Math.max(body.balance, 0))}.` : ".";
+        setError(`${body?.error ?? "Payment amount exceeds the outstanding balance"}${balance}`);
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to record payment");
+      }
     } finally {
       setSaving(false);
     }
@@ -163,6 +204,44 @@ export function FeeEntryPage() {
             </div>
           </Field>
 
+          {selectedStudent && (
+            <div
+              style={{
+                padding: "10px 12px",
+                borderRadius: 6,
+                border: "1px solid #d1d5db",
+                background: "#f9fafb",
+                fontSize: 13,
+                color: "#374151",
+              }}
+            >
+              {summaryQ.isLoading ? (
+                "Checking outstanding balance..."
+              ) : summaryQ.data ? (
+                <>
+                  Outstanding balance: <strong>{formatUgx(Math.max(summaryQ.data.balance, 0))}</strong>
+                </>
+              ) : (
+                "Outstanding balance unavailable. The server will still validate the payment before saving."
+              )}
+            </div>
+          )}
+
+          {summaryQ.data?.warning && (
+            <div
+              style={{
+                padding: "10px 12px",
+                borderRadius: 6,
+                border: "1px solid #fbbf24",
+                background: "#fffbeb",
+                fontSize: 13,
+                color: "#92400e",
+              }}
+            >
+              ⚠️ {summaryQ.data.warning}
+            </div>
+          )}
+
           <Field label="Amount" required>
             <input
               required
@@ -178,6 +257,10 @@ export function FeeEntryPage() {
             />
           </Field>
 
+          {exceedsOutstandingBalance && (
+            <ErrorBanner message={`Amount is higher than the outstanding balance (${formatUgx(outstandingBalance)}).`} />
+          )}
+
           <Field label="Reference" required>
             <input
               required
@@ -188,6 +271,21 @@ export function FeeEntryPage() {
                 setForm((f) => ({ ...f, reference: e.target.value }))
               }
             />
+          </Field>
+
+          <Field label="Payment Method" required>
+            <select
+              required
+              style={inputCss}
+              value={form.payment_method}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, payment_method: e.target.value }))
+              }
+            >
+              {PAYMENT_METHODS.map((method) => (
+                <option key={method} value={method}>{method}</option>
+              ))}
+            </select>
           </Field>
 
           <Field label="Payment Date" required>
@@ -219,7 +317,7 @@ export function FeeEntryPage() {
               <button
                 type="button"
                 onClick={() =>
-                  navigate(`/students/${selectedStudent!.id}`)
+                  navigate(`/finance?student_id=${selectedStudent!.id}&student_name=${encodeURIComponent(`${selectedStudent!.first_name} ${selectedStudent!.last_name}`)}`)
                 }
                 style={{
                   color: "#065f46",
@@ -232,13 +330,13 @@ export function FeeEntryPage() {
                   fontSize: 13,
                 }}
               >
-                View student →
+                View fee ledger →
               </button>
             </div>
           )}
 
           <div style={{ marginTop: 4 }}>
-            <PrimaryBtn type="submit" disabled={saving}>
+            <PrimaryBtn type="submit" disabled={saving || summaryQ.isLoading || exceedsOutstandingBalance}>
               {saving ? "Recording…" : "Record Payment"}
             </PrimaryBtn>
           </div>

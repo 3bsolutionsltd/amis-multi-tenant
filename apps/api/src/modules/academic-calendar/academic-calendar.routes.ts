@@ -266,7 +266,7 @@ export async function academicCalendarRoutes(app: FastifyInstance) {
       } catch (err: unknown) {
         const pgCode = (err as { code?: string })?.code;
         if (pgCode === "23505") {
-          return reply.status(409).send({ error: "A term with that number already exists for this year, or only one current term is allowed per tenant." });
+          return reply.status(409).send({ error: "A term with that number already exists for this academic year." });
         }
         if (pgCode === "23503") {
           return reply.status(422).send({ error: "The specified academic year does not exist." });

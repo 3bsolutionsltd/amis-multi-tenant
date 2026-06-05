@@ -4,6 +4,7 @@ import { requireRole } from "../../middleware/requireRole.js";
 import { getTenantId } from "../../lib/tenantId.js";
 import { sendSms, buildAdmissionEnrolledSms } from "../../lib/sms.js";
 import { loadWorkflowDef } from "../../lib/workflowDef.js";
+import { resolveProgramme } from "../../lib/programmes.js";
 import type { WorkflowDefinition } from "../config/config.schema.js";
 import {
   CreateApplicationSchema,
@@ -14,7 +15,7 @@ import {
 // ------------------------------------------------------------------ helpers
 
 const APP_SELECT = `
-  a.id, a.tenant_id, a.first_name, a.last_name, a.programme, a.intake,
+  a.id, a.tenant_id, a.first_name, a.last_name, a.programme, a.programme_id, a.intake,
   a.dob, a.gender, a.email, a.phone, a.sponsorship_type, a.student_id, a.extension, a.created_at,
   wi.current_state
 `;
@@ -50,6 +51,9 @@ export async function admissionsRoutes(app: FastifyInstance) {
       const actorUserId = req.user?.userId ?? null;
 
       const result = await withTenant(tid, async (client) => {
+        const programmeRef = await resolveProgramme(client, { programme });
+        if (!programmeRef) return { invalidProgramme: true } as const;
+
         // Load workflow definition
         const wf = await loadWorkflowDef(tid, "admissions", client);
         if (!wf) {
@@ -62,14 +66,15 @@ export async function admissionsRoutes(app: FastifyInstance) {
         // Insert application
         const { rows: appRows } = await client.query(
           `INSERT INTO app.admission_applications
-             (tenant_id, first_name, last_name, programme, intake, dob, gender, email, phone, sponsorship_type, extension)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             (tenant_id, first_name, last_name, programme, programme_id, intake, dob, gender, email, phone, sponsorship_type, extension)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
            RETURNING *`,
           [
             tid,
             first_name,
             last_name,
-            programme,
+            programmeRef.code,
+            programmeRef.id,
             intake,
             dob ?? null,
             gender ?? null,
@@ -100,6 +105,8 @@ export async function admissionsRoutes(app: FastifyInstance) {
         return { application, workflowState: wf.initial_state };
       });
 
+      if ("invalidProgramme" in result)
+        return reply.status(422).send({ error: "programme not found" });
       if ("configError" in result)
         return reply.status(422).send({ error: result.message });
 
@@ -214,22 +221,37 @@ export async function admissionsRoutes(app: FastifyInstance) {
       const filename = body?.filename ?? "import.csv";
       const rawRows: unknown[] = Array.isArray(body?.rows) ? body.rows : [];
 
-      const valid: object[] = [];
-      const invalid: { row: unknown; errors: unknown }[] = [];
-
-      for (const row of rawRows) {
-        const parsed = CreateApplicationSchema.safeParse(row);
-        if (parsed.success) {
-          valid.push(parsed.data);
-        } else {
-          invalid.push({ row, errors: parsed.error.flatten() });
-        }
-      }
-
       const actorUserId = req.user?.userId ?? null;
 
       // Create a preview batch — does NOT insert applications
-      const batch = await withTenant(tid, async (client) => {
+      const preview = await withTenant(tid, async (client) => {
+        const valid: object[] = [];
+        const invalid: { row: unknown; errors: unknown }[] = [];
+
+        for (const row of rawRows) {
+          const parsed = CreateApplicationSchema.safeParse(row);
+          if (!parsed.success) {
+            invalid.push({ row, errors: parsed.error.flatten() });
+            continue;
+          }
+
+          const programmeRef = await resolveProgramme(client, {
+            programme: parsed.data.programme,
+          });
+          if (!programmeRef) {
+            invalid.push({
+              row,
+              errors: {
+                fieldErrors: { programme: ["programme not found"] },
+                formErrors: [],
+              },
+            });
+            continue;
+          }
+
+          valid.push({ ...parsed.data, programme: programmeRef.code });
+        }
+
         const { rows } = await client.query(
           `INSERT INTO app.admission_import_batches
              (tenant_id, filename, status, row_count, imported_by, meta)
@@ -243,13 +265,13 @@ export async function admissionsRoutes(app: FastifyInstance) {
             JSON.stringify({ valid, invalid }),
           ],
         );
-        return rows[0];
+        return { batch: rows[0], valid, invalid };
       });
 
       return reply.status(200).send({
-        batchId: batch.id,
-        valid,
-        invalid,
+        batchId: preview.batch.id,
+        valid: preview.valid,
+        invalid: preview.invalid,
         total: rawRows.length,
       });
     },
@@ -268,13 +290,18 @@ export async function admissionsRoutes(app: FastifyInstance) {
       const actorUserId = req.user?.userId ?? null;
 
       const result = await withTenant(tid, async (client) => {
-        // Load batch
+        // Load batch — scope to tenant explicitly (belt-and-suspenders over RLS)
         const { rows: batchRows } = await client.query(
-          `SELECT * FROM app.admission_import_batches WHERE id = $1`,
-          [batchId],
+          `SELECT * FROM app.admission_import_batches WHERE id = $1 AND tenant_id = $2`,
+          [batchId, tid],
         );
         const batch = batchRows[0];
         if (!batch) return { notFound: true } as const;
+
+        // Idempotency: if already confirmed, return the stored counts
+        if (batch.status === "confirmed") {
+          return { imported: batch.row_count as number, skipped: 0 };
+        }
 
         const meta = batch.meta as {
           valid: object[];
@@ -312,22 +339,35 @@ export async function admissionsRoutes(app: FastifyInstance) {
             intake,
             dob,
             gender,
+            email,
+            phone,
+            sponsorship_type,
             extension,
           } = parsed.data;
 
+          const programmeRef = await resolveProgramme(client, { programme });
+          if (!programmeRef) {
+            skipped++;
+            continue;
+          }
+
           const { rows: appRows } = await client.query(
             `INSERT INTO app.admission_applications
-               (tenant_id, first_name, last_name, programme, intake, dob, gender, extension)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+               (tenant_id, first_name, last_name, programme, programme_id, intake, dob, gender, email, phone, sponsorship_type, extension)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              RETURNING id`,
             [
               tid,
               first_name,
               last_name,
-              programme,
+              programmeRef.code,
+              programmeRef.id,
               intake,
               dob ?? null,
               gender ?? null,
+              email ?? null,
+              phone ?? null,
+              sponsorship_type ?? null,
               JSON.stringify(extension ?? {}),
             ],
           );
@@ -443,15 +483,25 @@ export async function admissionsRoutes(app: FastifyInstance) {
         if (extra.assessment_level) extBase.assessment_level = extra.assessment_level;
         if (extra.previous_index) extBase.previous_index = extra.previous_index;
 
+        const programmeRef = await resolveProgramme(client, {
+          programme_id: application.programme_id ?? null,
+          programme_code: extra.programme_code,
+          programme: application.programme,
+        });
+        if (!programmeRef) {
+          return { invalidProgramme: true } as const;
+        }
+        extBase.programme_code = programmeRef.code;
+
         // Create student from application data + extra fields
         const { rows: stuRows } = await client.query(
           `INSERT INTO app.students
              (tenant_id, first_name, last_name, date_of_birth, admission_number,
-              sponsorship_type, programme, email, phone, gender, nin, other_names,
+              sponsorship_type, programme, programme_id, programme_code, email, phone, gender, nin, other_names,
               year_of_study, class_section,
               guardian_name, guardian_phone, guardian_email, guardian_relationship,
               extension)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
            RETURNING *`,
           [
             tid,
@@ -460,7 +510,9 @@ export async function admissionsRoutes(app: FastifyInstance) {
             application.dob ?? null,
             admissionNumber,
             application.sponsorship_type ?? null,
-            application.programme ?? null,
+            programmeRef.title,
+            programmeRef.id,
+            programmeRef.code,
             application.email ?? null,
             application.phone ?? null,
             application.gender ?? null,
@@ -511,6 +563,8 @@ export async function admissionsRoutes(app: FastifyInstance) {
           .send({ error: "already enrolled", studentId: result.studentId });
       if ("invalidState" in result)
         return reply.status(422).send({ error: result.message });
+      if ("invalidProgramme" in result)
+        return reply.status(422).send({ error: "programme not found" });
 
       // Fire-and-forget SMS to enrolled student's phone
       const enrolledPhone = result.student?.phone ?? null;

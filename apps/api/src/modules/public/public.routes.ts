@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { pool } from "../../db/pool.js";
 import { withTenant } from "../../db/tenant.js";
+import { resolveProgramme } from "../../lib/programmes.js";
+import { loadWorkflowDef } from "../../lib/workflowDef.js";
 import { PublicApplySchema } from "./public.schema.js";
 
 // ------------------------------------------------------------------ helpers
@@ -18,6 +20,29 @@ async function resolveTenantSlug(
 // ------------------------------------------------------------------ routes
 
 export async function publicRoutes(app: FastifyInstance) {
+  // ---------- GET /public/:tenantSlug/programmes
+  // No auth required — public-facing catalogue for application forms
+  app.get<{ Params: { tenantSlug: string } }>(
+    "/public/:tenantSlug/programmes",
+    async (req, reply) => {
+      const tenantId = await resolveTenantSlug(req.params.tenantSlug);
+      if (!tenantId)
+        return reply.status(404).send({ error: "institution not found" });
+
+      const programmes = await withTenant(tenantId, async (client) => {
+        const { rows } = await client.query(
+          `SELECT id, code, title, department, duration_months, level
+           FROM app.programmes
+           WHERE is_active = true
+           ORDER BY code ASC`,
+        );
+        return rows;
+      });
+
+      return programmes;
+    },
+  );
+
   // ---------- POST /public/:tenantSlug/apply
   // No auth required — public-facing applicant endpoint
   app.post<{ Params: { tenantSlug: string } }>(
@@ -36,17 +61,31 @@ export async function publicRoutes(app: FastifyInstance) {
       const d = parse.data;
 
       const result = await withTenant(tenantId, async (client) => {
-        const { rows } = await client.query(
+        const programmeRef = await resolveProgramme(client, {
+          programme: d.programme,
+        });
+        if (!programmeRef) return { invalidProgramme: true } as const;
+
+        const wf = await loadWorkflowDef(tenantId, "admissions", client);
+        if (!wf) {
+          return {
+            configError: true,
+            message: `workflow "admissions" not found in published config`,
+          } as const;
+        }
+
+        const { rows: appRows } = await client.query(
           `INSERT INTO app.admission_applications
-             (tenant_id, first_name, last_name, programme, intake,
+             (tenant_id, first_name, last_name, programme, programme_id, intake,
               dob, gender, email, phone, sponsorship_type, source)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'online')
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'online')
            RETURNING id, first_name, last_name, programme, intake, created_at`,
           [
             tenantId,
             d.first_name,
             d.last_name,
-            d.programme,
+            programmeRef.code,
+            programmeRef.id,
             d.intake,
             d.dob ?? null,
             d.gender ?? null,
@@ -55,10 +94,31 @@ export async function publicRoutes(app: FastifyInstance) {
             d.sponsorship_type ?? null,
           ],
         );
-        return rows[0];
+        const application = appRows[0];
+
+        await client.query(
+          `INSERT INTO app.workflow_instances
+             (tenant_id, entity_type, entity_id, workflow_key, current_state)
+           VALUES ($1, 'admissions', $2, 'admissions', $3)`,
+          [tenantId, application.id, wf.initial_state],
+        );
+
+        await client.query(
+          `INSERT INTO app.workflow_events
+             (tenant_id, entity_type, entity_id, workflow_key, from_state, to_state, action_key, actor_user_id)
+           VALUES ($1, 'admissions', $2, 'admissions', NULL, $3, '__init__', NULL)`,
+          [tenantId, application.id, wf.initial_state],
+        );
+
+        return { application, workflowState: wf.initial_state };
       });
 
-      return reply.status(201).send({ application: result });
+      if ("invalidProgramme" in result)
+        return reply.status(422).send({ error: "programme not found" });
+      if ("configError" in result)
+        return reply.status(422).send({ error: result.message });
+
+      return reply.status(201).send(result);
     },
   );
 

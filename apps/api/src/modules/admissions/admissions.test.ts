@@ -76,6 +76,24 @@ describe("POST /admissions/applications", () => {
     expect(res.statusCode).toBe(422);
   });
 
+  it("returns 422 when programme code does not exist", async () => {
+    const query = vi.fn().mockResolvedValueOnce({ rows: [] });
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/admissions/applications",
+      headers: registrarHeaders,
+      payload: { ...validBody, programme: "DCIT" },
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json()).toEqual({ error: "programme not found" });
+  });
+
   it("returns 422 when workflow not found in published config", async () => {
     mockWithTenant.mockResolvedValueOnce({
       configError: true,
@@ -247,7 +265,19 @@ describe("POST /admissions/import", () => {
       status: "preview",
       row_count: 1,
     };
-    mockWithTenant.mockResolvedValueOnce(fakeBatch as never);
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "11111111-1111-1111-1111-111111111111",
+          code: "DICT",
+          title: "Diploma in ICT",
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [fakeBatch] });
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
     const app = buildApp();
     const res = await app.inject({
       method: "POST",
@@ -256,7 +286,7 @@ describe("POST /admissions/import", () => {
       payload: {
         filename: "test.csv",
         rows: [
-          validBody,
+          { ...validBody, programme: "DICT" },
           { first_name: "Bad" }, // invalid — missing required fields
         ],
       },
@@ -267,6 +297,41 @@ describe("POST /admissions/import", () => {
     expect(body.valid).toHaveLength(1);
     expect(body.invalid).toHaveLength(1);
     expect(body.total).toBe(2);
+  });
+
+  it("marks rows with unknown programme codes invalid during preview", async () => {
+    const fakeBatch = {
+      id: "bb000000-0000-0000-0000-000000000002",
+      filename: "bad-programme.csv",
+      status: "preview",
+      row_count: 0,
+    };
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [fakeBatch] });
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/admissions/import",
+      headers: registrarHeaders,
+      payload: {
+        filename: "bad-programme.csv",
+        rows: [{ ...validBody, programme: "DCIT" }],
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.valid).toHaveLength(0);
+    expect(body.invalid).toHaveLength(1);
+    expect(body.invalid[0].errors.fieldErrors.programme).toEqual([
+      "programme not found",
+    ]);
   });
 });
 
@@ -401,6 +466,35 @@ describe("POST /admissions/applications/:id/enroll", () => {
     });
     expect(res.statusCode).toBe(422);
     expect(res.json().error).toMatch(/submitted/);
+  });
+
+  it("returns 422 when enrolled application programme no longer exists", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [{
+          ...fakeApplication,
+          current_state: "REGISTERED",
+          programme: "DCIT",
+          programme_id: null,
+          student_id: null,
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: `/admissions/applications/${APP_ID}/enroll`,
+      headers: registrarHeaders,
+      payload: { admission_number: "ADM-2026-0099" },
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json()).toEqual({ error: "programme not found" });
   });
 
   it("returns 201 with student and admissionNumber on success", async () => {

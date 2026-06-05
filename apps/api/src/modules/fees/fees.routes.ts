@@ -26,6 +26,167 @@ const SUMMARY_ROLES = [
 const TXN_ROLES = ["registrar", "finance", "admin"] as const;
 const FINANCE_ROLES = ["finance", "admin"] as const;
 
+type StudentFeeContext = {
+  id: string;
+  programme_id: string | null;
+  programme: string | null;
+  programme_code: string | null;
+  sponsorship_type: string | null;
+};
+
+type FeeStructureLine = {
+  id: string;
+  fee_type: string;
+  student_category: string;
+  description: string | null;
+  amount: string;
+  currency: string;
+  academic_year_name: string | null;
+  term_name: string | null;
+  programme_code: string | null;
+  programme_title: string | null;
+};
+
+type Queryable = {
+  query<T = unknown>(text: string, params?: unknown[]): Promise<{ rows: T[] }>;
+};
+
+type FeeBalanceResult =
+  | { notFound: true }
+  | { totalDue: number; totalPaid: number; balance: number };
+
+type PaymentRow = {
+  id: string;
+  amount: string | number;
+  currency: string | null;
+  reference: string | null;
+  [key: string]: unknown;
+};
+
+type StudentSmsContact = {
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+};
+
+type ManualFeeEntryResult =
+  | { notFound: true }
+  | { overpayment: true; totalDue: number; totalPaid: number; balance: number }
+  | { payment: PaymentRow; student: StudentSmsContact | null };
+
+function studentCategory(sponsorshipType: string | null) {
+  const normalized = sponsorshipType?.toLowerCase() ?? "";
+  if (normalized.includes("boarding") || normalized.includes("boarder")) return "boarding";
+  if (normalized.includes("day")) return "day";
+  if (normalized.trim()) return "day";
+  return "all";
+}
+
+async function getDefaultTotalDue(client: Queryable, tid: string) {
+  const { rows: cfgRows } = await client.query<{
+    payload: { fees?: { defaultTotalDue?: number } };
+  }>(
+    `SELECT payload FROM platform.config_versions
+     WHERE tenant_id = $1 AND status = 'published'
+     LIMIT 1`,
+    [tid],
+  );
+  return cfgRows[0]?.payload?.fees?.defaultTotalDue ?? 0;
+}
+
+async function loadStudentFeeContext(client: Queryable, studentId: string) {
+  const { rows } = await client.query<StudentFeeContext>(
+    `SELECT id, programme_id, programme, programme_code, sponsorship_type
+     FROM app.students
+     WHERE id = $1`,
+    [studentId],
+  );
+  return rows[0] ?? null;
+}
+
+async function listApplicableFeeStructures(
+  client: Queryable,
+  student: StudentFeeContext,
+) {
+  const category = studentCategory(student.sponsorship_type);
+  const categoryFilter = category === "all" ? ["all"] : ["all", category];
+
+  const { rows } = await client.query<FeeStructureLine>(
+    `SELECT fs.id, fs.fee_type, fs.student_category, fs.description, fs.amount, fs.currency,
+            ay.name AS academic_year_name,
+            t.name AS term_name,
+            p.code AS programme_code,
+            p.title AS programme_title
+     FROM app.fee_structures fs
+     JOIN app.programmes p ON p.id = fs.programme_id
+     JOIN app.academic_years ay ON ay.id = fs.academic_year_id
+     LEFT JOIN app.terms t ON t.id = fs.term_id
+     WHERE fs.is_active = true
+       AND ay.is_current = true
+       AND (fs.term_id IS NULL OR t.is_current = true)
+       AND fs.student_category = ANY($1::text[])
+       AND (
+         fs.programme_id = $2::uuid
+         OR lower(p.code) = lower(COALESCE($3, ''))
+         OR lower(p.title) = lower(COALESCE($4, ''))
+       )
+     ORDER BY fs.term_id NULLS FIRST, fs.fee_type, fs.student_category`,
+    [categoryFilter, student.programme_id, student.programme_code, student.programme],
+  );
+
+  return rows;
+}
+
+async function calculateStudentTotalDue(
+  client: Queryable,
+  tid: string,
+  studentId: string,
+) {
+  const defaultTotalDue = await getDefaultTotalDue(client, tid);
+  const student = await loadStudentFeeContext(client, studentId);
+  if (!student) {
+    return { notFound: true as const };
+  }
+
+  const feeStructures = await listApplicableFeeStructures(client, student);
+  const structuredTotalDue = feeStructures.reduce(
+    (sum, line) => sum + Number(line.amount),
+    0,
+  );
+  const totalDue = structuredTotalDue > 0 ? structuredTotalDue : defaultTotalDue;
+
+  return {
+    student,
+    feeStructures,
+    totalDue,
+    totalDueSource: structuredTotalDue > 0 ? "fee_structures" : "config_default",
+    defaultTotalDue,
+  };
+}
+
+async function calculateStudentFeeBalance(
+  client: Queryable,
+  tid: string,
+  studentId: string,
+): Promise<FeeBalanceResult> {
+  const due = await calculateStudentTotalDue(client, tid, studentId);
+  if ("notFound" in due) return { notFound: true as const };
+
+  const { rows } = await client.query<{ total_paid: string }>(
+    `SELECT COALESCE(SUM(amount), 0) AS total_paid
+     FROM app.payments
+     WHERE student_id = $1`,
+    [studentId],
+  );
+
+  const totalPaid = Number(rows[0].total_paid);
+  return {
+    totalDue: due.totalDue,
+    totalPaid,
+    balance: due.totalDue - totalPaid,
+  };
+}
+
 // ------------------------------------------------------------------ routes
 
 export async function feesRoutes(app: FastifyInstance) {
@@ -41,17 +202,8 @@ export async function feesRoutes(app: FastifyInstance) {
       const { studentId } = req.params;
 
       const result = await withTenant(tid, async (client) => {
-        // Get defaultTotalDue from published config
-        const { rows: cfgRows } = await client.query<{
-          payload: { fees?: { defaultTotalDue?: number } };
-        }>(
-          `SELECT payload FROM platform.config_versions
-           WHERE tenant_id = $1 AND status = 'published'
-           LIMIT 1`,
-          [tid],
-        );
-        const defaultTotalDue: number =
-          cfgRows[0]?.payload?.fees?.defaultTotalDue ?? 0;
+        const due = await calculateStudentTotalDue(client, tid, studentId);
+        if ("notFound" in due) return due;
 
         const { rows } = await client.query<{
           total_paid: string;
@@ -64,18 +216,33 @@ export async function feesRoutes(app: FastifyInstance) {
         );
 
         const totalPaid = Number(rows[0].total_paid);
-        const balance = defaultTotalDue - totalPaid;
+        const balance = due.totalDue - totalPaid;
         const badge =
           balance <= 0 ? "PAID" : totalPaid > 0 ? "PARTIAL" : "OWING";
 
+        const warning =
+          due.totalDueSource === "config_default"
+            ? "No fee structure found for this student's programme — using the institution default total. Please check the student's programme assignment and ensure a matching fee structure exists."
+            : null;
+
         return {
           totalPaid,
-          totalDue: defaultTotalDue,
+          totalDue: due.totalDue,
           balance,
           lastPayment: rows[0].last_payment ?? null,
           badge,
+          totalDueSource: due.totalDueSource,
+          defaultTotalDue: due.defaultTotalDue,
+          warning,
+          feeStructures: due.feeStructures.map((line) => ({
+            ...line,
+            amount: Number(line.amount),
+          })),
         };
       });
+
+      if ("notFound" in result)
+        return reply.status(404).send({ error: "student not found" });
 
       return reply.status(200).send(result);
     },
@@ -125,16 +292,28 @@ export async function feesRoutes(app: FastifyInstance) {
       if (!parsed.success)
         return reply.status(422).send({ error: parsed.error.flatten() });
 
-      const { student_id, amount, currency, reference, paid_at, academic_year_id, term_id } = parsed.data;
+      const { student_id, amount, currency, payment_method, reference, paid_at, academic_year_id, term_id } = parsed.data;
       const actorUserId = req.user?.userId ?? null;
 
-      const result = await withTenant(tid, async (client) => {
-        const { rows: payRows } = await client.query(
+      const result = await withTenant(tid, async (client): Promise<ManualFeeEntryResult> => {
+        const feeBalance = await calculateStudentFeeBalance(client, tid, student_id);
+        if ("notFound" in feeBalance) return feeBalance;
+
+        if (amount > Math.max(feeBalance.balance, 0)) {
+          return {
+            overpayment: true as const,
+            totalDue: feeBalance.totalDue,
+            totalPaid: feeBalance.totalPaid,
+            balance: feeBalance.balance,
+          };
+        }
+
+        const { rows: payRows } = await client.query<PaymentRow>(
           `INSERT INTO app.payments
-             (tenant_id, student_id, amount, currency, reference, paid_at, source, academic_year_id, term_id)
-           VALUES ($1, $2, $3, $4, $5, $6, 'manual', $7, $8)
+             (tenant_id, student_id, amount, currency, payment_method, reference, paid_at, source, academic_year_id, term_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'manual', $8, $9)
            RETURNING *`,
-          [tid, student_id, amount, currency, reference, paid_at,
+          [tid, student_id, amount, currency, payment_method ?? null, reference, paid_at,
            academic_year_id ?? null, term_id ?? null],
         );
         const payment = payRows[0];
@@ -148,7 +327,7 @@ export async function feesRoutes(app: FastifyInstance) {
         );
 
         // Fetch student phone for SMS
-        const { rows: stuRows } = await client.query<{ first_name: string; last_name: string; phone: string | null }>(
+        const { rows: stuRows } = await client.query<StudentSmsContact>(
           `SELECT first_name, last_name, phone FROM app.students WHERE id = $1`,
           [student_id],
         );
@@ -156,11 +335,23 @@ export async function feesRoutes(app: FastifyInstance) {
         return { payment, student: stuRows[0] ?? null };
       });
 
+      if ("notFound" in result)
+        return reply.status(404).send({ error: "student not found" });
+
+      if ("overpayment" in result)
+        return reply.status(409).send({
+          error: "Payment amount exceeds the outstanding balance",
+          code: "PAYMENT_EXCEEDS_BALANCE",
+          totalDue: result.totalDue,
+          totalPaid: result.totalPaid,
+          balance: result.balance,
+        });
+
       // Fire-and-forget SMS (don't fail the response on SMS error)
       if (result.student?.phone) {
         const msg = buildPaymentConfirmationSms({
           studentName: `${result.student.first_name} ${result.student.last_name}`,
-          amount: result.payment.amount,
+          amount: Number(result.payment.amount),
           currency: result.payment.currency ?? "UGX",
           reference: result.payment.reference ?? result.payment.id,
         });
@@ -417,25 +608,69 @@ export async function feesRoutes(app: FastifyInstance) {
         );
         const totalCollected = Number(sumRows[0].total_collected);
 
-        // Total expected
-        const totalExpected = totalStudents * defaultTotalDue;
+        // Total expected + fullyPaid: computed per-student from fee structures.
+        // Each student's due is the sum of active fee structure lines that match
+        // their programme and sponsorship category (same logic as the per-student
+        // summary endpoint). Falls back to defaultTotalDue when no structures match.
+        const { rows: dueRows } = await client.query<{
+          total_expected: string;
+          fully_paid: number;
+        }>(
+          `WITH student_cats AS (
+             SELECT
+               id,
+               programme_id,
+               programme_code,
+               programme,
+               CASE
+                 WHEN LOWER(sponsorship_type) LIKE '%boarding%'
+                   OR LOWER(sponsorship_type) LIKE '%boarder%' THEN 'boarding'
+                 WHEN sponsorship_type IS NOT NULL AND TRIM(sponsorship_type) != '' THEN 'day'
+                 ELSE 'all'
+               END AS cat
+             FROM app.students
+             WHERE is_active = true
+           ),
+           student_due AS (
+             SELECT
+               sc.id,
+               COALESCE(
+                 (SELECT SUM(fs.amount)
+                  FROM app.fee_structures fs
+                  JOIN app.programmes p ON p.id = fs.programme_id
+                  JOIN app.academic_years ay ON ay.id = fs.academic_year_id AND ay.is_current = true
+                  LEFT JOIN app.terms t ON t.id = fs.term_id
+                  WHERE fs.is_active = true
+                    AND (fs.term_id IS NULL OR t.is_current = true)
+                    AND fs.student_category = ANY(ARRAY['all', sc.cat])
+                    AND (
+                      fs.programme_id = sc.programme_id
+                      OR LOWER(p.code) = LOWER(COALESCE(sc.programme_code, ''))
+                      OR LOWER(p.title) = LOWER(COALESCE(sc.programme, ''))
+                    )
+                 ),
+                 $1
+               ) AS due,
+               COALESCE(
+                 (SELECT SUM(amount) FROM app.payments WHERE student_id = sc.id),
+                 0
+               ) AS paid
+             FROM student_cats sc
+           )
+           SELECT
+             COALESCE(SUM(due), 0)::numeric AS total_expected,
+             COUNT(*) FILTER (WHERE paid >= due)::int AS fully_paid
+           FROM student_due`,
+          [defaultTotalDue],
+        );
+        const totalExpected = Number(dueRows[0]?.total_expected ?? 0);
+        const fullyPaid = dueRows[0]?.fully_paid ?? 0;
 
         // Collection rate
         const collectionRate =
           totalExpected > 0
             ? Math.round((totalCollected / totalExpected) * 10000) / 100
             : 0;
-
-        // Students who have paid in full
-        const { rows: paidRows } = await client.query(
-          `SELECT COUNT(DISTINCT p.student_id)::int AS paid_count
-           FROM app.payments p
-           JOIN app.students s ON s.id = p.student_id AND s.is_active = true
-           GROUP BY p.student_id
-           HAVING SUM(p.amount) >= $1`,
-          [defaultTotalDue],
-        );
-        const fullyPaid = paidRows.length;
 
         return {
           totalStudents,

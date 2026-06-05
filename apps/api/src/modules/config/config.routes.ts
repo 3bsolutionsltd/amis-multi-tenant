@@ -1,23 +1,16 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
 import { requireRole } from "../../middleware/requireRole.js";
+import { getTenantId } from "../../lib/tenantId.js";
 import { configPayloadSchema } from "./config.schema.js";
 
 export async function configRoutes(app: FastifyInstance) {
-  // ------------------------------------------------------------------ helpers
-  function tenantHeader(req: {
-    headers: Record<string, string | string[] | undefined>;
-  }): string | null {
-    const h = req.headers["x-tenant-id"];
-    return typeof h === "string" && h.length > 0 ? h : null;
-  }
-
   // ------------------------------------------------------------------ POST /config/draft
   app.post(
     "/config/draft",
     { preHandler: requireRole("admin") },
     async (req, reply) => {
-      const tid = tenantHeader(req);
+      const tid = getTenantId(req);
       if (!tid)
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -57,7 +50,7 @@ export async function configRoutes(app: FastifyInstance) {
     "/config/validate",
     { preHandler: requireRole("admin") },
     async (req, reply) => {
-      const tid = tenantHeader(req);
+      const tid = getTenantId(req);
       if (!tid)
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -105,7 +98,7 @@ export async function configRoutes(app: FastifyInstance) {
     "/config/publish",
     { preHandler: requireRole("admin") },
     async (req, reply) => {
-      const tid = tenantHeader(req);
+      const tid = getTenantId(req);
       if (!tid)
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -179,7 +172,7 @@ export async function configRoutes(app: FastifyInstance) {
     "/config/rollback",
     { preHandler: requireRole("admin") },
     async (req, reply) => {
-      const tid = tenantHeader(req);
+      const tid = getTenantId(req);
       if (!tid)
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -261,10 +254,12 @@ export async function configRoutes(app: FastifyInstance) {
         "finance",
         "principal",
         "dean",
+        "procurement_officer",
+        "inventory_manager",
       ),
     },
     async (req, reply) => {
-      const tid = tenantHeader(req);
+      const tid = getTenantId(req);
       if (!tid)
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -299,7 +294,7 @@ export async function configRoutes(app: FastifyInstance) {
   // Returns the latest published and latest draft configs for the tenant.
   // Used by Admin Studio dashboard and editor.
   app.get("/config/status", async (req, reply) => {
-    const tid = tenantHeader(req);
+    const tid = getTenantId(req);
     if (!tid)
       return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -342,7 +337,7 @@ export async function configRoutes(app: FastifyInstance) {
   // Returns recent audit log entries for the tenant.
   // Query param: limit (default 5, max 20).
   app.get("/config/audit", async (req, reply) => {
-    const tid = tenantHeader(req);
+    const tid = getTenantId(req);
     if (!tid)
       return reply.status(400).send({ error: "x-tenant-id header required" });
 

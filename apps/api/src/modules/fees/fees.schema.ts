@@ -5,6 +5,7 @@ export const FeeEntrySchema = z.object({
   student_id:        z.string().uuid(),
   amount:            z.number().positive(),
   currency:          z.string().min(1).default("UGX"),
+  payment_method:    z.string().min(1).optional(),
   reference:         z.string().min(1),
   paid_at:           z.string().min(1),
   academic_year_id:  z.string().uuid().optional(),

@@ -127,6 +127,28 @@ describe("POST /students", () => {
     expect(res.json()).toEqual(created);
   });
 
+  it("returns 422 when programme code does not exist", async () => {
+    const query = vi.fn().mockResolvedValueOnce({ rows: [] });
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/students",
+      headers: { "x-tenant-id": "tenant-uuid-1" },
+      payload: {
+        first_name: "Bob",
+        last_name: "Jones",
+        programme_code: "DCIT",
+      },
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json()).toEqual({ error: "programme not found" });
+  });
+
   it("returns 403 for a role that is not admin or registrar", async () => {
     const app = buildApp();
     const res = await app.inject({
