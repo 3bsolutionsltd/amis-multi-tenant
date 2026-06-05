@@ -220,6 +220,11 @@ export async function feesRoutes(app: FastifyInstance) {
         const badge =
           balance <= 0 ? "PAID" : totalPaid > 0 ? "PARTIAL" : "OWING";
 
+        const warning =
+          due.totalDueSource === "config_default"
+            ? "No fee structure found for this student's programme — using the institution default total. Please check the student's programme assignment and ensure a matching fee structure exists."
+            : null;
+
         return {
           totalPaid,
           totalDue: due.totalDue,
@@ -228,6 +233,7 @@ export async function feesRoutes(app: FastifyInstance) {
           badge,
           totalDueSource: due.totalDueSource,
           defaultTotalDue: due.defaultTotalDue,
+          warning,
           feeStructures: due.feeStructures.map((line) => ({
             ...line,
             amount: Number(line.amount),

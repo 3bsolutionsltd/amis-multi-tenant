@@ -290,13 +290,18 @@ export async function admissionsRoutes(app: FastifyInstance) {
       const actorUserId = req.user?.userId ?? null;
 
       const result = await withTenant(tid, async (client) => {
-        // Load batch
+        // Load batch — scope to tenant explicitly (belt-and-suspenders over RLS)
         const { rows: batchRows } = await client.query(
-          `SELECT * FROM app.admission_import_batches WHERE id = $1`,
-          [batchId],
+          `SELECT * FROM app.admission_import_batches WHERE id = $1 AND tenant_id = $2`,
+          [batchId, tid],
         );
         const batch = batchRows[0];
         if (!batch) return { notFound: true } as const;
+
+        // Idempotency: if already confirmed, return the stored counts
+        if (batch.status === "confirmed") {
+          return { imported: batch.row_count as number, skipped: 0 };
+        }
 
         const meta = batch.meta as {
           valid: object[];

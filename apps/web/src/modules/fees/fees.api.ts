@@ -8,6 +8,7 @@ export interface FeeSummary {
   lastPayment: string | null;
   totalDueSource: "fee_structures" | "config_default";
   defaultTotalDue: number;
+  warning: string | null;
   feeStructures: FeeStructureLine[];
 }
 

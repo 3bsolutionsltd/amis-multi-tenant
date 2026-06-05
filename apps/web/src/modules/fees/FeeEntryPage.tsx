@@ -227,6 +227,21 @@ export function FeeEntryPage() {
             </div>
           )}
 
+          {summaryQ.data?.warning && (
+            <div
+              style={{
+                padding: "10px 12px",
+                borderRadius: 6,
+                border: "1px solid #fbbf24",
+                background: "#fffbeb",
+                fontSize: 13,
+                color: "#92400e",
+              }}
+            >
+              ⚠️ {summaryQ.data.warning}
+            </div>
+          )}
+
           <Field label="Amount" required>
             <input
               required
