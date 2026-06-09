@@ -190,7 +190,7 @@ export function FeeStructureEditor() {
       programme_id: form.programme_id,
       fee_type: form.fee_type,
       student_category: form.student_category,
-      description: form.description || null,
+      description: form.description || undefined,
       amount: parseFloat(form.amount),
       currency: form.currency,
       is_active: form.is_active,
