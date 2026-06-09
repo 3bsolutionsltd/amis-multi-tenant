@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "../lib/apiFetch";
+import { apiFetch, ApiError } from "../lib/apiFetch";
 
 /* ------------------------------------------------------------------ types */
 
@@ -120,7 +120,14 @@ export function FeeStructureEditor() {
       setShowForm(false);
       resetForm();
     },
-    onError: () => setError("Failed to create fee structure"),
+    onError: (err) => {
+      let message = "Failed to create fee structure";
+      if (err instanceof ApiError && err.body && typeof err.body === "object" && "error" in err.body) {
+        const errorData = (err.body as { error: unknown }).error;
+        message = typeof errorData === "string" ? errorData : JSON.stringify(errorData, null, 2);
+      }
+      setError(message);
+    },
   });
 
   const updateMut = useMutation({
@@ -133,7 +140,14 @@ export function FeeStructureEditor() {
       setShowForm(false);
       resetForm();
     },
-    onError: () => setError("Failed to update"),
+    onError: (err) => {
+      let message = "Failed to update fee structure";
+      if (err instanceof ApiError && err.body && typeof err.body === "object" && "error" in err.body) {
+        const errorData = (err.body as { error: unknown }).error;
+        message = typeof errorData === "string" ? errorData : JSON.stringify(errorData, null, 2);
+      }
+      setError(message);
+    },
   });
 
   const toggleMut = useMutation({
