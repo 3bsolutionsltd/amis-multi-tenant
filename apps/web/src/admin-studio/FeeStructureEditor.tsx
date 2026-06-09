@@ -210,7 +210,7 @@ export function FeeStructureEditor() {
     setSuccess(null);
     const body = {
       academic_year_id: form.academic_year_id,
-      term_id: form.term_id || null,
+      term_id: form.term_id || undefined,
       programme_id: form.programme_id,
       fee_type: form.fee_type,
       student_category: form.student_category,
