@@ -140,27 +140,36 @@ export async function feeStructuresRoutes(app: FastifyInstance) {
       const { academic_year_id, term_id, programme_id, fee_type, student_category, description, amount, currency } =
         parsed.data;
 
-      const row = await withTenant(tid, (client) =>
-        client.query(
-          `INSERT INTO app.fee_structures
-             (tenant_id, academic_year_id, term_id, programme_id, fee_type, student_category, description, amount, currency)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-           RETURNING ${FS_COLS}`,
-          [
-            tid,
-            academic_year_id,
-            term_id ?? null,
-            programme_id,
-            fee_type ?? "tuition",
-            student_category ?? "all",
-            description ?? null,
-            amount,
-            currency ?? "UGX",
-          ],
-        ),
-      );
+      try {
+        const row = await withTenant(tid, (client) =>
+          client.query(
+            `INSERT INTO app.fee_structures
+               (tenant_id, academic_year_id, term_id, programme_id, fee_type, student_category, description, amount, currency)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             RETURNING ${FS_COLS}`,
+            [
+              tid,
+              academic_year_id,
+              term_id ?? null,
+              programme_id,
+              fee_type ?? "tuition",
+              student_category ?? "all",
+              description ?? null,
+              amount,
+              currency ?? "UGX",
+            ],
+          ),
+        );
 
-      return reply.status(201).send(row.rows[0]);
+        return reply.status(201).send(row.rows[0]);
+      } catch (err: any) {
+        if (err.code === "23505") {
+          return reply.status(409).send({
+            error: "A fee structure with this combination of academic year, term, programme, fee type, and student category already exists.",
+          });
+        }
+        throw err;
+      }
     },
   );
 
@@ -185,20 +194,29 @@ export async function feeStructuresRoutes(app: FastifyInstance) {
       const setClauses = fields.map((k, i) => `${k} = $${i + 2}`).join(", ");
       const values = fields.map((k) => updates[k]);
 
-      const row = await withTenant(tid, (client) =>
-        client.query(
-          `UPDATE app.fee_structures
-           SET ${setClauses}, updated_at = now()
-           WHERE id = $1
-           RETURNING ${FS_COLS}`,
-          [req.params.id, ...values],
-        ),
-      );
+      try {
+        const row = await withTenant(tid, (client) =>
+          client.query(
+            `UPDATE app.fee_structures
+             SET ${setClauses}, updated_at = now()
+             WHERE id = $1
+             RETURNING ${FS_COLS}`,
+            [req.params.id, ...values],
+          ),
+        );
 
-      if (row.rows.length === 0)
-        return reply.status(404).send({ error: "fee structure not found" });
+        if (row.rows.length === 0)
+          return reply.status(404).send({ error: "fee structure not found" });
 
-      return row.rows[0];
+        return row.rows[0];
+      } catch (err: any) {
+        if (err.code === "23505") {
+          return reply.status(409).send({
+            error: "A fee structure with this combination of academic year, term, programme, fee type, and student category already exists.",
+          });
+        }
+        throw err;
+      }
     },
   );
 }
