@@ -122,10 +122,18 @@ export function FeeStructureEditor() {
     },
     onError: (err) => {
       console.error("Fee structure creation error:", err);
+      if (err instanceof ApiError) {
+        console.log("ApiError body:", err.body);
+      }
       let message = "Failed to create fee structure";
       if (err instanceof ApiError && err.body && typeof err.body === "object" && "error" in err.body) {
         const errorData = (err.body as { error: unknown }).error;
-        message = typeof errorData === "string" ? errorData : JSON.stringify(errorData, null, 2);
+        // If error is just "error" string, that's not helpful - show status instead
+        if (errorData === "error") {
+          message = `Internal Server Error (${err.status}). Check API logs for details.`;
+        } else {
+          message = typeof errorData === "string" ? errorData : JSON.stringify(errorData, null, 2);
+        }
       } else if (err instanceof Error) {
         message = err.message;
       }
@@ -146,10 +154,18 @@ export function FeeStructureEditor() {
     },
     onError: (err) => {
       console.error("Fee structure update error:", err);
+      if (err instanceof ApiError) {
+        console.log("ApiError body:", err.body);
+      }
       let message = "Failed to update fee structure";
       if (err instanceof ApiError && err.body && typeof err.body === "object" && "error" in err.body) {
         const errorData = (err.body as { error: unknown }).error;
-        message = typeof errorData === "string" ? errorData : JSON.stringify(errorData, null, 2);
+        // If error is just "error" string, that's not helpful - show status instead
+        if (errorData === "error") {
+          message = `Internal Server Error (${err.status}). Check API logs for details.`;
+        } else {
+          message = typeof errorData === "string" ? errorData : JSON.stringify(errorData, null, 2);
+        }
       } else if (err instanceof Error) {
         message = err.message;
       }
