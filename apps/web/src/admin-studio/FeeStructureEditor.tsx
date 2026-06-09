@@ -121,10 +121,11 @@ export function FeeStructureEditor() {
       resetForm();
     },
     onError: (err) => {
-      const message =
-        err instanceof ApiError && err.body && typeof err.body === "object" && "error" in err.body
-          ? String((err.body as { error: unknown }).error)
-          : "Failed to create fee structure";
+      let message = "Failed to create fee structure";
+      if (err instanceof ApiError && err.body && typeof err.body === "object" && "error" in err.body) {
+        const errorData = (err.body as { error: unknown }).error;
+        message = typeof errorData === "string" ? errorData : JSON.stringify(errorData, null, 2);
+      }
       setError(message);
     },
   });
@@ -140,10 +141,11 @@ export function FeeStructureEditor() {
       resetForm();
     },
     onError: (err) => {
-      const message =
-        err instanceof ApiError && err.body && typeof err.body === "object" && "error" in err.body
-          ? String((err.body as { error: unknown }).error)
-          : "Failed to update fee structure";
+      let message = "Failed to update fee structure";
+      if (err instanceof ApiError && err.body && typeof err.body === "object" && "error" in err.body) {
+        const errorData = (err.body as { error: unknown }).error;
+        message = typeof errorData === "string" ? errorData : JSON.stringify(errorData, null, 2);
+      }
       setError(message);
     },
   });
