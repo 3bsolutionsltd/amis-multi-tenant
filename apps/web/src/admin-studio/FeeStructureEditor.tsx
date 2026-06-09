@@ -121,11 +121,23 @@ export function FeeStructureEditor() {
       resetForm();
     },
     onError: (err) => {
+      console.error("Fee structure creation error:", err);
+      if (err instanceof ApiError) {
+        console.log("ApiError body:", err.body);
+      }
       let message = "Failed to create fee structure";
       if (err instanceof ApiError && err.body && typeof err.body === "object" && "error" in err.body) {
         const errorData = (err.body as { error: unknown }).error;
-        message = typeof errorData === "string" ? errorData : JSON.stringify(errorData, null, 2);
+        // If error is just "error" string, that's not helpful - show status instead
+        if (errorData === "error") {
+          message = `Internal Server Error (${err.status}). Check API logs for details.`;
+        } else {
+          message = typeof errorData === "string" ? errorData : JSON.stringify(errorData, null, 2);
+        }
+      } else if (err instanceof Error) {
+        message = err.message;
       }
+      console.log("Displaying error message:", message);
       setError(message);
     },
   });
@@ -141,11 +153,23 @@ export function FeeStructureEditor() {
       resetForm();
     },
     onError: (err) => {
+      console.error("Fee structure update error:", err);
+      if (err instanceof ApiError) {
+        console.log("ApiError body:", err.body);
+      }
       let message = "Failed to update fee structure";
       if (err instanceof ApiError && err.body && typeof err.body === "object" && "error" in err.body) {
         const errorData = (err.body as { error: unknown }).error;
-        message = typeof errorData === "string" ? errorData : JSON.stringify(errorData, null, 2);
+        // If error is just "error" string, that's not helpful - show status instead
+        if (errorData === "error") {
+          message = `Internal Server Error (${err.status}). Check API logs for details.`;
+        } else {
+          message = typeof errorData === "string" ? errorData : JSON.stringify(errorData, null, 2);
+        }
+      } else if (err instanceof Error) {
+        message = err.message;
       }
+      console.log("Displaying error message:", message);
       setError(message);
     },
   });
@@ -186,11 +210,11 @@ export function FeeStructureEditor() {
     setSuccess(null);
     const body = {
       academic_year_id: form.academic_year_id,
-      term_id: form.term_id || null,
+      term_id: form.term_id || undefined,
       programme_id: form.programme_id,
       fee_type: form.fee_type,
       student_category: form.student_category,
-      description: form.description || null,
+      description: form.description || undefined,
       amount: parseFloat(form.amount),
       currency: form.currency,
       is_active: form.is_active,
