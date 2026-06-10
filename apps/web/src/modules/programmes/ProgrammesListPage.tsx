@@ -166,6 +166,7 @@ function ProgrammeModal({
     title: programme?.title ?? prefill?.title ?? "",
     department: programme?.department ?? prefill?.department ?? "",
     duration_months: programme?.duration_months != null ? String(programme.duration_months) : prefill?.duration_months != null ? String(prefill.duration_months) : "",
+    duration_unit: (programme?.duration_unit ?? "months") as "months" | "years",
     level: programme?.level ?? prefill?.level ?? "",
   });
   const [error, setError] = useState<string | null>(null);
@@ -185,6 +186,7 @@ function ProgrammeModal({
         title: form.title,
         department: form.department || undefined,
         duration_months: form.duration_months ? Number(form.duration_months) : undefined,
+        duration_unit: form.duration_unit,
         level: form.level || undefined,
       };
       if (isEdit) {
@@ -242,8 +244,14 @@ function ProgrammeModal({
                 ))}
               </select>
             </Field>
-            <Field label="Duration (months)">
-              <input type="number" min={1} style={inputCss} value={form.duration_months} onChange={(e) => set("duration_months", e.target.value)} placeholder="e.g. 12" />
+            <Field label="Duration">
+              <div style={{ display: "flex", gap: 6 }}>
+                <input type="number" min={1} style={{ ...inputCss, flex: 1 }} value={form.duration_months} onChange={(e) => set("duration_months", e.target.value)} placeholder="e.g. 2" />
+                <select style={{ ...selectCss, width: 90 }} value={form.duration_unit} onChange={(e) => setForm((f) => ({ ...f, duration_unit: e.target.value as "months" | "years" }))}>
+                  <option value="months">Months</option>
+                  <option value="years">Years</option>
+                </select>
+              </div>
             </Field>
           </div>
           {error && <ErrorBanner message={error} />}
@@ -337,7 +345,7 @@ export function ProgrammesListPage() {
             <TD><strong style={{ fontFamily: "monospace" }}>{p.code}</strong></TD>
             <TD>{p.title}</TD>
             <TD>{p.department ?? "—"}</TD>
-            <TD>{p.duration_months != null ? `${p.duration_months} mo` : "—"}</TD>
+            <TD>{p.duration_months != null ? `${p.duration_months} ${p.duration_unit === "years" ? "yr" : "mo"}` : "—"}</TD>
             <TD>{p.level ?? "—"}</TD>
             <TD><Badge label={p.is_active ? "Active" : "Inactive"} color={p.is_active ? "green" : "gray"} /></TD>
             <TD>

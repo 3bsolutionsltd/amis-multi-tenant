@@ -49,6 +49,7 @@ export function ProgrammeDetailPage() {
     title: "",
     department: "",
     duration_months: "",
+    duration_unit: "months" as "months" | "years",
     level: "",
   });
 
@@ -138,6 +139,7 @@ export function ProgrammeDetailPage() {
       title: programme!.title,
       department: programme!.department ?? "",
       duration_months: programme!.duration_months != null ? String(programme!.duration_months) : "",
+      duration_unit: programme!.duration_unit ?? "months",
       level: programme!.level ?? "",
     });
     setEditing(true);
@@ -150,6 +152,7 @@ export function ProgrammeDetailPage() {
       title: form.title,
       department: form.department || undefined,
       duration_months: form.duration_months ? Number(form.duration_months) : undefined,
+      duration_unit: form.duration_unit,
       level: form.level || undefined,
     };
     saveMutation.mutate(body);
@@ -214,8 +217,14 @@ export function ProgrammeDetailPage() {
                   ))}
                 </select>
               </Field>
-              <Field label="Duration (months)">
-                <input type="number" min={1} style={inputCss} value={form.duration_months} onChange={(e) => setForm((f) => ({ ...f, duration_months: e.target.value }))} />
+              <Field label="Duration">
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input type="number" min={1} style={{ ...inputCss, flex: 1 }} value={form.duration_months} onChange={(e) => setForm((f) => ({ ...f, duration_months: e.target.value }))} />
+                  <select style={{ width: 90 }} value={form.duration_unit} onChange={(e) => setForm((f) => ({ ...f, duration_unit: e.target.value as "months" | "years" }))}>
+                    <option value="months">Months</option>
+                    <option value="years">Years</option>
+                  </select>
+                </div>
               </Field>
             </div>
             {saveMutation.isError && <ErrorBanner message="Failed to save." />}
@@ -233,7 +242,7 @@ export function ProgrammeDetailPage() {
           <DetailRow label="Code">{programme.code}</DetailRow>
           <DetailRow label="Title">{programme.title}</DetailRow>
           <DetailRow label="Department">{programme.department ?? "—"}</DetailRow>
-          <DetailRow label="Duration">{programme.duration_months != null ? `${programme.duration_months} months` : "—"}</DetailRow>
+          <DetailRow label="Duration">{programme.duration_months != null ? `${programme.duration_months} ${programme.duration_unit === "years" ? (programme.duration_months === 1 ? "Year" : "Years") : (programme.duration_months === 1 ? "Month" : "Months")}` : "—"}</DetailRow>
           <DetailRow label="Level">{programme.level ?? "—"}</DetailRow>
           <DetailRow label="Status">
             <Badge label={programme.is_active ? "Active" : "Inactive"} color={programme.is_active ? "green" : "gray"} />
