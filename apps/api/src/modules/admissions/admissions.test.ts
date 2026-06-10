@@ -521,3 +521,41 @@ describe("POST /admissions/applications/:id/enroll", () => {
     expect(body.admissionNumber).toBe("ADM-2026-0001");
   });
 });
+
+// ------------------------------------------------------------------ GET /admissions/import/template
+
+describe("GET /admissions/import/template", () => {
+  it("returns 400 when x-tenant-id header is missing", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/admissions/import/template",
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toHaveProperty("error", "x-tenant-id header required");
+  });
+
+  it("returns 403 when role is not registrar or admin", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/admissions/import/template",
+      headers: hodHeaders,
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns 200 with CSV content-type and correct headers for registrar", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/admissions/import/template",
+      headers: registrarHeaders,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/csv");
+    expect(res.headers["content-disposition"]).toContain("attachment");
+    expect(res.headers["content-disposition"]).toContain("admissions-import-template.csv");
+    expect(res.body).toContain("first_name,last_name");
+  });
+});

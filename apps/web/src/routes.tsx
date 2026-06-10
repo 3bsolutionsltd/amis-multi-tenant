@@ -39,6 +39,7 @@ import { GradingScaleEditor } from "./admin-studio/GradingScaleEditor";
 import { AcademicCalendarPage } from "./admin-studio/AcademicCalendarPage";
 import { DashboardWidgetsEditor } from "./admin-studio/DashboardWidgetsEditor";
 import { ReceiptTemplateEditor } from "./admin-studio/ReceiptTemplateEditor";
+import { AssessmentTypesEditor } from "./admin-studio/AssessmentTypesEditor";
 import { VtiSetupPage as _VtiSetupPage } from "./setup/VtiSetupPage"; // kept for platform admin
 import { SetupClosedPage } from "./setup/SetupClosedPage";
 import { PlatformAdminLayout } from "./platform-admin/PlatformAdminLayout";
@@ -265,6 +266,7 @@ export const router = createBrowserRouter([
       { path: "academic-calendar", element: <AcademicCalendarPage /> },
       { path: "dashboards", element: <DashboardWidgetsEditor /> },
       { path: "receipt-template", element: <ReceiptTemplateEditor /> },
+      { path: "assessment-types", element: <AssessmentTypesEditor /> },
     ],
   },
 ]);

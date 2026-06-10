@@ -6,6 +6,7 @@ export interface Programme {
   title: string;
   department: string | null;
   duration_months: number | null;
+  duration_unit: "months" | "years";
   level: string | null;
   is_active: boolean;
   created_at: string;
@@ -17,6 +18,7 @@ export interface CreateProgrammeBody {
   title: string;
   department?: string;
   duration_months?: number;
+  duration_unit?: "months" | "years";
   level?: string;
 }
 
@@ -25,6 +27,7 @@ export interface UpdateProgrammeBody {
   title?: string;
   department?: string;
   duration_months?: number;
+  duration_unit?: "months" | "years";
   level?: string;
   is_active?: boolean;
 }

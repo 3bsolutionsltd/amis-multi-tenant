@@ -8,7 +8,7 @@ import {
 } from "./programmes.schema.js";
 
 const SELECT_COLS =
-  "id, code, title, department, duration_months, level, is_active, created_at, updated_at";
+  "id, code, title, department, duration_months, duration_unit, level, is_active, created_at, updated_at";
 
 const WRITE_ROLES = ["registrar", "admin"] as const;
 const READ_ROLES = [
@@ -105,15 +105,15 @@ export async function programmesRoutes(app: FastifyInstance) {
       if (!parsed.success)
         return reply.status(422).send({ error: parsed.error.flatten() });
 
-      const { code, title, department, duration_months, level } = parsed.data;
+      const { code, title, department, duration_months, duration_unit, level } = parsed.data;
 
       const row = await withTenant(tenantId, (client) =>
         client.query(
           `INSERT INTO app.programmes
-             (tenant_id, code, title, department, duration_months, level)
-           VALUES ($1, $2, $3, $4, $5, $6)
+             (tenant_id, code, title, department, duration_months, duration_unit, level)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING ${SELECT_COLS}`,
-          [tenantId, code, title, department ?? null, duration_months ?? null, level ?? null],
+          [tenantId, code, title, department ?? null, duration_months ?? null, duration_unit ?? "months", level ?? null],
         ),
       );
 
