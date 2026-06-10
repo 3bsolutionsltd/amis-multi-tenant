@@ -247,7 +247,7 @@ function ProgrammeModal({
             <Field label="Duration">
               <div style={{ display: "flex", gap: 6 }}>
                 <input type="number" min={1} style={{ ...inputCss, flex: 1 }} value={form.duration_months} onChange={(e) => set("duration_months", e.target.value)} placeholder="e.g. 2" />
-                <select style={{ ...selectCss, width: 100 }} value={form.duration_unit} onChange={(e) => set("duration_unit", e.target.value)}>
+                <select style={{ ...selectCss, width: 100 }} value={form.duration_unit} onChange={(e) => setForm((f) => ({ ...f, duration_unit: e.target.value as "months" | "years" }))}>
                   <option value="months">Months</option>
                   <option value="years">Years</option>
                 </select>
