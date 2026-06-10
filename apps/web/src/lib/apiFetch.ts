@@ -151,3 +151,24 @@ export async function apiFetch<T>(
   if (!res.ok) throw new ApiError(res.status, data);
   return data as T;
 }
+
+/**
+ * Fetch a CSV (or other binary) endpoint with full auth headers, then trigger
+ * a browser download of the returned blob.
+ */
+export async function downloadBlob(path: string, filename: string): Promise<void> {
+  const res = await doFetch(path);
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new ApiError(res.status, data);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

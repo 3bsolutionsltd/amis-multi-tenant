@@ -1,4 +1,4 @@
-import { apiFetch } from "../../lib/apiFetch";
+import { apiFetch, downloadBlob } from "../../lib/apiFetch";
 
 export interface Student {
   id: string;
@@ -178,7 +178,6 @@ export function importStudents(rows: Record<string, unknown>[], updateIfExists =
   });
 }
 
-export function exportStudentsCsv(): string {
-  const base = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
-  return `${base}/students/export/csv`;
+export function exportStudentsCsv(): Promise<void> {
+  return downloadBlob("/students/export/csv", "students-export.csv");
 }

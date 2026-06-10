@@ -1,4 +1,4 @@
-import { apiFetch } from "../../lib/apiFetch";
+import { apiFetch, downloadBlob } from "../../lib/apiFetch";
 
 export interface Application {
   id: string;
@@ -146,9 +146,8 @@ export function confirmImport(batchId: string): Promise<ImportConfirmResult> {
   );
 }
 
-export function admissionsImportTemplateUrl(): string {
-  const base = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
-  return `${base}/admissions/import/template`;
+export function downloadAdmissionsTemplate(): Promise<void> {
+  return downloadBlob("/admissions/import/template", "admissions-import-template.csv");
 }
 
 export interface EnrollResult {

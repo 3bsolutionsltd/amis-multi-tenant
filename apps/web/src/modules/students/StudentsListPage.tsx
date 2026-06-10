@@ -91,10 +91,8 @@ export function StudentsListPage() {
         title="Students"
         action={
           <div style={{ display: "flex", gap: 8 }}>
-            <a
-              href={exportStudentsCsv()}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              onClick={() => exportStudentsCsv()}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -105,11 +103,12 @@ export function StudentsListPage() {
                 borderRadius: 6,
                 fontSize: 13,
                 fontWeight: 600,
-                textDecoration: "none",
+                border: "none",
+                cursor: "pointer",
               }}
             >
               ⬇ Export CSV
-            </a>
+            </button>
             <SecondaryBtn onClick={() => navigate("/students/import")}>
               ⬆ Import CSV
             </SecondaryBtn>
