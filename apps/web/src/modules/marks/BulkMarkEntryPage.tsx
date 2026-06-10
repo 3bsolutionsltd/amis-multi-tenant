@@ -25,6 +25,15 @@ const DEFAULT_ASSESSMENT_TYPES = [
   { value: "practical", label: "Practical" },
 ] as const;
 
+/** Convert snake_case or raw strings to Title Case for display.
+ *  e.g. "end_of_term" → "End of Term", "assignmnt" → "Assignmnt" */
+function formatAssessmentType(value: string): string {
+  return value
+    .split(/[_\s]+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 export function BulkMarkEntryPage() {
   ensureGlobalCss();
   const [params] = useSearchParams();
@@ -32,7 +41,7 @@ export function BulkMarkEntryPage() {
   const { assessmentTypes: configTypes } = useConfig();
 
   const assessmentTypes = configTypes.length > 0
-    ? configTypes.map((t) => ({ value: t, label: t }))
+    ? configTypes.map((t) => ({ value: t, label: formatAssessmentType(t) }))
     : DEFAULT_ASSESSMENT_TYPES;
 
   const [selectedSubmissionId, setSelectedSubmissionId] = useState(

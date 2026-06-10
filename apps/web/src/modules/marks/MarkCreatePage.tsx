@@ -25,13 +25,22 @@ const DEFAULT_ASSESSMENT_TYPES = [
   { value: "practical", label: "Practical" },
 ];
 
+/** Convert snake_case or raw strings to Title Case for display.
+ *  e.g. "end_of_term" → "End of Term", "assignmnt" → "Assignmnt" */
+function formatAssessmentType(value: string): string {
+  return value
+    .split(/[_\s]+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 export function MarkCreatePage() {
   ensureGlobalCss();
   const navigate = useNavigate();
   const { assessmentTypes: configTypes } = useConfig();
 
   const assessmentTypes = configTypes.length > 0
-    ? configTypes.map((t) => ({ value: t, label: t }))
+    ? configTypes.map((t) => ({ value: t, label: formatAssessmentType(t) }))
     : DEFAULT_ASSESSMENT_TYPES;
 
   const programmesQ = useQuery({
