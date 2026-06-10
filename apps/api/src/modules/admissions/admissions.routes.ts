@@ -582,5 +582,25 @@ export async function admissionsRoutes(app: FastifyInstance) {
       return reply.status(201).send(result);
     },
   );
+
+  // ---------- GET /admissions/import/template
+  app.get(
+    "/admissions/import/template",
+    { preHandler: requireRole("registrar", "admin") },
+    async (_req, reply) => {
+      const header =
+        "first_name,last_name,programme,intake,dob,gender,email,phone,sponsorship_type";
+      const example =
+        "John,Doe,BSCS,JAN-2026,2000-01-15,male,john.doe@example.com,+256700000000,government";
+      const csv = `${header}\n${example}\n`;
+      return reply
+        .header("Content-Type", "text/csv; charset=utf-8")
+        .header(
+          "Content-Disposition",
+          'attachment; filename="admissions-import-template.csv"',
+        )
+        .send(csv);
+    },
+  );
 }
 

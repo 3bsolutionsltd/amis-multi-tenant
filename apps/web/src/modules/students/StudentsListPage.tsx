@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { listStudents } from "./students.api";
+import { listStudents, exportStudentsCsv } from "./students.api";
 import { formatStudentName } from "../../lib/formatStudentName";
 import {
   ensureGlobalCss,
@@ -91,6 +91,25 @@ export function StudentsListPage() {
         title="Students"
         action={
           <div style={{ display: "flex", gap: 8 }}>
+            <a
+              href={exportStudentsCsv()}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 16px",
+                background: "#4f46e5",
+                color: "white",
+                borderRadius: 6,
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              ⬇ Export CSV
+            </a>
             <SecondaryBtn onClick={() => navigate("/students/import")}>
               ⬆ Import CSV
             </SecondaryBtn>

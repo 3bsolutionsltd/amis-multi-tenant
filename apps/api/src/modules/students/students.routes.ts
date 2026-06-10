@@ -501,30 +501,36 @@ export async function studentsRoutes(app: FastifyInstance) {
       const rows = await withTenant(tenantId, (client) =>
         client.query(
           `SELECT ${SELECT_COLS} FROM app.students
-           WHERE tenant_id = $1
+           WHERE tenant_id = $1 AND is_active = true
            ORDER BY last_name, first_name`,
           [tenantId],
         ),
       );
 
       const CSV_COLS = [
-        "id",
+        "admission_number",
         "first_name",
         "last_name",
-        "date_of_birth",
-        "admission_number",
-        "sponsorship_type",
         "programme",
+        "year_of_study",
+        "gender",
         "email",
         "phone",
-        "guardian_name",
-        "guardian_phone",
-        "guardian_email",
-        "guardian_relationship",
-        "is_active",
-        "dropout_reason",
-        "dropout_date",
+        "sponsorship_type",
         "created_at",
+      ];
+
+      const CSV_HEADERS = [
+        "student_number",
+        "first_name",
+        "last_name",
+        "programme",
+        "year_of_study",
+        "gender",
+        "email",
+        "phone",
+        "sponsorship_type",
+        "enrolled_at",
       ];
 
       const escapeCsv = (v: unknown): string => {
@@ -535,7 +541,7 @@ export async function studentsRoutes(app: FastifyInstance) {
           : s;
       };
 
-      const header = CSV_COLS.join(",");
+      const header = CSV_HEADERS.join(",");
       const body = rows.rows
         .map((r: Record<string, unknown>) =>
           CSV_COLS.map((c) => escapeCsv(r[c])).join(","),
