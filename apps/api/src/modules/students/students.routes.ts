@@ -541,7 +541,7 @@ export async function studentsRoutes(app: FastifyInstance) {
           : s;
       };
 
-      const header = CSV_COLS.join(",");
+      const header = CSV_HEADERS.join(",");
       const body = rows.rows
         .map((r: Record<string, unknown>) =>
           CSV_COLS.map((c) => escapeCsv(r[c])).join(","),

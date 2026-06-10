@@ -145,6 +145,9 @@ export function AdminStudioLayout() {
               <NavLink to="/admin-studio/workflows" style={studioNavStyle}>
                 Workflows
               </NavLink>
+              <NavLink to="/admin-studio/assessment-types" style={studioNavStyle}>
+                Assessment Types
+              </NavLink>
             </>
           )}
 

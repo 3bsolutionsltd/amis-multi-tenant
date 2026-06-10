@@ -146,6 +146,11 @@ export function confirmImport(batchId: string): Promise<ImportConfirmResult> {
   );
 }
 
+export function admissionsImportTemplateUrl(): string {
+  const base = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+  return `${base}/admissions/import/template`;
+}
+
 export interface EnrollResult {
   student: { id: string; admission_number: string };
   application: Application;

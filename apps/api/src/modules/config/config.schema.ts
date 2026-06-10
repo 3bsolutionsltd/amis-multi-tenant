@@ -84,6 +84,9 @@ export const configPayloadSchema = z
       })
       .optional(),
     workflows: z.record(z.string(), workflowDefinitionSchema).optional(),
+    assessment_types: z
+      .array(z.string().min(1))
+      .optional(),
     fees: z
       .object({
         defaultTotalDue: z.number().positive().optional(),
