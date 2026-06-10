@@ -177,3 +177,8 @@ export function importStudents(rows: Record<string, unknown>[], updateIfExists =
     body: JSON.stringify({ rows, update_if_exists: updateIfExists }),
   });
 }
+
+export function exportStudentsCsv(): string {
+  const base = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+  return `${base}/students/export/csv`;
+}

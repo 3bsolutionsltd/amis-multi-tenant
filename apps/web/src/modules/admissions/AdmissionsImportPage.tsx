@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import {
   previewImport,
   confirmImport,
+  admissionsImportTemplateUrl,
   type ImportPreviewResult,
 } from "./admissions.api";
 import { ApiError } from "../../lib/apiFetch";
@@ -213,8 +214,21 @@ export function AdmissionsImportPage() {
             onClick={() => fileRef.current?.click()}
           >
             {previewMut.isPending ? "Parsing…" : "📂 Choose CSV File"}
-          </PrimaryBtn>
-        </Card>
+          </PrimaryBtn>          <a
+            href={admissionsImportTemplateUrl()}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: "inline-block",
+              marginTop: 12,
+              fontSize: 13,
+              color: "#4f46e5",
+              textDecoration: "underline",
+              cursor: "pointer",
+            }}
+          >
+            \u2B07 Download CSV Template
+          </a>        </Card>
       )}
 
       {/* Step 2 — Preview */}
