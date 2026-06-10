@@ -5,6 +5,7 @@ export const CreateProgrammeSchema = z.object({
   title: z.string().min(1),
   department: z.string().optional(),
   duration_months: z.number().int().positive().optional(),
+  duration_unit: z.enum(["months", "years"]).default("months").optional(),
   level: z.string().optional(),
 });
 
@@ -13,6 +14,7 @@ export const UpdateProgrammeSchema = z.object({
   title: z.string().min(1).optional(),
   department: z.string().optional(),
   duration_months: z.number().int().positive().optional(),
+  duration_unit: z.enum(["months", "years"]).optional(),
   level: z.string().optional(),
   is_active: z.boolean().optional(),
 });
