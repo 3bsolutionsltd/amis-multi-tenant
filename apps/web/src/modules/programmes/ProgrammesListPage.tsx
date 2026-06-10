@@ -138,7 +138,7 @@ function CatalogueModal({ onSelect, onClose }: { onSelect: (e: CatalogueEntry) =
                 <span style={{ fontSize: 13, fontWeight: 500 }}>{entry.title}</span>
                 <span style={{ fontSize: 12, color: C.gray500, marginLeft: 8 }}>{entry.department}</span>
               </span>
-              <span style={{ fontSize: 11, color: C.gray400, whiteSpace: "nowrap" }}>{entry.level} · {entry.duration_months}mo</span>
+              <span style={{ fontSize: 11, color: C.gray400, whiteSpace: "nowrap" }}>{entry.level} · {entry.duration_months} mo</span>
             </button>
           ))}
         </div>
@@ -247,7 +247,7 @@ function ProgrammeModal({
             <Field label="Duration">
               <div style={{ display: "flex", gap: 6 }}>
                 <input type="number" min={1} style={{ ...inputCss, flex: 1 }} value={form.duration_months} onChange={(e) => set("duration_months", e.target.value)} placeholder="e.g. 2" />
-                <select style={{ ...selectCss, width: 90 }} value={form.duration_unit} onChange={(e) => setForm((f) => ({ ...f, duration_unit: e.target.value as "months" | "years" }))}>
+                <select style={{ ...selectCss, width: 100 }} value={form.duration_unit} onChange={(e) => setForm((f) => ({ ...f, duration_unit: e.target.value as "months" | "years" }))}>
                   <option value="months">Months</option>
                   <option value="years">Years</option>
                 </select>

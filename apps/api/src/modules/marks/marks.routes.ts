@@ -5,6 +5,7 @@ import { getTenantId } from "../../lib/tenantId.js";
 import { loadWorkflowDef } from "../../lib/workflowDef.js";
 import type { WorkflowDefinition } from "../config/config.schema.js";
 import {
+  ASSESSMENT_TYPES,
   CreateSubmissionSchema,
   PutEntriesSchema,
   SubmissionsQuerySchema,
@@ -59,6 +60,27 @@ export async function marksRoutes(app: FastifyInstance) {
           } as const;
         }
 
+        // Validate assessment_type against tenant config or hardcoded fallback
+        const { rows: cfgRows } = await client.query<{
+          payload: { assessment_types?: string[] };
+        }>(
+          `SELECT payload FROM platform.config_versions
+           WHERE tenant_id = $1 AND status = 'published'
+           LIMIT 1`,
+          [tid],
+        );
+        const cfgPayload = cfgRows[0]?.payload;
+        const validTypes: string[] =
+          cfgPayload?.assessment_types && cfgPayload.assessment_types.length > 0
+            ? cfgPayload.assessment_types
+            : [...ASSESSMENT_TYPES];
+        if (!validTypes.includes(assessment_type)) {
+          return {
+            invalidAssessmentType: true,
+            message: `assessment_type "${assessment_type}" is not valid for this tenant. Valid types: ${validTypes.join(", ")}`,
+          } as const;
+        }
+
         const { rows: subRows } = await client.query(
           `INSERT INTO app.mark_submissions
              (tenant_id, course_id, programme, intake, term, assessment_type, weight, created_by, correction_of_submission_id)
@@ -105,6 +127,8 @@ export async function marksRoutes(app: FastifyInstance) {
       });
 
       if ("configError" in result)
+        return reply.status(422).send({ error: result.message });
+      if ("invalidAssessmentType" in result)
         return reply.status(422).send({ error: result.message });
 
       return reply.status(201).send(result);
