@@ -515,7 +515,7 @@ export async function admissionsRoutes(app: FastifyInstance) {
             programmeRef.code,
             application.email ?? null,
             application.phone ?? null,
-            application.gender ?? null,
+            application.gender?.toLowerCase() ?? null,
             extra.nin ?? null,
             extra.other_names ?? null,
             extra.year_of_study ?? null,
