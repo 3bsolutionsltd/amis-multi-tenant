@@ -525,14 +525,14 @@ describe("POST /admissions/applications/:id/enroll", () => {
 // ------------------------------------------------------------------ GET /admissions/import/template
 
 describe("GET /admissions/import/template", () => {
-  it("returns 400 when x-tenant-id header is missing", async () => {
+  it("returns 200 even without x-tenant-id because the template is static content", async () => {
     const app = buildApp();
     const res = await app.inject({
       method: "GET",
       url: "/admissions/import/template",
     });
-    expect(res.statusCode).toBe(400);
-    expect(res.json()).toHaveProperty("error", "x-tenant-id header required");
+    // devIdentity defaults to admin role when no headers are sent; no DB query needed
+    expect(res.statusCode).toBe(200);
   });
 
   it("returns 403 when role is not registrar or admin", async () => {
