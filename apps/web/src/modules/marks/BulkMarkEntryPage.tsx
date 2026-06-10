@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { listSubmissions, putEntries, type Submission } from "./marks.api";
 import { listStudents, type Student } from "../students/students.api";
+import { useConfig } from "../../app/ConfigProvider";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -17,7 +18,7 @@ import {
   C,
 } from "../../lib/ui";
 
-const ASSESSMENT_TYPES = [
+const DEFAULT_ASSESSMENT_TYPES = [
   { value: "end_of_term", label: "End of Term" },
   { value: "midterm", label: "Midterm" },
   { value: "coursework", label: "Coursework" },
@@ -28,6 +29,11 @@ export function BulkMarkEntryPage() {
   ensureGlobalCss();
   const [params] = useSearchParams();
   const preSubmissionId = params.get("submission_id");
+  const { assessmentTypes: configTypes } = useConfig();
+
+  const assessmentTypes = configTypes.length > 0
+    ? configTypes.map((t) => ({ value: t, label: t }))
+    : DEFAULT_ASSESSMENT_TYPES;
 
   const [selectedSubmissionId, setSelectedSubmissionId] = useState(
     preSubmissionId ?? "",
@@ -123,7 +129,7 @@ export function BulkMarkEntryPage() {
             style={{ ...inputCss, width: 180 }}
           >
             <option value="">All Types</option>
-            {ASSESSMENT_TYPES.map((t) => (
+            {assessmentTypes.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
               </option>

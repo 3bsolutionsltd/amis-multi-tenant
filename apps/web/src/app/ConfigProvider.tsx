@@ -46,6 +46,7 @@ interface ConfigPayload {
     showBalance?: boolean;
   };
   modules?: Record<string, boolean>;
+  assessment_types?: string[];
 }
 
 interface ConfigData {
@@ -76,6 +77,7 @@ interface ConfigContextValue {
     showBalance: boolean;
   };
   enabledModules: Record<string, boolean>;
+  assessmentTypes: string[];
 }
 
 const ConfigContext = createContext<ConfigContextValue>({
@@ -98,6 +100,7 @@ const ConfigContext = createContext<ConfigContextValue>({
     showBalance: true,
   },
   enabledModules: {},
+  assessmentTypes: [],
 });
 
 export function useConfig() {
@@ -126,6 +129,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const departments = config?.payload?.institution?.departments ?? [];
   const designations = config?.payload?.institution?.designations ?? [];
   const enabledModules: Record<string, boolean> = config?.payload?.modules ?? {};
+  const assessmentTypes: string[] = config?.payload?.assessment_types ?? [];
   const rawReceipt = config?.payload?.receipt;
   const receiptConfig = {
     template: (rawReceipt?.template ?? "classic") as "classic" | "modern" | "minimal",
@@ -155,6 +159,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         designations,
         receiptConfig,
         enabledModules,
+        assessmentTypes,
       }}
     >
       {children}

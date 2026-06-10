@@ -5,6 +5,7 @@ import { createSubmission } from "./marks.api";
 import { listProgrammes } from "../programmes/programmes.api";
 import { listCourses } from "../courses/courses.api";
 import { listAcademicYears, listTerms } from "../academic-calendar/academic-calendar.api";
+import { useConfig } from "../../app/ConfigProvider";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -17,7 +18,7 @@ import {
 } from "../../lib/ui";
 
 const TERMS = ["Term 1", "Term 2", "Term 3"];
-const ASSESSMENT_TYPES = [
+const DEFAULT_ASSESSMENT_TYPES = [
   { value: "midterm", label: "Midterm" },
   { value: "end_of_term", label: "End of Term" },
   { value: "coursework", label: "Coursework" },
@@ -27,6 +28,11 @@ const ASSESSMENT_TYPES = [
 export function MarkCreatePage() {
   ensureGlobalCss();
   const navigate = useNavigate();
+  const { assessmentTypes: configTypes } = useConfig();
+
+  const assessmentTypes = configTypes.length > 0
+    ? configTypes.map((t) => ({ value: t, label: t }))
+    : DEFAULT_ASSESSMENT_TYPES;
 
   const programmesQ = useQuery({
     queryKey: ["programmes"],
@@ -191,7 +197,7 @@ export function MarkCreatePage() {
               value={form.assessment_type}
               onChange={(e) => set("assessment_type", e.target.value)}
             >
-              {ASSESSMENT_TYPES.map((t) => (
+              {assessmentTypes.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
