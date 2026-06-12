@@ -41,6 +41,7 @@ import { DashboardWidgetsEditor } from "./admin-studio/DashboardWidgetsEditor";
 import { ReceiptTemplateEditor } from "./admin-studio/ReceiptTemplateEditor";
 import { AssessmentTypesEditor } from "./admin-studio/AssessmentTypesEditor";
 import { FeeTypesEditor } from "./admin-studio/FeeTypesEditor";
+import { DepartmentsEditor } from "./admin-studio/DepartmentsEditor";
 import { VtiSetupPage as _VtiSetupPage } from "./setup/VtiSetupPage"; // kept for platform admin
 import { SetupClosedPage } from "./setup/SetupClosedPage";
 import { PlatformAdminLayout } from "./platform-admin/PlatformAdminLayout";
@@ -269,6 +270,7 @@ export const router = createBrowserRouter([
       { path: "receipt-template", element: <ReceiptTemplateEditor /> },
       { path: "assessment-types", element: <AssessmentTypesEditor /> },
       { path: "fee-types", element: <FeeTypesEditor /> },
+      { path: "departments", element: <DepartmentsEditor /> },
     ],
   },
 ]);
