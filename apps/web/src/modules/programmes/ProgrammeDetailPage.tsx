@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getProgramme, updateProgramme, deleteProgramme, type UpdateProgrammeBody } from "./programmes.api";
-import { listCourses, createCourse, deleteCourse, updateCourse, type CreateCourseBody, type UpdateCourseBody, type Course } from "../courses/courses.api";
+import { listCourses, createCourse, deleteCourse, updateCourse, importCourses, downloadCourseTemplate, type CreateCourseBody, type UpdateCourseBody, type Course } from "../courses/courses.api";
 import { useConfig } from "../../app/ConfigProvider";
 import {
   ensureGlobalCss,
@@ -55,6 +55,9 @@ export function ProgrammeDetailPage() {
 
   // Courses sub-section state
   const [addingCourse, setAddingCourse] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; details: { row: number; reason: string }[] } | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
   const [courseForm, setCourseForm] = useState<{
     code: string; title: string; credit_hours: string;
     course_type: "theory" | "practical" | "both"; year_of_study: string; semester: string;
@@ -258,7 +261,54 @@ export function ProgrammeDetailPage() {
             Courses ({courses.length})
           </h2>
           {!addingCourse && (
-            <SecondaryBtn onClick={() => setAddingCourse(true)}>+ Add Course</SecondaryBtn>
+            <div style={{ display: "flex", gap: 8 }}>
+              <SecondaryBtn onClick={() => { void downloadCourseTemplate().catch((e) => alert(String(e))); }}>↓ Template</SecondaryBtn>
+              <label style={{ cursor: "pointer" }}>
+                <span style={{
+                  display: "inline-block", padding: "6px 14px", fontSize: 13,
+                  border: "1px solid #d1d5db", borderRadius: 6, background: "#fff",
+                  color: "#374151", lineHeight: "20px", userSelect: "none",
+                }}>
+                  {importing ? "Importing…" : "↑ Import xlsx"}
+                </span>
+                <input
+                  type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setImporting(true); setImportResult(null); setImportError(null);
+                    try {
+                      const res = await importCourses(file);
+                      setImportResult(res);
+                      qc.invalidateQueries({ queryKey: ["courses", id] });
+                    } catch (err) {
+                      setImportError(err instanceof Error ? err.message : "Import failed");
+                    } finally {
+                      setImporting(false);
+                      e.target.value = "";
+                    }
+                  }}
+                />
+              </label>
+              <SecondaryBtn onClick={() => setAddingCourse(true)}>+ Add Course</SecondaryBtn>
+            </div>
+          )}
+          {importError && <ErrorBanner message={importError} />}
+          {importResult && (
+            <div style={{ fontSize: 13, padding: "8px 12px", background: importResult.skipped > 0 ? "#fefce8" : "#f0fdf4",
+              border: `1px solid ${importResult.skipped > 0 ? "#fde047" : "#86efac"}`, borderRadius: 6, marginBottom: 12 }}>
+              <strong>{importResult.imported} course{importResult.imported !== 1 ? "s" : ""} imported</strong>
+              {importResult.skipped > 0 && (
+                <>
+                  {" "}&mdash; {importResult.skipped} skipped:
+                  <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+                    {importResult.details.map((d) => (
+                      <li key={d.row}>Row {d.row}: {d.reason}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
           )}
         </div>
 
