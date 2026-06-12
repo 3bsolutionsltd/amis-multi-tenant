@@ -177,3 +177,25 @@ export function enrollApplication(applicationId: string, extras?: EnrollBody): P
     { method: "POST", body: JSON.stringify(extras ?? {}) },
   );
 }
+
+export interface WorkflowEvent {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  workflow_key: string;
+  from_state: string | null;
+  to_state: string;
+  action_key: string;
+  actor_user_id: string | null;
+  meta: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export function getWorkflowHistory(
+  entityType: string,
+  entityId: string,
+): Promise<WorkflowEvent[]> {
+  return apiFetch<WorkflowEvent[]>(
+    `/workflow/${entityType}/${entityId}/history?workflowKey=admissions`,
+  );
+}

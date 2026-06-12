@@ -6,8 +6,9 @@ import {
   getWorkflowDef,
   fireTransition,
   enrollApplication,
+  getWorkflowHistory,
 } from "./admissions.api";
-import type { Application, EnrollBody } from "./admissions.api";
+import type { Application, EnrollBody, WorkflowEvent } from "./admissions.api";
 import { useAuth } from "../../auth/AuthContext";
 import {
   ensureGlobalCss,
@@ -45,7 +46,7 @@ const STATE_BADGE_COLOR: Record<
   WITHDRAWN: "red",
 };
 
-const ENROLLABLE_STATES = new Set(["REGISTERED", "admitted", "accepted", "ENROLLED", "enrolled"]);
+const ENROLLABLE_STATES = new Set(["REGISTERED"]);
 
 function formatExtKey(key: string): string {
   return key
@@ -381,6 +382,7 @@ export function ApplicationDetailPage() {
   const { user } = useAuth();
   const [transitionError, setTransitionError] = useState<string | null>(null);
   const [showEnrolModal, setShowEnrolModal] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const { data: app, isLoading: appLoading } = useQuery({
     queryKey: ["application", id],
@@ -391,6 +393,12 @@ export function ApplicationDetailPage() {
   const { data: wfDef } = useQuery({
     queryKey: ["workflowDef", "admissions"],
     queryFn: () => getWorkflowDef("admissions"),
+  });
+
+  const { data: historyEvents } = useQuery({
+    queryKey: ["applicationHistory", id],
+    queryFn: () => getWorkflowHistory("admissions", id!),
+    enabled: !!id && showHistory,
   });
 
   const transitionMut = useMutation({
@@ -542,6 +550,64 @@ export function ApplicationDetailPage() {
           </p>
         </Card>
       )}
+
+      {/* Workflow History (#198) */}
+      <Card padding="20px 24px" style={{ marginTop: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <SectionLabel>Workflow History</SectionLabel>
+          <SecondaryBtn onClick={() => setShowHistory((v) => !v)} style={{ fontSize: 12, padding: "4px 12px" }}>
+            {showHistory ? "Hide" : "Show history"}
+          </SecondaryBtn>
+        </div>
+        {showHistory && (
+          <div style={{ marginTop: 12 }}>
+            {!historyEvents ? (
+              <Spinner />
+            ) : historyEvents.length === 0 ? (
+              <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>No history yet.</p>
+            ) : (
+              <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {historyEvents.map((ev: WorkflowEvent) => (
+                  <li
+                    key={ev.id}
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      alignItems: "flex-start",
+                      paddingBottom: 10,
+                      borderBottom: "1px solid #f3f4f6",
+                      marginBottom: 10,
+                      fontSize: 13,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        background: "#6366f1",
+                        marginTop: 4,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 500 }}>
+                        {ev.action_key === "__init__"
+                          ? `Created → ${ev.to_state}`
+                          : `${ev.action_key.replace(/_/g, " ")} → ${ev.to_state}`}
+                      </div>
+                      <div style={{ color: "#6b7280", fontSize: 12 }}>
+                        {new Date(ev.created_at).toLocaleString()}
+                        {ev.actor_user_id ? ` · actor: ${ev.actor_user_id.slice(0, 8)}…` : ""}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )}
+      </Card>
 
       {showEnrolModal && (
         <EnrolModal
