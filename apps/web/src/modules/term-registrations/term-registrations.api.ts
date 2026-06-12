@@ -62,6 +62,31 @@ export function createTermRegistration(
   );
 }
 
+export interface DocCheck {
+  id: string;
+  doc_name: string;
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "WAIVED";
+  remarks: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export function getDocChecks(registrationId: string): Promise<DocCheck[]> {
+  return apiFetch<DocCheck[]>(`/term-registrations/${registrationId}/doc-checks`);
+}
+
+export function upsertDocCheck(
+  registrationId: string,
+  docName: string,
+  body: { status: "PENDING" | "ACCEPTED" | "REJECTED" | "WAIVED"; remarks?: string },
+): Promise<DocCheck> {
+  return apiFetch<DocCheck>(
+    `/term-registrations/${registrationId}/doc-checks/${encodeURIComponent(docName)}`,
+    { method: "PUT", body: JSON.stringify(body) },
+  );
+}
+
 export function getWorkflowDef(key: string): Promise<{
   key: string;
   initial_state: string;

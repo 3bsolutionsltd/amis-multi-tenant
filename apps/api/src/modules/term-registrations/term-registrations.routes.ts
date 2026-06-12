@@ -242,6 +242,126 @@ export async function termRegistrationsRoutes(app: FastifyInstance) {
     },
   );
 
+  // ---------- GET /term-registrations/:id/doc-checks (#199)
+  app.get<{ Params: { id: string } }>(
+    "/term-registrations/:id/doc-checks",
+    {
+      preHandler: requireRole(
+        "admin", "registrar", "hod", "principal", "dean", "finance", "instructor",
+      ),
+    },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const { id } = req.params;
+
+      const DEFAULT_DOCS = [
+        "National ID / Birth Certificate",
+        "Academic Certificates",
+        "Passport Photos",
+        "Medical Certificate",
+        "Recommendation Letter",
+        "Fee Payment Receipt",
+      ];
+
+      const rows = await withTenant(tid, async (client) => {
+        const { rows: regRows } = await client.query(
+          `SELECT id FROM app.term_registrations WHERE id = $1`,
+          [id],
+        );
+        if (!regRows[0]) return null;
+
+        const { rows: checks } = await client.query(
+          `SELECT id, doc_name, status, remarks, reviewed_by, reviewed_at, created_at
+           FROM app.term_registration_doc_checks
+           WHERE tenant_id = $1 AND registration_id = $2
+           ORDER BY created_at ASC`,
+          [tid, id],
+        );
+
+        // Seed default docs that haven't been added yet
+        const existing = new Set(checks.map((c: { doc_name: string }) => c.doc_name));
+        const toSeed = DEFAULT_DOCS.filter((d) => !existing.has(d));
+        if (toSeed.length > 0) {
+          for (const doc_name of toSeed) {
+            await client.query(
+              `INSERT INTO app.term_registration_doc_checks
+                 (tenant_id, registration_id, doc_name, status)
+               VALUES ($1, $2, $3, 'PENDING')
+               ON CONFLICT (tenant_id, registration_id, doc_name) DO NOTHING`,
+              [tid, id, doc_name],
+            );
+          }
+          const { rows: seeded } = await client.query(
+            `SELECT id, doc_name, status, remarks, reviewed_by, reviewed_at, created_at
+             FROM app.term_registration_doc_checks
+             WHERE tenant_id = $1 AND registration_id = $2
+             ORDER BY created_at ASC`,
+            [tid, id],
+          );
+          return seeded;
+        }
+        return checks;
+      });
+
+      if (rows === null)
+        return reply.status(404).send({ error: "registration not found" });
+      return rows;
+    },
+  );
+
+  // ---------- PUT /term-registrations/:id/doc-checks/:docName (#199)
+  app.put<{ Params: { id: string; docName: string } }>(
+    "/term-registrations/:id/doc-checks/:docName",
+    { preHandler: requireRole("admin", "registrar") },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const { id, docName } = req.params;
+      const actorUserId = req.user?.userId ?? null;
+      const body = req.body as { status?: string; remarks?: string };
+      const status = body?.status;
+      const remarks = body?.remarks ?? null;
+
+      const VALID_STATUSES = ["ACCEPTED", "REJECTED", "WAIVED", "PENDING"];
+      if (!status || !VALID_STATUSES.includes(status)) {
+        return reply.status(422).send({
+          error: "status must be ACCEPTED, REJECTED, WAIVED, or PENDING",
+        });
+      }
+
+      const row = await withTenant(tid, async (client) => {
+        // Ensure registration belongs to this tenant
+        const { rows: regRows } = await client.query(
+          `SELECT id FROM app.term_registrations WHERE id = $1`,
+          [id],
+        );
+        if (!regRows[0]) return null;
+
+        const { rows } = await client.query(
+          `INSERT INTO app.term_registration_doc_checks
+             (tenant_id, registration_id, doc_name, status, remarks, reviewed_by, reviewed_at)
+           VALUES ($1, $2, $3, $4, $5, $6, now())
+           ON CONFLICT (tenant_id, registration_id, doc_name) DO UPDATE
+             SET status      = EXCLUDED.status,
+                 remarks     = EXCLUDED.remarks,
+                 reviewed_by = EXCLUDED.reviewed_by,
+                 reviewed_at = EXCLUDED.reviewed_at
+           RETURNING *`,
+          [tid, id, docName, status, remarks, actorUserId],
+        );
+        return rows[0] ?? null;
+      });
+
+      if (!row) return reply.status(404).send({ error: "registration not found" });
+      return row;
+    },
+  );
+
   // ---------- POST /term-registrations/bulk — register multiple students at once (#59)
   app.post(
     "/term-registrations/bulk",
