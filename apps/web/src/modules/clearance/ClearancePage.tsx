@@ -25,16 +25,20 @@ import {
   C,
 } from "../../lib/ui";
 
-const DEPT_LABELS: Record<string, string> = {
-  store: "Store",
-  library: "Library",
-  sports: "Sports",
-  warden: "Warden",
-  hod: "Head of Department",
-  dean_of_students: "Dean of Students",
-  accounts: "Accounts (Finance)",
-  academic_registrar: "Academic Registrar",
-};
+/** Ordered 11-step clearance sequence (must match backend CLEARANCE_STEPS) */
+const CLEARANCE_STEPS_UI = [
+  { step: 1,  dept: "academic_registrar",        label: "Academic Registrar" },
+  { step: 2,  dept: "accounts",                  label: "Accountant / Finance" },
+  { step: 3,  dept: "warden",                    label: "Warden / Custodian" },
+  { step: 4,  dept: "store",                     label: "Stores" },
+  { step: 5,  dept: "catering",                  label: "Catering Officer" },
+  { step: 6,  dept: "hod",                       label: "Head of Department" },
+  { step: 7,  dept: "dean_of_students",          label: "Dean of Students" },
+  { step: 8,  dept: "nurse",                     label: "Nurse / Health" },
+  { step: 9,  dept: "library",                   label: "Library" },
+  { step: 10, dept: "ict_technician",            label: "ICT Technician" },
+  { step: 11, dept: "academic_registrar_final",  label: "Academic Registrar (Final)" },
+] as const;
 
 interface Term {
   id: string;
@@ -177,129 +181,185 @@ export function ClearancePage() {
         </Card>
       )}
 
-      {data && (
-        <Card style={{ padding: 20 }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 16,
-            }}
-          >
-            <SectionLabel>
-              Departments ({data.completed}/{data.total})
-            </SectionLabel>
-            {data.fully_cleared && (
-              <Badge label="✅ FULLY CLEARED" color="green" />
-            )}
-          </div>
+      {data && (() => {
+        // Compute the active step: first step that is not SIGNED
+        const activeStep = CLEARANCE_STEPS_UI.find(
+          (s) => (data.departments[s.dept]?.status ?? "PENDING") !== "SIGNED",
+        )?.step ?? null;
 
-          <div style={{ display: "grid", gap: 12 }}>
-            {Object.entries(data.departments).map(([dept, info]) => (
-              <div
-                key={dept}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 16px",
-                  background:
-                    info.status === "SIGNED"
-                      ? "#dcfce7"
-                      : info.status === "REJECTED"
-                        ? "#fee2e2"
-                        : C.gray50,
-                  borderRadius: 8,
-                  border: `1px solid ${C.gray200}`,
-                }}
-              >
-                <div>
-                  <span style={{ fontWeight: 600 }}>
-                    {DEPT_LABELS[dept] ?? dept}
-                  </span>
-                  <Badge
-                    label={info.status}
-                    color={
-                      info.status === "SIGNED"
-                        ? "green"
-                        : info.status === "REJECTED"
-                          ? "yellow"
-                          : "gray"
-                    }
-                  />
-                  {info.remarks && (
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: C.gray500,
-                        marginTop: 2,
-                      }}
-                    >
-                      {info.remarks}
-                    </div>
-                  )}
-                  {info.signed_at && (
-                    <div style={{ fontSize: 11, color: C.gray400 }}>
-                      {new Date(info.signed_at).toLocaleString()}
-                    </div>
-                  )}
-                </div>
+        return (
+          <Card style={{ padding: 20 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <SectionLabel>
+                Clearance Progress ({data.completed}/{data.total} steps)
+              </SectionLabel>
+              {data.fully_cleared && (
+                <Badge label="✅ FULLY CLEARED" color="green" />
+              )}
+            </div>
 
-                {info.status !== "SIGNED" && (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <PrimaryBtn
-                      onClick={() =>
-                        signMut.mutate({ department: dept, status: "SIGNED" })
-                      }
-                      disabled={
-                        signMut.isPending ||
-                        (dept === "accounts" &&
-                          eligibility?.checks.fees_cleared.pass === false) ||
-                        (dept === "hod" &&
-                          eligibility?.checks.marks_complete.pass === false) ||
-                        (dept === "hod" &&
-                          eligibility?.checks.attendance_ok?.pass === false)
-                      }
-                      title={
-                        dept === "accounts" &&
-                        eligibility?.checks.fees_cleared.pass === false
-                          ? eligibility.checks.fees_cleared.detail
-                          : dept === "hod" &&
-                              eligibility?.checks.marks_complete.pass === false
-                            ? eligibility.checks.marks_complete.detail
-                            : dept === "hod" &&
-                                eligibility?.checks.attendance_ok?.pass === false
-                              ? eligibility.checks.attendance_ok.detail
-                              : undefined
-                      }
-                      style={{ fontSize: 12, padding: "4px 12px" }}
-                    >
-                      ✅ Sign
-                    </PrimaryBtn>
-                    <SecondaryBtn
-                      onClick={() => {
-                        const remarks = prompt("Rejection remarks:");
-                        if (remarks !== null) {
-                          signMut.mutate({
-                            department: dept,
-                            status: "REJECTED",
-                            remarks,
-                          });
+            <div style={{ display: "grid", gap: 10 }}>
+              {CLEARANCE_STEPS_UI.map((stepDef) => {
+                const info = data.departments[stepDef.dept] ?? {
+                  status: "PENDING",
+                  signed_by: null,
+                  signed_at: null,
+                  remarks: null,
+                };
+                const isSigned   = info.status === "SIGNED";
+                const isRejected = info.status === "REJECTED";
+                const isActive   = stepDef.step === activeStep;
+                const isBlocked  = !isSigned && !isRejected && !isActive;
+
+                const bgColor = isSigned
+                  ? "#dcfce7"
+                  : isRejected
+                    ? "#fee2e2"
+                    : isActive
+                      ? "#eff6ff"
+                      : C.gray50;
+                const borderColor = isSigned
+                  ? "#86efac"
+                  : isRejected
+                    ? "#fca5a5"
+                    : isActive
+                      ? "#93c5fd"
+                      : C.gray200;
+
+                return (
+                  <div
+                    key={stepDef.dept}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      padding: "12px 16px",
+                      background: bgColor,
+                      borderRadius: 8,
+                      border: `1px solid ${borderColor}`,
+                      opacity: isBlocked ? 0.6 : 1,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                      {/* Step number indicator */}
+                      <div
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: "50%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          flexShrink: 0,
+                          marginTop: 1,
+                          background: isSigned
+                            ? "#16a34a"
+                            : isRejected
+                              ? "#dc2626"
+                              : isActive
+                                ? "#2563eb"
+                                : "#9ca3af",
+                          color: "#fff",
+                        }}
+                      >
+                        {isSigned ? "✓" : isRejected ? "✗" : isBlocked ? "🔒" : stepDef.step}
+                      </div>
+
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>
+                          Step {stepDef.step} · {stepDef.label}
+                        </div>
+                        <div style={{ fontSize: 12, color: C.gray500, marginTop: 2 }}>
+                          {isSigned && info.signed_at
+                            ? `Signed — ${new Date(info.signed_at).toLocaleString()}`
+                            : isRejected
+                              ? "Rejected"
+                              : isActive
+                                ? "Awaiting sign-off"
+                                : "Pending previous step"}
+                        </div>
+                        {info.remarks && (
+                          <div style={{ fontSize: 12, color: C.gray400, marginTop: 2 }}>
+                            Remarks: {info.remarks}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action buttons — only for active step */}
+                    {isActive && (
+                      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                        <PrimaryBtn
+                          onClick={() =>
+                            signMut.mutate({ department: stepDef.dept, status: "SIGNED" })
+                          }
+                          disabled={
+                            signMut.isPending ||
+                            (stepDef.dept === "accounts" &&
+                              eligibility?.checks.fees_cleared.pass === false) ||
+                            (stepDef.dept === "hod" &&
+                              eligibility?.checks.marks_complete.pass === false)
+                          }
+                          title={
+                            stepDef.dept === "accounts" &&
+                            eligibility?.checks.fees_cleared.pass === false
+                              ? eligibility?.checks.fees_cleared.detail
+                              : stepDef.dept === "hod" &&
+                                  eligibility?.checks.marks_complete.pass === false
+                                ? eligibility?.checks.marks_complete.detail
+                                : undefined
+                          }
+                          style={{ fontSize: 12, padding: "4px 14px" }}
+                        >
+                          ✅ Sign
+                        </PrimaryBtn>
+                        <SecondaryBtn
+                          onClick={() => {
+                            const remarks = prompt("Rejection remarks:");
+                            if (remarks !== null) {
+                              signMut.mutate({
+                                department: stepDef.dept,
+                                status: "REJECTED",
+                                remarks,
+                              });
+                            }
+                          }}
+                          disabled={signMut.isPending}
+                          style={{ fontSize: 12, padding: "4px 12px" }}
+                        >
+                          ❌ Reject
+                        </SecondaryBtn>
+                      </div>
+                    )}
+
+                    {/* Re-sign button for rejected step */}
+                    {isRejected && (
+                      <PrimaryBtn
+                        onClick={() =>
+                          signMut.mutate({ department: stepDef.dept, status: "SIGNED" })
                         }
-                      }}
-                      disabled={signMut.isPending}
-                      style={{ fontSize: 12, padding: "4px 12px" }}
-                    >
-                      ❌ Reject
-                    </SecondaryBtn>
+                        disabled={signMut.isPending}
+                        style={{ fontSize: 12, padding: "4px 14px", flexShrink: 0 }}
+                      >
+                        Re-sign
+                      </PrimaryBtn>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
+                );
+              })}
+            </div>
+          </Card>
+        );
+      })()}
 
       {!statusQ.isLoading && !data && studentId && termId && (
         <EmptyState title="No clearance data. Click 'Init Clearance' to create sign-off records." />

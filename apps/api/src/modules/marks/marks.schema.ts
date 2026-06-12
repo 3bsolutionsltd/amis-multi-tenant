@@ -3,8 +3,32 @@ import { z } from "zod";
 export const VALID_TERMS = ["Term 1", "Term 2", "Term 3"] as const;
 export type ValidTerm = (typeof VALID_TERMS)[number];
 
-export const ASSESSMENT_TYPES = ["midterm", "end_of_term", "coursework", "practical"] as const;
+export const ASSESSMENT_TYPES = [
+  // TVET standard types (UVTAB / UTC Kyema)
+  "assignment_1",
+  "assignment_2",
+  "test_1",
+  "test_2",
+  "practical_1",
+  "practical_2",
+  "end_of_term",
+  // Legacy / generic types
+  "midterm",
+  "coursework",
+  "practical",
+] as const;
 export type AssessmentType = (typeof ASSESSMENT_TYPES)[number];
+
+/** Standard TVET weights (%) per assessment component (UVTAB grading scheme). */
+export const TVET_WEIGHTS: Record<string, number> = {
+  assignment_1: 5,
+  assignment_2: 5,
+  test_1: 10,
+  test_2: 10,
+  practical_1: 25,
+  practical_2: 25,
+  end_of_term: 40,
+};
 
 export const CreateSubmissionSchema = z.object({
   course_id: z.string().min(1),
