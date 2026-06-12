@@ -21,6 +21,9 @@ export const workflowDefinitionSchema = z.object({
   initial_state: z.string().min(1),
   states: z.array(z.string().min(1)).min(1),
   transitions: z.array(workflowTransitionSchema).min(1),
+  // Optional: the state from which enrollment is allowed (admissions workflow only).
+  // Falls back to hardcoded defaults ("REGISTERED", "admitted", "accepted") when absent.
+  enroll_from_state: z.string().optional(),
 });
 
 export type WorkflowDefinition = z.infer<typeof workflowDefinitionSchema>;
