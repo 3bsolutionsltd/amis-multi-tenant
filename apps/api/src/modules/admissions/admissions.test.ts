@@ -5,8 +5,14 @@ vi.mock("../../db/tenant.js", () => ({
   withTenant: vi.fn(),
 }));
 
+vi.mock("../../lib/workflowDef.js", () => ({
+  loadWorkflowDef: vi.fn(),
+}));
+
 import { withTenant } from "../../db/tenant.js";
+import { loadWorkflowDef } from "../../lib/workflowDef.js";
 const mockWithTenant = vi.mocked(withTenant);
+const mockLoadWorkflowDef = vi.mocked(loadWorkflowDef);
 
 const TID = "00000000-0000-0000-0000-000000000010";
 const headers = { "x-tenant-id": TID };
@@ -14,7 +20,11 @@ const registrarHeaders = { "x-tenant-id": TID, "x-dev-role": "registrar" };
 const financeHeaders = { "x-tenant-id": TID, "x-dev-role": "finance" };
 const hodHeaders = { "x-tenant-id": TID, "x-dev-role": "hod" };
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  // Default: no custom enroll_from_state configured — enroll endpoint uses hardcoded defaults.
+  mockLoadWorkflowDef.mockResolvedValue(null);
+});
 
 // ------------------------------------------------------------------ stub data
 
