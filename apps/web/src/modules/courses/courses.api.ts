@@ -1,4 +1,5 @@
 import { apiFetch } from "../../lib/apiFetch";
+import { getAccessToken } from "../../lib/auth";
 
 export interface Course {
   id: string;
@@ -67,5 +68,40 @@ export function updateCourse(id: string, body: UpdateCourseBody): Promise<Course
   return apiFetch<Course>(`/courses/${id}`, {
     method: "PATCH",
     body: JSON.stringify(body),
+  });
+}
+
+export interface CourseImportResult {
+  imported: number;
+  skipped: number;
+  details: { row: number; reason: string }[];
+}
+
+export async function downloadCourseTemplate(): Promise<void> {
+  const token = getAccessToken();
+  const tid = localStorage.getItem("amis_tenant_id") ?? "";
+  const devRole = localStorage.getItem("amis_dev_role") ?? "admin";
+  const base = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+  const authHeaders: Record<string, string> = token
+    ? { Authorization: `Bearer ${token}`, "x-tenant-id": tid }
+    : { "x-tenant-id": tid, "x-dev-role": devRole };
+
+  const r = await fetch(`${base}/courses/import/template`, { headers: authHeaders });
+  if (!r.ok) throw new Error("Failed to download template");
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "courses_import_template.xlsx";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function importCourses(file: File): Promise<CourseImportResult> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<CourseImportResult>("/courses/import", {
+    method: "POST",
+    body: form,
   });
 }

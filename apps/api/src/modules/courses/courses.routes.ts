@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import * as XLSX from "xlsx";
 import { withTenant } from "../../db/tenant.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { getTenantId } from "../../lib/tenantId.js";
@@ -328,6 +329,150 @@ export async function coursesRoutes(app: FastifyInstance) {
         return reply.status(404).send({ error: "course offering not found" });
 
       return row.rows[0];
+    },
+  );
+
+  // ======================== Course Import ========================
+
+  // GET /courses/import/template  — returns a blank xlsx template
+  app.get(
+    "/courses/import/template",
+    { preHandler: requireRole(...WRITE_ROLES) },
+    async (_req, reply) => {
+      const wb = XLSX.utils.book_new();
+      const headers = [
+        ["programme_code", "code", "title", "credit_hours", "course_type", "year_of_study", "semester", "description"],
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(headers);
+      // Column widths
+      ws["!cols"] = [16, 14, 36, 14, 18, 16, 10, 40].map((w) => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, ws, "Courses");
+      const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+      reply
+        .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        .header("Content-Disposition", 'attachment; filename="courses_import_template.xlsx"')
+        .send(buf);
+    },
+  );
+
+  // POST /courses/import  — multipart xlsx/csv, inserts rows for this tenant
+  app.post(
+    "/courses/import",
+    { preHandler: requireRole(...WRITE_ROLES) },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const data = await req.file();
+      if (!data)
+        return reply.status(400).send({ error: "No file uploaded" });
+
+      const mime = data.mimetype;
+      const allowed = [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+        "text/csv",
+        "application/octet-stream",
+      ];
+      if (!allowed.includes(mime) && !data.filename?.match(/\.(xlsx|xls|csv)$/i)) {
+        return reply.status(400).send({ error: "Only xlsx/xls/csv files are accepted" });
+      }
+
+      const chunks: Buffer[] = [];
+      for await (const chunk of data.file) {
+        chunks.push(chunk as Buffer);
+      }
+      const buf = Buffer.concat(chunks);
+
+      let rows: Record<string, unknown>[];
+      try {
+        const wb = XLSX.read(buf, { type: "buffer" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+      } catch {
+        return reply.status(400).send({ error: "Could not parse file — ensure it is a valid xlsx or csv" });
+      }
+
+      if (rows.length === 0)
+        return reply.status(422).send({ error: "File has no data rows" });
+
+      if (rows.length > 500)
+        return reply.status(422).send({ error: "Max 500 rows per import" });
+
+      // Resolve programme_code → programme_id within this tenant
+      const progCodes = [...new Set(rows.map((r) => String(r.programme_code ?? "").trim()).filter(Boolean))];
+      if (progCodes.length === 0)
+        return reply.status(422).send({ error: "programme_code column is required" });
+
+      const progResult = await withTenant(tid, (client) =>
+        client.query(
+          `SELECT id, code FROM app.programmes WHERE code = ANY($1)`,
+          [progCodes],
+        ),
+      );
+      const progMap = new Map<string, string>(
+        progResult.rows.map((r: { id: string; code: string }) => [r.code, r.id]),
+      );
+
+      const imported: string[] = [];
+      const skipped: { row: number; reason: string }[] = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const rowNum = i + 2; // 1-based + header
+
+        const progCode = String(r.programme_code ?? "").trim();
+        const code = String(r.code ?? "").trim().toUpperCase();
+        const title = String(r.title ?? "").trim();
+
+        if (!progCode || !code || !title) {
+          skipped.push({ row: rowNum, reason: "programme_code, code and title are required" });
+          continue;
+        }
+
+        const progId = progMap.get(progCode);
+        if (!progId) {
+          skipped.push({ row: rowNum, reason: `Programme '${progCode}' not found` });
+          continue;
+        }
+
+        const creditHours = Number(r.credit_hours) || 3;
+        const courseType = ["theory", "practical", "both"].includes(String(r.course_type))
+          ? String(r.course_type)
+          : "theory";
+        const yearOfStudy = Number(r.year_of_study) || 1;
+        const semester = Number(r.semester) || 1;
+
+        try {
+          await withTenant(tid, (client) =>
+            client.query(
+              `INSERT INTO app.courses
+                 (tenant_id, programme_id, code, title, credit_hours, course_type, year_of_study, semester)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+               ON CONFLICT (tenant_id, code) DO UPDATE
+                 SET programme_id = EXCLUDED.programme_id,
+                     title = EXCLUDED.title,
+                     credit_hours = EXCLUDED.credit_hours,
+                     course_type = EXCLUDED.course_type,
+                     year_of_study = EXCLUDED.year_of_study,
+                     semester = EXCLUDED.semester,
+                     updated_at = now()`,
+              [tid, progId, code, title, creditHours, courseType, yearOfStudy, semester],
+            ),
+          );
+          imported.push(code);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "db error";
+          skipped.push({ row: rowNum, reason: msg });
+        }
+      }
+
+      return reply.status(200).send({
+        imported: imported.length,
+        skipped: skipped.length,
+        details: skipped,
+      });
     },
   );
 }
