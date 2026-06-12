@@ -5,6 +5,7 @@ import { createSubmission } from "./marks.api";
 import { listProgrammes } from "../programmes/programmes.api";
 import { listCourses } from "../courses/courses.api";
 import { listAcademicYears, listTerms } from "../academic-calendar/academic-calendar.api";
+import { useConfig } from "../../app/ConfigProvider";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -17,16 +18,30 @@ import {
 } from "../../lib/ui";
 
 const TERMS = ["Term 1", "Term 2", "Term 3"];
-const ASSESSMENT_TYPES = [
+const DEFAULT_ASSESSMENT_TYPES = [
   { value: "midterm", label: "Midterm" },
   { value: "end_of_term", label: "End of Term" },
   { value: "coursework", label: "Coursework" },
   { value: "practical", label: "Practical" },
 ];
 
+/** Convert snake_case or raw strings to Title Case for display.
+ *  e.g. "end_of_term" → "End of Term", "assignmnt" → "Assignmnt" */
+function formatAssessmentType(value: string): string {
+  return value
+    .split(/[_\s]+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 export function MarkCreatePage() {
   ensureGlobalCss();
   const navigate = useNavigate();
+  const { assessmentTypes: configTypes } = useConfig();
+
+  const assessmentTypes = configTypes.length > 0
+    ? configTypes.map((t) => ({ value: t, label: formatAssessmentType(t) }))
+    : DEFAULT_ASSESSMENT_TYPES;
 
   const programmesQ = useQuery({
     queryKey: ["programmes"],
@@ -191,7 +206,7 @@ export function MarkCreatePage() {
               value={form.assessment_type}
               onChange={(e) => set("assessment_type", e.target.value)}
             >
-              {ASSESSMENT_TYPES.map((t) => (
+              {assessmentTypes.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
