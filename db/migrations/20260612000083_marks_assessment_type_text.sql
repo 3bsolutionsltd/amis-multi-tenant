@@ -6,6 +6,10 @@
 ALTER TABLE app.mark_submissions
   ALTER COLUMN assessment_type TYPE text;
 
+-- Restore a text DEFAULT so existing code that omits the column still works
+ALTER TABLE app.mark_submissions
+  ALTER COLUMN assessment_type SET DEFAULT 'end_of_term';
+
 -- Drop the old enum type (no longer needed; validation is in application layer)
 DROP TYPE IF EXISTS app.assessment_type CASCADE;
 

@@ -49,10 +49,19 @@ export const DEPT_LABEL: Record<string, string> = Object.fromEntries(
   CLEARANCE_STEPS.map((s) => [s.dept, s.label]),
 );
 
+/** All valid department keys (sequential steps + legacy optional) */
+export const ALL_VALID_DEPARTMENTS = new Set<string>([
+  ...CLEARANCE_STEPS.map((s) => s.dept),
+  ...OPTIONAL_DEPARTMENTS,
+]);
+
 export const SignOffSchema = z.object({
   student_id: z.string().uuid(),
   term_id: z.string().uuid(),
-  department: z.string().min(1),
+  department: z.string().min(1).refine(
+    (d) => ALL_VALID_DEPARTMENTS.has(d),
+    (d) => ({ message: `Unknown department: "${d}". Must be one of: ${[...ALL_VALID_DEPARTMENTS].join(", ")}` }),
+  ),
   status: z.enum(["SIGNED", "REJECTED"]),
   remarks: z.string().optional(),
 });
