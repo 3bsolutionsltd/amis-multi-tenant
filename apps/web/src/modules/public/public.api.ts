@@ -1,5 +1,12 @@
 import { apiFetch } from "../../lib/apiFetch";
 
+export interface TenantInfo {
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  primaryColor: string | null;
+}
+
 export interface PublicApplication {
   id: string;
   first_name: string;
@@ -29,6 +36,10 @@ export interface PublicProgramme {
   department: string | null;
   duration_months: number | null;
   level: string | null;
+}
+
+export function getTenantInfo(tenantSlug: string): Promise<TenantInfo> {
+  return apiFetch<TenantInfo>(`/public/${tenantSlug}/info`);
 }
 
 export function listPublicProgrammes(

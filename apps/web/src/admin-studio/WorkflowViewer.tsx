@@ -23,6 +23,7 @@ interface WorkflowDef {
   initial_state: string;
   states: string[];
   transitions: WorkflowTransition[];
+  enroll_from_state?: string;
 }
 
 /* ------------------------------------------------------------------ styles */
@@ -244,6 +245,10 @@ const [newTrans, setNewTrans] = useState<Record<string, { action: string; from: 
     });
   }
 
+  function setEnrollFromState(wfKey: string, s: string) {
+    setWorkflows((prev) => ({ ...prev, [wfKey]: { ...prev[wfKey], enroll_from_state: s || undefined } }));
+  }
+
   function setInitialState(wfKey: string, s: string) {
     setWorkflows((prev) => ({ ...prev, [wfKey]: { ...prev[wfKey], initial_state: s } }));
   }
@@ -459,6 +464,27 @@ const [newTrans, setNewTrans] = useState<Record<string, { action: string; from: 
                   </span>
                 )}
               </div>
+
+              {/* Enroll-from state (admissions workflow only) */}
+              {(wfKey === "admissions" || wf.enroll_from_state) && (
+                <div style={{ marginBottom: 16 }}>
+                  <span style={{ fontSize: 13, color: "#64748b" }}>Enroll from state: </span>
+                  {editMode ? (
+                    <select
+                      value={wf.enroll_from_state ?? ""}
+                      onChange={(e) => setEnrollFromState(wfKey, e.target.value)}
+                      style={{ ...selectSt, width: 200, display: "inline-block" }}
+                    >
+                      <option value="">— use default (REGISTERED) —</option>
+                      {wf.states.map((s) => <option key={s}>{s}</option>)}
+                    </select>
+                  ) : (
+                    <span style={{ display: "inline-block", padding: "2px 10px", borderRadius: 4, background: "#fef3c7", color: "#92400e", fontWeight: 600, fontSize: 12 }}>
+                      {wf.enroll_from_state || "default (REGISTERED)"}
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* States section */}
               <h4 style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>States</h4>

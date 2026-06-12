@@ -20,6 +20,44 @@ async function resolveTenantSlug(
 // ------------------------------------------------------------------ routes
 
 export async function publicRoutes(app: FastifyInstance) {
+  // ---------- GET /public/:tenantSlug/info
+  // Returns tenant name and branding for the public application page
+  app.get<{ Params: { tenantSlug: string } }>(
+    "/public/:tenantSlug/info",
+    async (req, reply) => {
+      const { rows } = await pool.query<{
+        name: string;
+        slug: string;
+        logo_url: string | null;
+        primary_color: string | null;
+      }>(
+        `SELECT t.name, t.slug,
+                cv.payload->>'branding' AS branding_json,
+                cv.payload->>'theme' AS theme_json
+         FROM platform.tenants t
+         LEFT JOIN LATERAL (
+           SELECT payload FROM platform.config_versions
+           WHERE tenant_id = t.id AND status = 'published'
+           ORDER BY created_at DESC LIMIT 1
+         ) cv ON true
+         WHERE t.slug = $1 AND t.is_active = true`,
+        [req.params.tenantSlug],
+      );
+      if (!rows[0])
+        return reply.status(404).send({ error: "institution not found" });
+
+      const row = rows[0] as { name: string; slug: string; branding_json?: string | null; theme_json?: string | null };
+      const branding = row.branding_json ? JSON.parse(row.branding_json as string) : {};
+      const theme = row.theme_json ? JSON.parse(row.theme_json as string) : {};
+      return {
+        name: branding.appName ?? row.name,
+        slug: row.slug,
+        logoUrl: branding.logoUrl ?? null,
+        primaryColor: theme.primaryColor ?? null,
+      };
+    },
+  );
+
   // ---------- GET /public/:tenantSlug/programmes
   // No auth required — public-facing catalogue for application forms
   app.get<{ Params: { tenantSlug: string } }>(

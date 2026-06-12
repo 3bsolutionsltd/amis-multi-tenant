@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   listPublicProgrammes,
   submitPublicApplication,
+  getTenantInfo,
   type PublicApplyBody,
 } from "./public.api";
 import { ensureGlobalCss, inputCss } from "../../lib/ui";
@@ -21,6 +22,13 @@ const fieldWrap: React.CSSProperties = { marginBottom: 16 };
 export function PublicApplicationPage() {
   ensureGlobalCss();
   const { tenantSlug } = useParams<{ tenantSlug: string }>();
+
+  const { data: tenantInfo } = useQuery({
+    queryKey: ["public-tenant-info", tenantSlug],
+    queryFn: () => getTenantInfo(tenantSlug!),
+    enabled: Boolean(tenantSlug),
+    retry: false,
+  });
 
   const [form, setForm] = useState<PublicApplyBody>({
     first_name: "",
@@ -103,7 +111,26 @@ export function PublicApplicationPage() {
         boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
       }}
     >
-      <h2 style={{ margin: "0 0 4px", fontSize: 22 }}>Apply for Admission</h2>
+      {/* Institution branding header */}
+      <div style={{ textAlign: "center", marginBottom: 28 }}>
+        {tenantInfo?.logoUrl && (
+          <img
+            src={tenantInfo.logoUrl}
+            alt={tenantInfo.name}
+            style={{ maxHeight: 64, maxWidth: 200, objectFit: "contain", marginBottom: 12 }}
+          />
+        )}
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: tenantInfo?.primaryColor ?? "#1e293b" }}>
+          {tenantInfo?.name ?? "Apply for Admission"}
+        </h1>
+        {tenantInfo && (
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6b7280" }}>
+            Online Application Form
+          </p>
+        )}
+      </div>
+
+      <h2 style={{ margin: "0 0 4px", fontSize: 18 }}>Apply for Admission</h2>
       <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 24 }}>
         Fill in your details below to submit your application.
       </p>

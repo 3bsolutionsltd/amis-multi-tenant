@@ -444,20 +444,23 @@ export async function admissionsRoutes(app: FastifyInstance) {
         }
 
         // Check workflow state allows enrollment.
-        // Allowed states:
-        //   "admitted" / "accepted"  — legacy competitive-admissions workflow (lowercase)
-        //   "REGISTERED"             — new reporting-day workflow (student cleared all pre-enrolment steps)
-        //   "enrolled" / "ENROLLED"  — already enrolled (caught by student_id check above, but guard here as safety)
+        // Allowed states come from the published config's admissions workflow
+        // `enroll_from_state` field. Falls back to hardcoded defaults when absent.
         const state = application.current_state;
-        const enrollableStates = new Set([
-          "admitted", "accepted",   // legacy lowercase
-          "REGISTERED",             // new reporting-day workflow
-          "enrolled", "ENROLLED",   // terminal (already handled above, safety)
-        ]);
+        const wfDef = await loadWorkflowDef(tid, "admissions", client);
+        const configEnrollState = wfDef?.enroll_from_state ?? null;
+        const enrollableStates = configEnrollState
+          ? new Set([configEnrollState, "enrolled", "ENROLLED"])
+          : new Set([
+              "admitted", "accepted",   // legacy lowercase
+              "REGISTERED",             // new reporting-day workflow
+              "enrolled", "ENROLLED",   // terminal safety
+            ]);
         if (!enrollableStates.has(state)) {
+          const expected = configEnrollState ?? "REGISTERED";
           return {
             invalidState: true,
-            message: `Cannot enroll: application is in "${state}" state`,
+            message: `Cannot enroll: application is in "${state}" state, expected "${expected}"`,
           } as const;
         }
 
