@@ -7,6 +7,8 @@ import {
   SignOffSchema,
   ClearanceQuerySchema,
   DEPARTMENTS,
+  DEPT_STEP,
+  CLEARANCE_STEPS,
 } from "./clearance.schema.js";
 
 // ---------------------------------------------------------------------------
@@ -374,6 +376,32 @@ export async function clearanceRoutes(app: FastifyInstance) {
               } as const;
             }
           }
+
+          // Enforce sequential ordering: all prior steps must be SIGNED
+          const currentStep = DEPT_STEP[department];
+          if (currentStep !== undefined && currentStep > 1) {
+            const { rows: priorRows } = await client.query<{
+              department: string;
+              status: string;
+            }>(
+              `SELECT department, status FROM app.clearance_signoffs
+               WHERE tenant_id = $1 AND student_id = $2 AND term_id = $3`,
+              [tid, student_id, term_id],
+            );
+            const priorSigned = new Set(
+              priorRows.filter((r) => r.status === "SIGNED").map((r) => r.department),
+            );
+            // Find the first previous sequential step that is not yet SIGNED
+            const blocker = CLEARANCE_STEPS.find(
+              (s) => s.step < currentStep && !priorSigned.has(s.dept),
+            );
+            if (blocker) {
+              return {
+                sequentialBlocked: true,
+                message: `Step ${blocker.step} (${blocker.label}) must be completed before signing off this step.`,
+              } as const;
+            }
+          }
         }
 
         // Upsert sign-off
@@ -396,6 +424,8 @@ export async function clearanceRoutes(app: FastifyInstance) {
       if (row && "notFound" in row)
         return reply.status(404).send({ error: row.message });
       if (row && "eligibilityFailed" in row)
+        return reply.status(422).send({ error: row.message });
+      if (row && "sequentialBlocked" in row)
         return reply.status(422).send({ error: row.message });
 
       return reply.status(201).send(row);

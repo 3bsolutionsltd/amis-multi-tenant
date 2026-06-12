@@ -18,11 +18,18 @@ import {
   C,
 } from "../../lib/ui";
 
+/** UVTAB / UTC Kyema TVET standard assessment types */
 const DEFAULT_ASSESSMENT_TYPES = [
-  { value: "end_of_term", label: "End of Term" },
-  { value: "midterm", label: "Midterm" },
-  { value: "coursework", label: "Coursework" },
-  { value: "practical", label: "Practical" },
+  { value: "assignment_1", label: "Assignment 1" },
+  { value: "assignment_2", label: "Assignment 2" },
+  { value: "test_1",       label: "Test 1" },
+  { value: "test_2",       label: "Test 2" },
+  { value: "practical_1", label: "Practical 1" },
+  { value: "practical_2", label: "Practical 2" },
+  { value: "end_of_term", label: "End of Term Exam" },
+  { value: "midterm",     label: "Midterm" },
+  { value: "coursework",  label: "Coursework" },
+  { value: "practical",   label: "Practical" },
 ] as const;
 
 /** Convert snake_case or raw strings to Title Case for display.

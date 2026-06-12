@@ -12,6 +12,7 @@ import {
   Badge,
   Pagination,
   PrimaryBtn,
+  SecondaryBtn,
   ErrorBanner,
 } from "../../lib/ui";
 
@@ -22,6 +23,8 @@ const MARK_STATES = [
   "APPROVED",
   "PUBLISHED",
 ];
+
+const CONSOLIDATED_STATES = new Set(["APPROVED", "PUBLISHED"]);
 
 type BadgeColor = "gray" | "blue" | "yellow" | "green" | "cyan";
 const STATE_BADGE: Record<string, BadgeColor> = {
@@ -40,6 +43,7 @@ export function MarksListPage() {
   const intake = params.get("intake") ?? "";
   const term = params.get("term") ?? "";
   const page = Number(params.get("page") ?? "1");
+  const viewMode = params.get("view") ?? "all"; // "all" | "consolidated"
 
   function set(key: string, value: string) {
     setParams((p) => {
@@ -73,16 +77,28 @@ export function MarksListPage() {
       }),
   });
 
-  const isEmpty = !isLoading && !error && (data?.length ?? 0) === 0;
+  // In consolidated mode show only APPROVED / PUBLISHED
+  const displayData = viewMode === "consolidated"
+    ? (data ?? []).filter((s) => CONSOLIDATED_STATES.has(s.current_state ?? ""))
+    : (data ?? []);
+
+  const isEmpty = !isLoading && !error && displayData.length === 0;
 
   return (
     <div>
       <PageHeader
         title="Marks"
         action={
-          <PrimaryBtn onClick={() => navigate("/marks/new")}>
-            + New Submission
-          </PrimaryBtn>
+          <div style={{ display: "flex", gap: 8 }}>
+            <SecondaryBtn
+              onClick={() => set("view", viewMode === "consolidated" ? "all" : "consolidated")}
+            >
+              {viewMode === "consolidated" ? "All Submissions" : "Consolidated (Registrar)"}
+            </SecondaryBtn>
+            <PrimaryBtn onClick={() => navigate("/marks/new")}>
+              + New Submission
+            </PrimaryBtn>
+          </div>
         }
       />
 
@@ -136,15 +152,17 @@ export function MarksListPage() {
       </FilterBar>
 
       <DataTable
-        headers={["Course", "Programme", "Intake / Term", "State", "Created"]}
+        headers={viewMode === "consolidated"
+          ? ["Course", "Programme", "Intake / Term", "Type", "State", "Created"]
+          : ["Course", "Programme", "Intake / Term", "State", "Created"]}
         isLoading={isLoading}
         isEmpty={isEmpty}
         emptyIcon="📊"
-        emptyTitle="No submissions found"
-        emptyDescription='Adjust filters or click "+ New Submission" to add one.'
-        colCount={5}
+        emptyTitle={viewMode === "consolidated" ? "No approved/published submissions" : "No submissions found"}
+        emptyDescription={viewMode === "consolidated" ? "Approved and published marks will appear here." : 'Adjust filters or click "+ New Submission" to add one.'}
+        colCount={viewMode === "consolidated" ? 6 : 5}
       >
-        {data?.map((sub) => (
+        {displayData.map((sub) => (
           <TR key={sub.id} onClick={() => navigate(`/marks/${sub.id}`)}>
             <TD>
               <span style={{ fontWeight: 600, color: "#111827" }}>
@@ -155,6 +173,13 @@ export function MarksListPage() {
             <TD muted>
               {sub.intake} / {sub.term}
             </TD>
+            {viewMode === "consolidated" && (
+              <TD muted>
+                <span style={{ fontFamily: "monospace", fontSize: 12 }}>
+                  {sub.assessment_type ?? "—"}
+                </span>
+              </TD>
+            )}
             <TD>
               <Badge
                 label={sub.current_state ?? "—"}

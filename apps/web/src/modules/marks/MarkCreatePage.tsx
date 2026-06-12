@@ -18,12 +18,31 @@ import {
 } from "../../lib/ui";
 
 const TERMS = ["Term 1", "Term 2", "Term 3"];
+
+/** UVTAB / UTC Kyema TVET standard assessment types */
 const DEFAULT_ASSESSMENT_TYPES = [
-  { value: "midterm", label: "Midterm" },
-  { value: "end_of_term", label: "End of Term" },
-  { value: "coursework", label: "Coursework" },
-  { value: "practical", label: "Practical" },
+  { value: "assignment_1", label: "Assignment 1" },
+  { value: "assignment_2", label: "Assignment 2" },
+  { value: "test_1",       label: "Test 1" },
+  { value: "test_2",       label: "Test 2" },
+  { value: "practical_1", label: "Practical 1" },
+  { value: "practical_2", label: "Practical 2" },
+  { value: "end_of_term", label: "End of Term Exam" },
+  { value: "midterm",     label: "Midterm" },
+  { value: "coursework",  label: "Coursework" },
+  { value: "practical",   label: "Practical" },
 ];
+
+/** Standard TVET weights (%) — auto-filled when a TVET type is selected */
+const TVET_WEIGHTS: Record<string, number> = {
+  assignment_1: 5,
+  assignment_2: 5,
+  test_1: 10,
+  test_2: 10,
+  practical_1: 25,
+  practical_2: 25,
+  end_of_term: 40,
+};
 
 /** Convert snake_case or raw strings to Title Case for display.
  *  e.g. "end_of_term" → "End of Term", "assignmnt" → "Assignmnt" */
@@ -204,7 +223,13 @@ export function MarkCreatePage() {
               required
               style={selectCss}
               value={form.assessment_type}
-              onChange={(e) => set("assessment_type", e.target.value)}
+              onChange={(e) => {
+                const type = e.target.value;
+                set("assessment_type", type);
+                if (TVET_WEIGHTS[type] !== undefined) {
+                  set("weight", String(TVET_WEIGHTS[type]));
+                }
+              }}
             >
               {assessmentTypes.map((t) => (
                 <option key={t.value} value={t.value}>
