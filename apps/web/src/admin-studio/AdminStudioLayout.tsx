@@ -158,6 +158,9 @@ export function AdminStudioLayout() {
           <NavLink to="/admin-studio/fee-structure" style={studioNavStyle}>
             Fee Structures
           </NavLink>
+          <NavLink to="/admin-studio/fee-types" style={studioNavStyle}>
+            Fee Types &amp; Categories
+          </NavLink>
           <NavLink to="/admin-studio/grading" style={studioNavStyle}>
             Grading Scales
           </NavLink>

@@ -90,6 +90,16 @@ export const configPayloadSchema = z
     assessment_types: z
       .array(z.string().min(1))
       .optional(),
+    // Configurable fee type labels per tenant (e.g. "Tuition", "Boarding Fees", "Guild Fee").
+    // Defaults to ["tuition", "examination", "functional", "other"] when absent.
+    fee_types: z
+      .array(z.string().min(1))
+      .optional(),
+    // Configurable student category labels per tenant (e.g. "Resident", "Day").
+    // Defaults to ["all", "boarding", "day"] when absent.
+    student_categories: z
+      .array(z.string().min(1))
+      .optional(),
     fees: z
       .object({
         defaultTotalDue: z.number().positive().optional(),

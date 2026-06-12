@@ -16,6 +16,8 @@ import {
 } from "../../lib/ui";
 
 const SPONSORSHIP_TYPES = ["Government", "Private", "Self-Sponsored", "Scholarship", "Other"];
+const PROGRAMME_TYPES = ["Certificate", "Diploma"] as const;
+type ProgrammeType = typeof PROGRAMME_TYPES[number];
 
 export function ApplicationCreatePage() {
   ensureGlobalCss();
@@ -48,12 +50,21 @@ export function ApplicationCreatePage() {
     intake: "",
     sponsorship_type: "",
   });
+  const [programmeType, setProgrammeType] = useState<ProgrammeType | "">("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
   }
+
+  // Filter programmes by selected type; fall back to all if none selected or
+  // if a programme has no level set (treat as compatible with both types).
+  const visibleProgrammes = (programmes ?? []).filter((p) => {
+    if (!programmeType) return true;
+    if (!p.level) return true; // no level set — show in all
+    return p.level.toLowerCase().includes(programmeType.toLowerCase());
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -160,6 +171,21 @@ export function ApplicationCreatePage() {
           </div>
 
           <div style={twoColGrid}>
+            <Field label="Programme Type">
+              <select
+                style={selectCss}
+                value={programmeType}
+                onChange={(e) => {
+                  setProgrammeType(e.target.value as ProgrammeType | "");
+                  set("programme", ""); // reset programme when type changes
+                }}
+              >
+                <option value="">— All Types —</option>
+                {PROGRAMME_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </Field>
             <Field label="Programme" required>
               <select
                 required
@@ -168,14 +194,16 @@ export function ApplicationCreatePage() {
                 onChange={(e) => set("programme", e.target.value)}
               >
                 <option value="">— Select Programme —</option>
-                {(programmes ?? []).map((p) => (
+                {visibleProgrammes.map((p) => (
                   <option key={p.id} value={p.code}>
                     {p.code} — {p.title}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Intake" required>
+          </div>
+
+          <Field label="Intake" required>
               <select
                 required
                 style={selectCss}
@@ -190,7 +218,6 @@ export function ApplicationCreatePage() {
                 ))}
               </select>
             </Field>
-          </div>
 
           <Field label="Sponsorship Type">
             <select

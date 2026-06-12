@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "../lib/apiFetch";
+import { useConfig } from "../app/ConfigProvider";
 
 /* ------------------------------------------------------------------ types */
 
@@ -24,15 +25,12 @@ interface FeeStructure {
   is_active: boolean;
 }
 
-type FeeType = "tuition" | "functional" | "examination" | "other";
-type StudentCategory = "all" | "boarding" | "day";
+type FeeType = string;
+type StudentCategory = string;
 
-const FEE_TYPES: FeeType[] = ["tuition", "functional", "examination", "other"];
-const STUDENT_CATEGORIES: { value: StudentCategory; label: string }[] = [
-  { value: "all", label: "All students" },
-  { value: "boarding", label: "Boarding" },
-  { value: "day", label: "Day Scholar" },
-];
+// Built-in defaults — used only when no config is loaded yet.
+const DEFAULT_FEE_TYPES = ["tuition", "examination", "functional", "other"];
+const DEFAULT_STUDENT_CATEGORIES = ["all", "boarding", "day"];
 
 /* ------------------------------------------------------------------ styles */
 
@@ -61,6 +59,7 @@ const badgeStyle = (active: boolean): React.CSSProperties => ({
 /* ---------------------------------------------------------------- component */
 
 export function FeeStructureEditor() {
+  const { feeTypes = DEFAULT_FEE_TYPES, studentCategories = DEFAULT_STUDENT_CATEGORIES } = useConfig();
   const qc = useQueryClient();
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [showForm, setShowForm] = useState(false);
@@ -183,7 +182,7 @@ export function FeeStructureEditor() {
   /* ---- helpers ---- */
 
   function resetForm() {
-    setForm({ academic_year_id: "", term_id: "", programme_id: "", fee_type: "tuition", student_category: "all", description: "", amount: "", currency: "UGX", is_active: true });
+    setForm({ academic_year_id: "", term_id: "", programme_id: "", fee_type: feeTypes[0] ?? "tuition", student_category: studentCategories[0] ?? "all", description: "", amount: "", currency: "UGX", is_active: true });
   }
 
   function openEdit(item: FeeStructure) {
@@ -293,14 +292,14 @@ export function FeeStructureEditor() {
               </div>
               <div>
                 <label style={labelSt}>Fee Type *</label>
-                <select required value={form.fee_type} onChange={(e) => setForm((f) => ({ ...f, fee_type: e.target.value as FeeType }))} style={selectSt}>
-                  {FEE_TYPES.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                <select required value={form.fee_type} onChange={(e) => setForm((f) => ({ ...f, fee_type: e.target.value }))} style={selectSt}>
+                  {feeTypes.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                 </select>
               </div>
               <div>
                 <label style={labelSt}>Student Category</label>
-                <select value={form.student_category} onChange={(e) => setForm((f) => ({ ...f, student_category: e.target.value as StudentCategory }))} style={selectSt}>
-                  {STUDENT_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                <select value={form.student_category} onChange={(e) => setForm((f) => ({ ...f, student_category: e.target.value }))} style={selectSt}>
+                  {studentCategories.map((c) => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
                 </select>
               </div>
               <div>
@@ -376,9 +375,9 @@ export function FeeStructureEditor() {
                     <td style={td}><strong>{fs.programme_code}</strong> — {fs.programme_title}</td>
                     <td style={td}>{fs.fee_type.charAt(0).toUpperCase() + fs.fee_type.slice(1)}</td>
                     <td style={td}>
-                      {fs.student_category === "boarding" && <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "#dbeafe", color: "#1d4ed8" }}>Boarding</span>}
-                      {fs.student_category === "day" && <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "#fef9c3", color: "#854d0e" }}>Day Scholar</span>}
-                      {(!fs.student_category || fs.student_category === "all") && <span style={{ color: "#94a3b8", fontSize: 12 }}>All</span>}
+                      <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "#f1f5f9", color: "#475569" }}>
+                        {fs.student_category ? fs.student_category.charAt(0).toUpperCase() + fs.student_category.slice(1) : "All"}
+                      </span>
                     </td>
                     <td style={{ ...td, color: "#64748b" }}>{terms.find((t) => t.id === fs.term_id)?.name ?? "Year-level"}</td>
                     <td style={{ ...td, fontWeight: 700 }}>{fs.currency} {parseFloat(fs.amount).toLocaleString()}</td>
