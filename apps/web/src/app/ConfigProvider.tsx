@@ -47,6 +47,8 @@ interface ConfigPayload {
   };
   modules?: Record<string, boolean>;
   assessment_types?: string[];
+  fee_types?: string[];
+  student_categories?: string[];
 }
 
 interface ConfigData {
@@ -78,6 +80,8 @@ interface ConfigContextValue {
   };
   enabledModules: Record<string, boolean>;
   assessmentTypes: string[];
+  feeTypes: string[];
+  studentCategories: string[];
 }
 
 const ConfigContext = createContext<ConfigContextValue>({
@@ -101,6 +105,8 @@ const ConfigContext = createContext<ConfigContextValue>({
   },
   enabledModules: {},
   assessmentTypes: [],
+  feeTypes: ["tuition", "examination", "functional", "other"],
+  studentCategories: ["all", "boarding", "day"],
 });
 
 export function useConfig() {
@@ -130,6 +136,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const designations = config?.payload?.institution?.designations ?? [];
   const enabledModules: Record<string, boolean> = config?.payload?.modules ?? {};
   const assessmentTypes: string[] = config?.payload?.assessment_types ?? [];
+  const feeTypes: string[] = config?.payload?.fee_types ?? ["tuition", "examination", "functional", "other"];
+  const studentCategories: string[] = config?.payload?.student_categories ?? ["all", "boarding", "day"];
   const rawReceipt = config?.payload?.receipt;
   const receiptConfig = {
     template: (rawReceipt?.template ?? "classic") as "classic" | "modern" | "minimal",
@@ -160,6 +168,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         receiptConfig,
         enabledModules,
         assessmentTypes,
+        feeTypes,
+        studentCategories,
       }}
     >
       {children}
