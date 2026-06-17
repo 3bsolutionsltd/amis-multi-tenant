@@ -109,6 +109,7 @@ import { SRQListPage } from "./modules/stores/SRQListPage";
 import { SRQDetailPage } from "./modules/stores/SRQDetailPage";
 import { PCVListPage } from "./modules/stores/PCVListPage";
 import { PCVDetailPage } from "./modules/stores/PCVDetailPage";
+import { UATFeedbackPage } from "./modules/public/UATFeedbackPage";
 
 export const router = createBrowserRouter([
   {
@@ -134,6 +135,10 @@ export const router = createBrowserRouter([
   {
     path: "/apply/:tenantSlug",
     element: <PublicApplicationPage />,
+  },
+  {
+    path: "/uat-feedback",
+    element: <UATFeedbackPage />,
   },
   {
     path: "/setup",
