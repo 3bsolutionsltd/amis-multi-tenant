@@ -138,7 +138,11 @@ export const router = createBrowserRouter([
   },
   {
     path: "/uat-feedback",
-    element: <UATFeedbackPage />,
+    element: (
+      <ProtectedRoute>
+        <UATFeedbackPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/setup",
