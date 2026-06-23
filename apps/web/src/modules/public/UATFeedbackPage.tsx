@@ -4,6 +4,7 @@
  * Route: /uat-feedback  (no auth required)
  */
 import { useState } from "react";
+import { apiFetch } from "../../lib/apiFetch";
 import { ensureGlobalCss, C, inputCss } from "../../lib/ui";
 
 // ---------------------------------------------------------------------------
@@ -195,18 +196,11 @@ export function UATFeedbackPage() {
 
     try {
       const roleDisplay = form.role === "Other" ? form.otherRole || "Other" : form.role;
-      const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
-      const res = await fetch(`${API_URL}/feedback`, {
+      await apiFetch<void>("/feedback", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, role: roleDisplay }),
       });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error((data as { message?: string }).message ?? `Server error ${res.status}`);
-      }
 
       setSubmitted(true);
     } catch (e) {
