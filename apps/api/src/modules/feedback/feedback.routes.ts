@@ -216,12 +216,62 @@ export async function feedbackRoutes(app: FastifyInstance) {
       // ──────────────────────────────────────────────────────────────────
       const subject = `AMIS UAT Feedback — ${data.vtiName} (${data.role}) · ${data.severity.toUpperCase()}`;
 
+      // Send full copy to support inbox
       await sendMail({
         to: SUPPORT_EMAIL,
         subject,
         html: buildFeedbackHtml(data),
         text: buildFeedbackText(data),
       });
+
+      // Send confirmation receipt to the submitter
+      const confirmHtml = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"></head>
+<body style="font-family:Arial,sans-serif;background:#f4f6f8;margin:0;padding:0">
+<div style="max-width:580px;margin:32px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+  <div style="background:#1e3a5f;padding:20px 32px">
+    <h1 style="color:#fff;margin:0;font-size:20px">AMIS — Feedback Received</h1>
+    <p style="color:#94a3b8;margin:4px 0 0;font-size:13px">Testing Phase · June 2026</p>
+  </div>
+  <div style="padding:28px 32px">
+    <p style="color:#374151;margin:0 0 16px">Hello <strong>${data.testerName}</strong>,</p>
+    <p style="color:#374151;margin:0 0 16px">
+      Thank you for taking the time to submit your UAT feedback for AMIS.
+      Your response has been received and forwarded to the development team.
+    </p>
+    <div style="background:#f1f5f9;border-radius:8px;padding:16px 20px;margin:0 0 20px">
+      <table style="width:100%;border-collapse:collapse">
+        <tr><td style="padding:4px 0;color:#6b7280;width:120px;font-size:13px">Institute</td><td style="padding:4px 0;color:#111827;font-size:13px;font-weight:600">${data.vtiName}</td></tr>
+        <tr><td style="padding:4px 0;color:#6b7280;font-size:13px">Role</td><td style="padding:4px 0;color:#111827;font-size:13px">${data.role}</td></tr>
+        <tr><td style="padding:4px 0;color:#6b7280;font-size:13px">Submitted</td><td style="padding:4px 0;color:#111827;font-size:13px">${data.testDate ?? new Date().toISOString().split("T")[0]}</td></tr>
+        <tr><td style="padding:4px 0;color:#6b7280;font-size:13px">Overall rating</td><td style="padding:4px 0;color:#f59e0b;font-size:14px;letter-spacing:2px">${"★".repeat(data.overallRating)}${"☆".repeat(5 - data.overallRating)}</td></tr>
+      </table>
+    </div>
+    <p style="color:#6b7280;font-size:13px;margin:0 0 8px">
+      If you have additional feedback or need to follow up, reply to this email or contact us at
+      <a href="mailto:${SUPPORT_EMAIL}" style="color:#2563eb">${SUPPORT_EMAIL}</a>.
+    </p>
+    <p style="color:#6b7280;font-size:13px;margin:0">We appreciate your contribution to making AMIS better.</p>
+  </div>
+  <div style="background:#f1f5f9;padding:16px 32px;font-size:12px;color:#94a3b8">
+    AMIS — Academic Management Information System · 3B Solutions Ltd
+  </div>
+</div>
+</body>
+</html>`;
+
+      const confirmText = `Hello ${data.testerName},\n\nThank you for submitting your UAT feedback for AMIS.\n\nInstitute: ${data.vtiName}\nRole: ${data.role}\nOverall rating: ${data.overallRating}/5\n\nYour response has been received and forwarded to the development team.\n\nIf you have additional feedback, contact us at ${SUPPORT_EMAIL}.\n\nAMIS — Academic Management Information System`;
+
+      // Fire-and-forget — confirmation failure must not block the main response
+      sendMail({
+        to: data.email,
+        subject: `Feedback received — AMIS UAT (${data.vtiName})`,
+        html: confirmHtml,
+        text: confirmText,
+      }).catch((err) =>
+        req.log.error({ err }, "[feedback] confirmation email failed"),
+      );
 
       return reply.status(200).send({ ok: true });
     },
