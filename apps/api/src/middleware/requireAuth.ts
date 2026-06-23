@@ -26,7 +26,6 @@ const PUBLIC_PATHS = new Set([
   "GET /health",
   "POST /onboarding", // VTI self-registration is public
   "GET /tenants/verify-email", // contact email verification link (public)
-  "POST /feedback", // UAT feedback form is public (no login required)
 ]);
 
 /** Route prefixes that never require authentication. */
