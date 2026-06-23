@@ -8,6 +8,18 @@ import { sendMail } from "../../lib/email.js";
 
 const SUPPORT_EMAIL = process.env.UAT_FEEDBACK_EMAIL ?? "support@amis.institute";
 
+// Known challenge Q&A pairs — must stay in sync with the frontend CHALLENGES array
+const CHALLENGE_ANSWERS: Record<string, string> = {
+  "What is 3 + 5?":  "8",
+  "What is 6 + 2?":  "8",
+  "What is 4 + 7?":  "11",
+  "What is 9 - 3?":  "6",
+  "What is 2 × 4?":  "8",
+  "What is 10 - 4?": "6",
+  "What is 5 + 6?":  "11",
+  "What is 7 - 2?":  "5",
+};
+
 const FeedbackSchema = z.object({
   vtiName:            z.string().min(1).max(200),
   testerName:         z.string().min(1).max(200),
@@ -25,6 +37,10 @@ const FeedbackSchema = z.object({
   suggestions:        z.string().max(5000).default(""),
   wouldRecommend:     z.string().max(100).default(""),
   additionalNotes:    z.string().max(5000).default(""),
+  // Bot protection
+  _hp:                z.string().default(""),          // honeypot — must be empty
+  challengeQuestion:  z.string().max(200).default(""),
+  challengeAnswer:    z.string().max(20).default(""),
 });
 
 function stars(n: number): string {
@@ -185,6 +201,19 @@ export async function feedbackRoutes(app: FastifyInstance) {
       }
 
       const data = parsed.data;
+
+      // ── Bot protection ─────────────────────────────────────────────────
+      // 1. Honeypot: reject silently if filled (bots fill hidden fields)
+      if (data._hp.trim() !== "") {
+        return reply.status(200).send({ ok: true }); // silent accept to confuse bots
+      }
+
+      // 2. Math challenge: validate answer against known Q&A lookup
+      const expectedAnswer = CHALLENGE_ANSWERS[data.challengeQuestion];
+      if (!expectedAnswer || data.challengeAnswer.trim() !== expectedAnswer) {
+        return reply.status(422).send({ message: "Incorrect answer to the security question" });
+      }
+      // ──────────────────────────────────────────────────────────────────
       const subject = `AMIS UAT Feedback — ${data.vtiName} (${data.role}) · ${data.severity.toUpperCase()}`;
 
       await sendMail({

@@ -9,6 +9,19 @@ import { ensureGlobalCss, C, inputCss } from "../../lib/ui";
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
+
+// Simple math challenges — question shown to user, answer validated on backend
+const CHALLENGES = [
+  { q: "What is 3 + 5?",  a: "8"  },
+  { q: "What is 6 + 2?",  a: "8"  },
+  { q: "What is 4 + 7?",  a: "11" },
+  { q: "What is 9 - 3?",  a: "6"  },
+  { q: "What is 2 × 4?",  a: "8"  },
+  { q: "What is 10 - 4?", a: "6"  },
+  { q: "What is 5 + 6?",  a: "11" },
+  { q: "What is 7 - 2?",  a: "5"  },
+];
+
 const MODULES = [
   "Student Registration & Management",
   "Admissions & Applications",
@@ -160,6 +173,13 @@ export function UATFeedbackPage() {
     additionalNotes: "",
   });
 
+  // Bot protection
+  const [honeypot, setHoneypot] = useState("");
+  const [challenge] = useState(
+    () => CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)]
+  );
+  const [challengeAnswer, setChallengeAnswer] = useState("");
+
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -183,6 +203,9 @@ export function UATFeedbackPage() {
     if (!form.role) return "Please select your role";
     if (form.overallRating === 0) return "Please provide an overall rating";
     if (!form.severity) return "Please select the severity of any issues encountered";
+    if (!challengeAnswer.trim()) return "Please answer the security question";
+    if (challengeAnswer.trim() !== challenge.a)
+      return "Incorrect answer to the security question — please try again";
     return null;
   }
 
@@ -200,7 +223,13 @@ export function UATFeedbackPage() {
       const res = await fetch(`${API_URL}/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, role: roleDisplay }),
+        body: JSON.stringify({
+          ...form,
+          role: roleDisplay,
+          _hp: honeypot,
+          challengeQuestion: challenge.q,
+          challengeAnswer: challengeAnswer.trim(),
+        }),
       });
 
       if (!res.ok) {
@@ -658,6 +687,38 @@ export function UATFeedbackPage() {
           </div>
 
           {/* ── Submit ─────────────────────────────────────────────────── */}
+          {/* ── Honeypot — hidden from real users, filled by bots ── */}
+          <div style={{ display: "none" }} aria-hidden="true">
+            <input
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+            />
+          </div>
+
+          {/* ── Human verification ── */}
+          <div style={cardStyle}>
+            <p style={sectionTitle}>Human Verification</p>
+            <div style={fieldWrap}>
+              <label style={labelStyle}>{challenge.q} *</label>
+              <input
+                style={{ ...inputCss, maxWidth: 160 }}
+                type="text"
+                inputMode="numeric"
+                placeholder="Your answer"
+                value={challengeAnswer}
+                onChange={(e) => setChallengeAnswer(e.target.value)}
+                autoComplete="off"
+              />
+              <p style={{ fontSize: 12, color: C.gray400, margin: "4px 0 0" }}>
+                Quick check to prevent automated submissions.
+              </p>
+            </div>
+          </div>
+
           <div
             style={{
               background: "rgba(255,255,255,0.06)",
@@ -686,7 +747,7 @@ export function UATFeedbackPage() {
                 transition: "background 0.15s",
               }}
             >
-              {submitting ? "Preparing…" : "Submit Feedback →"}
+              {submitting ? "Sending…" : "Submit Feedback →"}
             </button>
           </div>
         </form>
