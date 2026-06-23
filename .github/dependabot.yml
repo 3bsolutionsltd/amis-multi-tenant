@@ -7,6 +7,11 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    ignore:
+      # @fastify/* plugins require matching Fastify major version.
+      # Do not auto-bump major versions until Fastify core is upgraded to v5.
+      - dependency-name: "@fastify/*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
