@@ -194,66 +194,23 @@ export function UATFeedbackPage() {
     setSubmitting(true);
 
     try {
-      // Build mailto body as fallback; primary submission via mailto
       const roleDisplay = form.role === "Other" ? form.otherRole || "Other" : form.role;
-      const modulesOk = form.modulesTestedOk.join(", ") || "None specified";
-      const modulesWithIssues = form.moduleIssues.join(", ") || "None";
+      const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
-      const body = [
-        `UAT FEEDBACK SUBMISSION`,
-        `======================`,
-        `Date: ${form.testDate}`,
-        ``,
-        `TESTER DETAILS`,
-        `--------------`,
-        `Institute: ${form.vtiName}`,
-        `Name: ${form.testerName}`,
-        `Email: ${form.email}`,
-        `Role: ${roleDisplay}`,
-        ``,
-        `MODULES TESTED (Working OK)`,
-        `---------------------------`,
-        modulesOk,
-        ``,
-        `MODULES WITH ISSUES`,
-        `-------------------`,
-        modulesWithIssues,
-        ``,
-        `RATINGS`,
-        `-------`,
-        `Overall Experience: ${"★".repeat(form.overallRating)}${"☆".repeat(5 - form.overallRating)} (${form.overallRating}/5)`,
-        `Ease of Use:        ${"★".repeat(form.easeOfUseRating)}${"☆".repeat(5 - form.easeOfUseRating)} (${form.easeOfUseRating || "N/A"}/5)`,
-        `Performance:        ${"★".repeat(form.performanceRating)}${"☆".repeat(5 - form.performanceRating)} (${form.performanceRating || "N/A"}/5)`,
-        `Issue Severity: ${form.severity.toUpperCase()}`,
-        ``,
-        `ISSUES ENCOUNTERED`,
-        `------------------`,
-        form.issuesDescription || "(none provided)",
-        ``,
-        `WHAT WORKED WELL`,
-        `----------------`,
-        form.whatWorked || "(none provided)",
-        ``,
-        `SUGGESTIONS & IMPROVEMENTS`,
-        `--------------------------`,
-        form.suggestions || "(none provided)",
-        ``,
-        `WOULD RECOMMEND: ${form.wouldRecommend || "Not answered"}`,
-        ``,
-        `ADDITIONAL NOTES`,
-        `----------------`,
-        form.additionalNotes || "(none)",
-      ].join("\n");
+      const res = await fetch(`${API_URL}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, role: roleDisplay }),
+      });
 
-      const subject = `AMIS UAT Feedback — ${form.vtiName} (${roleDisplay})`;
-      const mailtoLink = `mailto:support@amis.institute?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      window.location.href = mailtoLink;
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { message?: string }).message ?? `Server error ${res.status}`);
+      }
 
-      // Small delay to allow mailto to open, then show success
-      await new Promise((r) => setTimeout(r, 800));
       setSubmitted(true);
-    } catch {
-      setError("An unexpected error occurred. Please try again.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "An unexpected error occurred. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -278,9 +235,8 @@ export function UATFeedbackPage() {
             Thank You for Your Feedback!
           </h2>
           <p style={{ color: C.gray500, fontSize: 14, margin: "0 0 20px" }}>
-            Your input is invaluable in helping us improve AMIS. An email draft
-            should have opened in your mail client — please send it if it hasn't
-            been sent automatically.
+            Your feedback has been sent directly to the AMIS team at{" "}
+            <strong>support@amis.institute</strong>. We appreciate your time!
           </p>
           <div
             style={{
@@ -712,9 +668,8 @@ export function UATFeedbackPage() {
             }}
           >
             <p style={{ color: "#94a3b8", fontSize: 13, margin: "0 0 16px" }}>
-              Submitting will open your email client with a pre-filled message to{" "}
+              Your feedback will be sent directly to{" "}
               <strong style={{ color: "#cbd5e1" }}>support@amis.institute</strong>.
-              Please send the email to complete your submission.
             </p>
             <button
               type="submit"

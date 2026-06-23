@@ -43,6 +43,7 @@ import { uploadsRoutes } from "./modules/uploads/uploads.routes.js";
 import { studentProjectsRoutes } from "./modules/student-projects/student-projects.routes.js";
 import { storesRoutes } from "./modules/stores/stores.routes.js";
 import { syncRoutes } from "./modules/sync/sync.routes.js";
+import { feedbackRoutes } from "./modules/feedback/feedback.routes.js";
 import { registerDevIdentity } from "./middleware/devIdentity.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 import { isUUID } from "./lib/uuid.js";
@@ -169,6 +170,7 @@ export function buildApp() {
   app.register(studentProjectsRoutes);
   app.register(storesRoutes);
   app.register(syncRoutes);
+  app.register(feedbackRoutes);
 
   // Global error handler — structured errors, no stack traces in production
   app.setErrorHandler((error, _req, reply) => {
