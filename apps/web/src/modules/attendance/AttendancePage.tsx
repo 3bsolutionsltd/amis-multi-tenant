@@ -10,7 +10,6 @@ import {
   type AttendanceStatus,
   type BatchAttendanceItem,
 } from "./attendance.api";
-import { useConfig } from "../../app/ConfigProvider";
 import { listAcademicYears } from "../academic-calendar/academic-calendar.api";
 import { listCourses } from "../courses/courses.api";
 import { listProgrammes } from "../programmes/programmes.api";
@@ -33,8 +32,6 @@ type ViewMode = "sheet" | "summary";
 export function AttendancePage() {
   ensureGlobalCss();
   const qc = useQueryClient();
-  const { programmes } = useConfig() as { programmes?: string[] };
-
   // All useState hooks must come first (before any queries or derived values)
   const [filters, setFilters] = useState({
     programme: "",
@@ -239,7 +236,7 @@ export function AttendancePage() {
             />
           </Field>
           <Field label="Programme">
-            {programmes && programmes.length > 0 ? (
+            {programmesList.length > 0 ? (
               <select
                 style={selectCss}
                 value={filters.programme}
@@ -248,9 +245,9 @@ export function AttendancePage() {
                 }
               >
                 <option value="">All programmes</option>
-                {programmes.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                {programmesList.map((p) => (
+                  <option key={p.id} value={p.code}>
+                    {p.code} — {p.title}
                   </option>
                 ))}
               </select>

@@ -711,17 +711,52 @@ export async function feesRoutes(app: FastifyInstance) {
           cfgRows[0]?.payload?.fees?.defaultTotalDue ?? 0;
 
         const { rows } = await client.query(
-          `SELECT s.id, s.first_name, s.last_name, s.admission_number, s.programme,
-                  COALESCE(p.total_paid, 0) AS total_paid,
-                  ($1 - COALESCE(p.total_paid, 0)) AS balance
-           FROM app.students s
-           LEFT JOIN (
-             SELECT student_id, SUM(amount) AS total_paid
-             FROM app.payments
-             GROUP BY student_id
-           ) p ON p.student_id = s.id
-           WHERE s.is_active = true
-             AND COALESCE(p.total_paid, 0) < $1
+          `WITH student_cats AS (
+             SELECT
+               s.id,
+               s.first_name,
+               s.last_name,
+               s.admission_number,
+               s.programme,
+               s.programme_id,
+               s.programme_code,
+               CASE
+                 WHEN LOWER(s.sponsorship_type) LIKE '%boarding%'
+                   OR LOWER(s.sponsorship_type) LIKE '%boarder%' THEN 'boarding'
+                 WHEN LOWER(s.sponsorship_type) LIKE '%day%'
+                   OR (s.sponsorship_type IS NOT NULL AND TRIM(s.sponsorship_type) != '') THEN 'day'
+                 ELSE 'all'
+               END AS category
+             FROM app.students s
+             WHERE s.is_active = true
+           ), student_balances AS (
+             SELECT
+               sc.*,
+               COALESCE((
+                 SELECT SUM(fs.amount)
+                 FROM app.fee_structures fs
+                 JOIN app.programmes p ON p.id = fs.programme_id
+                 JOIN app.academic_years ay ON ay.id = fs.academic_year_id AND ay.is_current = true
+                 LEFT JOIN app.terms t ON t.id = fs.term_id
+                 WHERE fs.is_active = true
+                   AND (fs.term_id IS NULL OR t.is_current = true)
+                   AND fs.student_category = ANY(ARRAY['all', sc.category])
+                   AND (
+                     fs.programme_id = sc.programme_id
+                     OR LOWER(p.code) = LOWER(COALESCE(sc.programme_code, ''))
+                     OR LOWER(p.title) = LOWER(COALESCE(sc.programme, ''))
+                   )
+               ), $1) AS total_due,
+               COALESCE((
+                 SELECT SUM(amount) FROM app.payments WHERE student_id = sc.id
+               ), 0) AS total_paid
+             FROM student_cats sc
+           )
+           SELECT id, first_name, last_name, admission_number, programme,
+                  total_paid,
+                  (total_due - total_paid) AS balance
+           FROM student_balances
+           WHERE total_paid < total_due
            ORDER BY balance DESC`,
           [defaultTotalDue],
         );
@@ -757,8 +792,6 @@ export async function feesRoutes(app: FastifyInstance) {
         );
         const threshold: number =
           cfgRows[0]?.payload?.fees?.clearanceThreshold ?? 100;
-        const totalDue: number =
-          cfgRows[0]?.payload?.fees?.defaultTotalDue ?? 0;
 
         // Verify student exists
         const { rows: stuRows } = await client.query(
@@ -767,23 +800,25 @@ export async function feesRoutes(app: FastifyInstance) {
         );
         if (stuRows.length === 0) return { notFound: true } as const;
 
-        // Sum payments
+        const due = await calculateStudentTotalDue(client, tid, studentId);
+        if ("notFound" in due) return due;
+
         const { rows: payRows } = await client.query(
           `SELECT COALESCE(SUM(amount), 0) AS total_paid FROM app.payments WHERE student_id = $1`,
           [studentId],
         );
         const totalPaid = Number(payRows[0].total_paid);
-        const requiredAmount = (threshold / 100) * totalDue;
+        const requiredAmount = (threshold / 100) * due.totalDue;
         const cleared = totalPaid >= requiredAmount;
 
         return {
           student: stuRows[0],
-          totalDue,
+          totalDue: due.totalDue,
           totalPaid,
           threshold,
           requiredAmount,
           cleared,
-          balance: totalDue - totalPaid,
+          balance: due.totalDue - totalPaid,
         };
       });
 

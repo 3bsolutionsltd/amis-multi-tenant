@@ -310,6 +310,8 @@ export function MarkDetailPage() {
       setEntriesSuccess(true);
       setDraftRows([mkRow()]);
       qc.invalidateQueries({ queryKey: ["submission", id] });
+      qc.invalidateQueries({ queryKey: ["submissions"] });
+      qc.invalidateQueries({ queryKey: ["marks-analysis"] });
     },
     onError: (err) => {
       setEntriesSuccess(false);

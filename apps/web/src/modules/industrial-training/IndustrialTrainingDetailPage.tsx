@@ -67,11 +67,11 @@ export function IndustrialTrainingDetailPage() {
   function startEdit() {
     if (!data) return;
     setForm({
-      company: data.company,
+      company: data.company ?? "",
       supervisor: data.supervisor ?? "",
       department: data.department ?? "",
-      start_date: data.start_date ?? "",
-      end_date: data.end_date ?? "",
+      start_date: data.start_date?.slice(0, 10) ?? "",
+      end_date: data.end_date?.slice(0, 10) ?? "",
       status: data.status,
       notes: data.notes ?? "",
     });
@@ -114,7 +114,7 @@ export function IndustrialTrainingDetailPage() {
   return (
     <div>
       <PageHeader
-        title={data.company}
+        title={data.company || "Industrial Training"}
         back={{ label: "Industrial Training", to: "/industrial-training" }}
         action={
           <Badge label={data.status} color={STATUS_BADGE[data.status]} />
