@@ -69,8 +69,8 @@ export function FieldPlacementDetailPage() {
       host_organisation: data.host_organisation,
       supervisor: data.supervisor ?? "",
       placement_type: data.placement_type,
-      start_date: data.start_date ?? "",
-      end_date: data.end_date ?? "",
+      start_date: data.start_date?.slice(0, 10) ?? "",
+      end_date: data.end_date?.slice(0, 10) ?? "",
       status: data.status,
       notes: data.notes ?? "",
     });

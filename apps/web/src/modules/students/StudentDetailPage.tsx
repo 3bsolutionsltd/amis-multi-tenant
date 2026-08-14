@@ -13,6 +13,7 @@ import { getStudent,
   type UpdateStudentBody,
   type DeactivateStudentBody,
 } from "./students.api";
+import { graduateStudent } from "../alumni/alumni.api";
 import { StudentDocumentsSection } from "./StudentDocumentsSection";
 import { listStudentProjects, createStudentProject, type ProjectStatus } from "../student-projects/student-projects.api";
 import { listProgrammes } from "../programmes/programmes.api";
@@ -70,6 +71,9 @@ export function StudentDetailPage() {
   });
 
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [showGraduateModal, setShowGraduateModal] = useState(false);
+  const [graduationDate, setGraduationDate] = useState(new Date().toISOString().slice(0, 10));
+  const [graduationNotes, setGraduationNotes] = useState("");
   const [dropoutForm, setDropoutForm] = useState<DeactivateStudentBody>({
     dropout_reason: "",
     dropout_date: "",
@@ -114,6 +118,19 @@ export function StudentDetailPage() {
     onSuccess: (updated) => {
       qc.setQueryData(["students", id], updated);
       qc.invalidateQueries({ queryKey: ["students"] });
+    },
+  });
+
+  const graduateMutation = useMutation({
+    mutationFn: () =>
+      graduateStudent(id!, {
+        graduation_date: graduationDate,
+        graduation_notes: graduationNotes || undefined,
+      }),
+    onSuccess: () => {
+      setShowGraduateModal(false);
+      qc.invalidateQueries({ queryKey: ["students"] });
+      navigate("/alumni");
     },
   });
 
@@ -245,6 +262,9 @@ export function StudentDetailPage() {
                 color={student.is_active ? "green" : "gray"}
               />
               <PrimaryBtn onClick={startEdit}>Edit</PrimaryBtn>
+              <SecondaryBtn onClick={() => setShowGraduateModal(true)}>
+                Graduate
+              </SecondaryBtn>
               {student.is_active ? (
                 <SecondaryBtn
                   onClick={() => {
@@ -935,6 +955,51 @@ export function StudentDetailPage() {
             </div>
           </form>
         </Card>
+      )}
+
+      {showGraduateModal && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowGraduateModal(false); }}
+        >
+          <Card padding="28px" style={{ width: 440, maxWidth: "95vw" }}>
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Graduate Student</div>
+            <div style={{ fontSize: 13, color: C.gray500, marginBottom: 20 }}>
+              This will add the student to Alumni and mark the student inactive.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <Field label="Graduation date" required>
+                <input
+                  type="date"
+                  style={inputCss}
+                  value={graduationDate}
+                  onChange={(e) => setGraduationDate(e.target.value)}
+                />
+              </Field>
+              <Field label="Graduation notes">
+                <textarea
+                  style={{ ...inputCss, height: 72, resize: "vertical" }}
+                  value={graduationNotes}
+                  onChange={(e) => setGraduationNotes(e.target.value)}
+                  placeholder="Award, qualification, or other graduation details"
+                />
+              </Field>
+              {graduateMutation.isError && <ErrorBanner message="Graduation failed. Please try again." />}
+              <div style={{ display: "flex", gap: 8 }}>
+                <PrimaryBtn
+                  onClick={() => graduateMutation.mutate()}
+                  disabled={!graduationDate || graduateMutation.isPending}
+                >
+                  {graduateMutation.isPending ? "Graduating…" : "Confirm Graduation"}
+                </PrimaryBtn>
+                <SecondaryBtn onClick={() => setShowGraduateModal(false)}>Cancel</SecondaryBtn>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* Deactivate / Dropout modal (SR-F-003) */}

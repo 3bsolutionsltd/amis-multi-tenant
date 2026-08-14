@@ -102,7 +102,7 @@ export function ApplicationCreatePage() {
         first_name: form.first_name,
         last_name: form.last_name,
         programme: form.programme,
-        intake: form.intake,
+        intake: form.intake || defaultIntake,
         dob: form.dob || undefined,
         gender: form.gender || undefined,
         email: form.email || undefined,
