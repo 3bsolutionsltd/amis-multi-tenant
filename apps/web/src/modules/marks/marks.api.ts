@@ -1,4 +1,5 @@
 import { apiFetch } from "../../lib/apiFetch";
+import { getAccessToken } from "../../lib/auth";
 
 export interface Submission {
   id: string;
@@ -132,11 +133,15 @@ export function getAuditLog(submissionId: string): Promise<AuditEntry[]> {
 export function uploadFile(file: File): Promise<EvidenceFile> {
   const base = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
   const tenantId = localStorage.getItem("amis_tenant_id") ?? "";
+  const accessToken = getAccessToken();
   const fd = new FormData();
   fd.append("file", file);
   return fetch(`${base}/uploads`, {
     method: "POST",
-    headers: { "x-tenant-id": tenantId },
+    headers: {
+      "x-tenant-id": tenantId,
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
     body: fd,
   }).then(async (r) => {
     if (!r.ok) throw new Error(`Upload failed: ${r.status}`);

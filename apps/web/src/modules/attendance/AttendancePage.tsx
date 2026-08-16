@@ -215,9 +215,15 @@ export function AttendancePage() {
             <select
               style={selectCss}
               value={filters.course_id}
-              onChange={(e) =>
-                setFilters({ ...filters, course_id: e.target.value })
-              }
+              onChange={(e) => {
+                const course = coursesList.find((c) => c.id === e.target.value);
+                const programme = programmesList.find((p) => p.id === course?.programme_id);
+                setFilters({
+                  ...filters,
+                  course_id: e.target.value,
+                  programme: programme?.code ?? filters.programme,
+                });
+              }}
             >
               <option value="">— Select course —</option>
               {coursesList.map((c) => (
@@ -292,6 +298,9 @@ export function AttendancePage() {
             </select>
           </Field>
         </div>
+        <p style={{ margin: "-4px 0 12px", fontSize: 12, color: C.gray500 }}>
+          Select a programme first to narrow the course list, or select a course and its programme will be selected automatically. Existing attendance records are shown for the selected course and date; a blank result means no attendance has been recorded yet.
+        </p>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <PrimaryBtn onClick={applyFilters}>Apply</PrimaryBtn>
           <SecondaryBtn onClick={resetFilters}>Reset</SecondaryBtn>

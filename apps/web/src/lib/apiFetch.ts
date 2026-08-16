@@ -9,12 +9,34 @@ import { enqueue } from "./offlineQueue";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
+function describeApiError(status: number, body: unknown): string {
+  if (typeof body === "string" && body.trim()) return body;
+  if (body && typeof body === "object" && "error" in body) {
+    const error = (body as { error?: unknown }).error;
+    if (typeof error === "string" && error.trim()) return error;
+    if (error && typeof error === "object") {
+      const flattened = error as {
+        formErrors?: string[];
+        fieldErrors?: Record<string, string[]>;
+      };
+      const messages = [
+        ...(flattened.formErrors ?? []),
+        ...Object.entries(flattened.fieldErrors ?? {}).flatMap(
+          ([field, errors]) => errors.map((message) => `${field}: ${message}`),
+        ),
+      ];
+      if (messages.length > 0) return messages.join("; ");
+    }
+  }
+  return `API error ${status}`;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly body: unknown,
   ) {
-    super(`API error ${status}`);
+    super(describeApiError(status, body));
   }
 }
 

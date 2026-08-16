@@ -776,7 +776,7 @@ export function StudentDetailPage() {
                   onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
                 />
               </Field>
-              <Field label="Sponsorship">
+              <Field label="Sponsorship / Fee Category">
                 <select
                   style={selectCss}
                   value={form.sponsorship_type}
