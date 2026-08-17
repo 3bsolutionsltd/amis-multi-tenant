@@ -12,7 +12,7 @@
  */
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { pool, superPool } from "../../db/pool.js";
+import { pool, superPool, isConnectionError } from "../../db/pool.js";
 import { hashPasswordAsync } from "../../lib/password.js";
 import { signToken } from "../../lib/jwt.js";
 import { requireRole } from "../../middleware/requireRole.js";
@@ -118,6 +118,7 @@ export async function onboardingRoutes(app: FastifyInstance) {
     } = parsed.data;
 
     const client = await pool.connect();
+    let connectionDied = false;
     try {
       await client.query("BEGIN");
 
@@ -190,7 +191,8 @@ export async function onboardingRoutes(app: FastifyInstance) {
         refreshToken,
       });
     } catch (err: unknown) {
-      await client.query("ROLLBACK");
+      connectionDied = isConnectionError(err);
+      if (!connectionDied) await client.query("ROLLBACK").catch(() => {});
       const pgErr = err as { code?: string };
       if (pgErr.code === "23505") {
         return reply.status(409).send({
@@ -200,7 +202,7 @@ export async function onboardingRoutes(app: FastifyInstance) {
       }
       throw err;
     } finally {
-      client.release();
+      client.release(connectionDied);
     }
   });
 
@@ -232,6 +234,7 @@ export async function onboardingRoutes(app: FastifyInstance) {
       // blocks INSERT when app.tenant_id is not set. Provisioning is a
       // platform-admin operation so the superuser connection is correct.
       const client = await superPool.connect();
+      let connectionDied = false;
       try {
         await client.query("BEGIN");
 
@@ -315,7 +318,8 @@ export async function onboardingRoutes(app: FastifyInstance) {
           loginUrl: `/login?tenantSlug=${slug}`,
         });
       } catch (err: unknown) {
-        await client.query("ROLLBACK");
+        connectionDied = isConnectionError(err);
+        if (!connectionDied) await client.query("ROLLBACK").catch(() => {});
         const pgErr = err as { code?: string };
         if (pgErr.code === "23505") {
           return reply.status(409).send({
@@ -325,7 +329,7 @@ export async function onboardingRoutes(app: FastifyInstance) {
         }
         throw err;
       } finally {
-        client.release();
+        client.release(connectionDied);
       }
     },
   );

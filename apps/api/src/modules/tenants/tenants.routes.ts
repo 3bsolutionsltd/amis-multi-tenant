@@ -13,7 +13,7 @@
 import type { FastifyInstance } from "fastify";
 import { createHash, randomBytes } from "crypto";
 import { z } from "zod";
-import { pool, superPool } from "../../db/pool.js";
+import { pool, superPool, isConnectionError } from "../../db/pool.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { sendMail, buildTenantVerificationEmail } from "../../lib/email.js";
 
@@ -447,6 +447,7 @@ export async function tenantsRoutes(app: FastifyInstance) {
       // We temporarily disable it (requires superuser) within a transaction so the
       // CASCADE can remove workflow_events rows belonging to this tenant.
       const client = await superPool.connect();
+      let connectionDied = false;
       let result: { rows: { id: string }[] };
       try {
         await client.query("BEGIN");
@@ -458,12 +459,15 @@ export async function tenantsRoutes(app: FastifyInstance) {
         await client.query("ALTER TABLE app.workflow_events ENABLE TRIGGER ALL");
         await client.query("COMMIT");
       } catch (err) {
-        await client.query("ROLLBACK");
-        // Best-effort re-enable in case the DISABLE succeeded but DELETE failed
-        await client.query("ALTER TABLE app.workflow_events ENABLE TRIGGER ALL").catch(() => {});
+        connectionDied = isConnectionError(err);
+        if (!connectionDied) {
+          await client.query("ROLLBACK").catch(() => {});
+          // Best-effort re-enable in case the DISABLE succeeded but DELETE failed
+          await client.query("ALTER TABLE app.workflow_events ENABLE TRIGGER ALL").catch(() => {});
+        }
         throw err;
       } finally {
-        client.release();
+        client.release(connectionDied);
       }
 
       if (result.rows.length === 0) {

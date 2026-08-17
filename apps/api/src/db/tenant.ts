@@ -1,5 +1,5 @@
 import type { PoolClient, QueryResult } from "pg";
-import { pool } from "./pool.js";
+import { pool, isConnectionError } from "./pool.js";
 
 /**
  * Run a callback inside a transaction with tenant isolation enforced.
@@ -10,6 +10,7 @@ export async function withTenant<T>(
   fn: (client: PoolClient) => Promise<T>,
 ): Promise<T> {
   const client = await pool.connect();
+  let connectionDied = false;
   try {
     await client.query("BEGIN");
     await client.query("SELECT set_config('app.tenant_id', $1, true)", [
@@ -22,10 +23,14 @@ export async function withTenant<T>(
     await client.query("COMMIT");
     return result;
   } catch (err) {
-    await client.query("ROLLBACK");
+    connectionDied = isConnectionError(err);
+    // Rolling back on a dead socket would just throw again — skip it.
+    if (!connectionDied) await client.query("ROLLBACK").catch(() => {});
     throw err;
   } finally {
-    client.release();
+    // Discard the client on a connection-level error instead of returning a
+    // dead connection to the pool, where every future request would reuse it.
+    client.release(connectionDied);
   }
 }
 
