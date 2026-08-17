@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { PoolClient } from "pg";
 import { z } from "zod";
-import { superPool } from "../../db/pool.js";
+import { superPool, isConnectionError } from "../../db/pool.js";
 import { getOutboxQueue } from "../../lib/queue.js";
 import { getTenantId } from "../../lib/tenantId.js";
 
@@ -227,6 +227,7 @@ export async function syncRoutes(app: FastifyInstance) {
     const conflicts: ConflictResult[] = [];
 
     const client = await superPool.connect();
+    let connectionDied = false;
     try {
       await client.query("BEGIN");
       await client.query("SELECT set_config('app.tenant_id', $1, true)", [
@@ -283,10 +284,11 @@ export async function syncRoutes(app: FastifyInstance) {
 
       await client.query("COMMIT");
     } catch (err) {
-      await client.query("ROLLBACK");
+      connectionDied = isConnectionError(err);
+      if (!connectionDied) await client.query("ROLLBACK").catch(() => {});
       throw err;
     } finally {
-      client.release();
+      client.release(connectionDied);
     }
 
     return reply.status(200).send({

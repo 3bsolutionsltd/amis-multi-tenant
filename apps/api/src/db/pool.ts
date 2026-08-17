@@ -64,6 +64,38 @@ function getPool(): pg.Pool {
   return _pool;
 }
 
+const CONNECTION_ERROR_CODES = new Set([
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "EPIPE",
+  "ETIMEDOUT",
+  "57P01", // admin_shutdown
+  "57P02", // crash_shutdown
+  "57P03", // cannot_connect_now
+  "08000", // connection_exception
+  "08003", // connection_does_not_exist
+  "08006", // connection_failure
+]);
+
+/**
+ * True when an error means the underlying socket died (long idle period with
+ * a NAT/firewall/conntrack drop, server restart, etc.) rather than a routine
+ * SQL error such as a constraint violation. A client that hit this kind of
+ * error must be discarded from the pool — reusing it will fail forever,
+ * which is why "database unreachable" used to persist until a full
+ * container restart instead of self-healing on the next request.
+ */
+export function isConnectionError(err: unknown): boolean {
+  const code = (err as { code?: string } | undefined)?.code;
+  const message = err instanceof Error ? err.message : String(err ?? "");
+  return (
+    (code != null && CONNECTION_ERROR_CODES.has(code)) ||
+    /connection terminated|terminating connection|server closed the connection/i.test(
+      message,
+    )
+  );
+}
+
 export const pool: pg.Pool = new Proxy({} as pg.Pool, {
   get(_t, prop) {
     return (getPool() as unknown as Record<string | symbol, unknown>)[prop];
