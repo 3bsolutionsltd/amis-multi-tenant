@@ -13,6 +13,7 @@ import {
 import { listAcademicYears } from "../academic-calendar/academic-calendar.api";
 import { listCourses } from "../courses/courses.api";
 import { listProgrammes } from "../programmes/programmes.api";
+import { listStudents } from "../students/students.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -98,6 +99,16 @@ export function AttendancePage() {
     enabled: viewMode === "summary",
   });
 
+  // Full class roster for the selected programme — the attendance sheet must
+  // show every enrolled student, not just students who already have an
+  // attendance record for this exact date (otherwise a never-recorded
+  // course/date shows an empty, apparently "unresponsive" sheet).
+  const rosterQuery = useQuery({
+    queryKey: ["attendance-roster", applied.programme],
+    queryFn: () => listStudents({ programme: applied.programme, limit: 500 }),
+    enabled: canQuery && viewMode === "sheet" && !!applied.programme,
+  });
+
   const batchMutation = useMutation({
     mutationFn: () => {
       const records: BatchAttendanceItem[] = Object.entries(sheet).map(
@@ -159,13 +170,23 @@ export function AttendancePage() {
   const records = attendanceQuery.data ?? [];
   const summary = summaryQuery.data ?? [];
 
-  // Unique students from loaded records (for the sheet)
-  const students = records.length > 0
-    ? records.filter(
+  // Class roster to display on the sheet: prefer the full enrolled roster
+  // (by programme) so attendance can be taken even when no records exist yet
+  // for this date; fall back to students who already have a record (e.g. no
+  // programme resolved) so existing data is never hidden.
+  const roster = rosterQuery.data ?? [];
+  const students = roster.length > 0
+    ? roster.map((s) => ({
+        student_id: s.id,
+        first_name: s.first_name,
+        last_name: s.last_name,
+        admission_number: s.admission_number,
+      }))
+    : records.filter(
         (r, i, arr) =>
           arr.findIndex((x) => x.student_id === r.student_id) === i
-      )
-    : [];
+      );
+  const isRosterLoading = rosterQuery.isLoading && !!applied.programme;
 
   function getStatus(studentId: string): AttendanceStatus {
     return sheet[studentId]?.status ?? "present";
@@ -337,7 +358,7 @@ export function AttendancePage() {
                 then click Apply to load the attendance sheet.
               </p>
             </Card>
-          ) : attendanceQuery.isLoading ? (
+          ) : attendanceQuery.isLoading || isRosterLoading ? (
             <Card padding="16px 20px">
               <div
                 style={{
@@ -350,13 +371,22 @@ export function AttendancePage() {
             </Card>
           ) : attendanceQuery.isError ? (
             <ErrorBanner message="Failed to load attendance records." />
+          ) : rosterQuery.isError ? (
+            <ErrorBanner message="Failed to load the class roster." />
           ) : (
             <>
-              {records.length === 0 ? (
+              {students.length === 0 ? (
                 <Card padding="24px" style={{ marginBottom: 16 }}>
                   <p style={{ fontSize: 14, color: C.gray500, margin: 0 }}>
-                    No existing records for this course &amp; date. Add students
-                    below by entering their attendance.
+                    No students found for this programme. Select a course whose
+                    programme has enrolled students, or add students first.
+                  </p>
+                </Card>
+              ) : records.length === 0 ? (
+                <Card padding="24px" style={{ marginBottom: 16 }}>
+                  <p style={{ fontSize: 14, color: C.gray500, margin: 0 }}>
+                    No existing records for this course &amp; date. Enter
+                    attendance for the students below and click Save.
                   </p>
                 </Card>
               ) : (
