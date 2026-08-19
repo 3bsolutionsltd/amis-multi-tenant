@@ -346,10 +346,8 @@ export async function marksRoutes(app: FastifyInstance) {
 
         await client.query(`DELETE FROM app.mark_entries WHERE submission_id = $1`, [id]);
         await client.query(`DELETE FROM app.mark_audit_log WHERE submission_id = $1`, [id]);
-        await client.query(
-          `DELETE FROM app.workflow_events WHERE entity_type = $2 AND entity_id = $1`,
-          [id, ENTITY_TYPE],
-        );
+        // app.workflow_events is append-only (BEFORE DELETE trigger raises),
+        // so its history for this entity is intentionally left in place.
         await client.query(
           `DELETE FROM app.workflow_instances WHERE entity_type = $2 AND entity_id = $1`,
           [id, ENTITY_TYPE],
