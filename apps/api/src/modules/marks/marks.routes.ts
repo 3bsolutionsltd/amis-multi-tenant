@@ -344,8 +344,10 @@ export async function marksRoutes(app: FastifyInstance) {
         );
         if (referencing.length > 0) return { referencedByCorrection: true } as const;
 
-        await client.query(`DELETE FROM app.mark_entries WHERE submission_id = $1`, [id]);
+        // mark_audit_log has an FK to mark_entries, so it must be deleted
+        // first (a dedicated RLS policy allows this only while DRAFT).
         await client.query(`DELETE FROM app.mark_audit_log WHERE submission_id = $1`, [id]);
+        await client.query(`DELETE FROM app.mark_entries WHERE submission_id = $1`, [id]);
         // app.workflow_events is append-only (BEFORE DELETE trigger raises),
         // so its history for this entity is intentionally left in place.
         await client.query(
