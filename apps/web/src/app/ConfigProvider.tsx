@@ -49,6 +49,7 @@ interface ConfigPayload {
   assessment_types?: string[];
   fee_types?: string[];
   student_categories?: string[];
+  marksheet_default_template?: string;
 }
 
 interface ConfigData {
@@ -82,6 +83,7 @@ interface ConfigContextValue {
   assessmentTypes: string[];
   feeTypes: string[];
   studentCategories: string[];
+  marksheetDefaultTemplate: string;
 }
 
 const ConfigContext = createContext<ConfigContextValue>({
@@ -107,6 +109,7 @@ const ConfigContext = createContext<ConfigContextValue>({
   assessmentTypes: [],
   feeTypes: ["tuition", "examination", "functional", "other"],
   studentCategories: ["all", "boarding", "day"],
+  marksheetDefaultTemplate: "uvtab",
 });
 
 export function useConfig() {
@@ -138,6 +141,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const assessmentTypes: string[] = config?.payload?.assessment_types ?? [];
   const feeTypes: string[] = config?.payload?.fee_types ?? ["tuition", "examination", "functional", "other"];
   const studentCategories: string[] = config?.payload?.student_categories ?? ["all", "boarding", "day"];
+  const marksheetDefaultTemplate: string = config?.payload?.marksheet_default_template ?? "uvtab";
   const rawReceipt = config?.payload?.receipt;
   const receiptConfig = {
     template: (rawReceipt?.template ?? "classic") as "classic" | "modern" | "minimal",
@@ -170,6 +174,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         assessmentTypes,
         feeTypes,
         studentCategories,
+        marksheetDefaultTemplate,
       }}
     >
       {children}
