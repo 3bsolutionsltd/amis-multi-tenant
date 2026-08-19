@@ -103,9 +103,23 @@ export function AttendancePage() {
   // show every enrolled student, not just students who already have an
   // attendance record for this exact date (otherwise a never-recorded
   // course/date shows an empty, apparently "unresponsive" sheet).
+  // /students caps `limit` at 100 server-side, so page through all results.
   const rosterQuery = useQuery({
     queryKey: ["attendance-roster", applied.programme],
-    queryFn: () => listStudents({ programme: applied.programme, limit: 500 }),
+    queryFn: async () => {
+      const pageSize = 100;
+      const all = [];
+      for (let page = 1; ; page++) {
+        const batch = await listStudents({
+          programme: applied.programme,
+          limit: pageSize,
+          page,
+        });
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+      }
+      return all;
+    },
     enabled: canQuery && viewMode === "sheet" && !!applied.programme,
   });
 
