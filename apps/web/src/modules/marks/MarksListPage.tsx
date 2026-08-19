@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listSubmissions } from "./marks.api";
 import { listProgrammes } from "../programmes/programmes.api";
+import { listAcademicYears } from "../academic-calendar/academic-calendar.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -66,6 +67,12 @@ export function MarksListPage() {
     queryFn: () => listProgrammes({ include_inactive: false }),
   });
 
+  const { data: academicYears } = useQuery({
+    queryKey: ["academic-years"],
+    queryFn: () => listAcademicYears(),
+    staleTime: 60_000,
+  });
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["submissions", { programme, intake, term, page }],
     queryFn: () =>
@@ -122,8 +129,7 @@ export function MarksListPage() {
             </option>
           ))}
         </select>
-        <input
-          placeholder="Intake (e.g. 2026/2027)"
+        <select
           value={intake}
           onChange={(e) => set("intake", e.target.value)}
           style={{
@@ -133,7 +139,14 @@ export function MarksListPage() {
             fontSize: 14,
             minWidth: 180,
           }}
-        />
+        >
+          <option value="">All intakes</option>
+          {(academicYears ?? []).map((y) => (
+            <option key={y.id} value={y.name}>
+              {y.name}{y.is_current ? " (Current)" : ""}
+            </option>
+          ))}
+        </select>
         <select
           value={term}
           onChange={(e) => set("term", e.target.value)}

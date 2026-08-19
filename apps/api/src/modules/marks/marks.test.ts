@@ -137,6 +137,33 @@ describe("POST /marks/submissions", () => {
     });
     expect(res.statusCode).toBe(201);
   });
+
+  it("returns 422 when assessment_date is not in YYYY-MM-DD format (issue #294)", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/marks/submissions",
+      headers: instructorHeaders,
+      payload: { ...validSubmissionBody, assessment_date: "19-08-2026" },
+    });
+    expect(res.statusCode).toBe(422);
+  });
+
+  it("returns 201 and accepts a valid assessment_date (issue #294)", async () => {
+    mockWithTenant.mockResolvedValueOnce({
+      submission: { ...fakeSubmission, assessment_date: "2026-08-19" },
+      workflowState: "DRAFT",
+    } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/marks/submissions",
+      headers: instructorHeaders,
+      payload: { ...validSubmissionBody, assessment_date: "2026-08-19" },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().submission).toMatchObject({ assessment_date: "2026-08-19" });
+  });
 });
 
 // ------------------------------------------------------------------ PUT /marks/submissions/:id/entries
@@ -363,5 +390,168 @@ describe("GET /marks/submissions/:id/audit", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([auditEntry]);
+  });
+
+  it("includes resolved student and actor names (issue #297)", async () => {
+    const auditEntry = {
+      id: "aa000000-0000-0000-0000-000000000001",
+      entry_id: fakeEntry.id,
+      student_id: fakeEntry.student_id,
+      student_first_name: "Jane",
+      student_last_name: "Doe",
+      student_admission_number: "ADM-001",
+      old_score: null,
+      new_score: 85,
+      actor_user_id: "00000000-0000-0000-0000-000000000004",
+      actor_first_name: "John",
+      actor_last_name: "Smith",
+      actor_email: "john@example.com",
+      changed_at: new Date().toISOString(),
+    };
+    mockWithTenant.mockResolvedValueOnce([auditEntry] as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/marks/submissions/${fakeSubmission.id}/audit`,
+      headers: adminHeaders,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()[0]).toMatchObject({
+      student_first_name: "Jane",
+      student_last_name: "Doe",
+      actor_first_name: "John",
+      actor_last_name: "Smith",
+    });
+  });
+});
+
+// ------------------------------------------------------------------ PATCH /marks/submissions/:id (issue #296)
+
+describe("PATCH /marks/submissions/:id", () => {
+  it("returns 400 when x-tenant-id header is missing", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/marks/submissions/${fakeSubmission.id}`,
+      payload: { weight: 30 },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("returns 403 when role is not instructor or admin", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/marks/submissions/${fakeSubmission.id}`,
+      headers: hodHeaders,
+      payload: { weight: 30 },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns 422 when body has no fields", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/marks/submissions/${fakeSubmission.id}`,
+      headers: instructorHeaders,
+      payload: {},
+    });
+    expect(res.statusCode).toBe(422);
+  });
+
+  it("returns 404 when submission does not exist", async () => {
+    mockWithTenant.mockResolvedValueOnce({ notFound: true } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/marks/submissions/${fakeSubmission.id}`,
+      headers: instructorHeaders,
+      payload: { weight: 30 },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("returns 409 when submission is not in DRAFT state", async () => {
+    mockWithTenant.mockResolvedValueOnce({ notDraft: true } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/marks/submissions/${fakeSubmission.id}`,
+      headers: instructorHeaders,
+      payload: { weight: 30 },
+    });
+    expect(res.statusCode).toBe(409);
+  });
+
+  it("returns 200 with the updated submission (including assessment_date)", async () => {
+    mockWithTenant.mockResolvedValueOnce({
+      submission: { ...fakeSubmission, weight: 30, assessment_date: "2026-08-19" },
+    } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/marks/submissions/${fakeSubmission.id}`,
+      headers: instructorHeaders,
+      payload: { weight: 30, assessment_date: "2026-08-19" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ weight: 30, assessment_date: "2026-08-19" });
+  });
+});
+
+// ------------------------------------------------------------------ DELETE /marks/submissions/:id (issue #296)
+
+describe("DELETE /marks/submissions/:id", () => {
+  it("returns 400 when x-tenant-id header is missing", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/marks/submissions/${fakeSubmission.id}`,
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("returns 403 when role is not instructor or admin", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/marks/submissions/${fakeSubmission.id}`,
+      headers: hodHeaders,
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("returns 404 when submission does not exist", async () => {
+    mockWithTenant.mockResolvedValueOnce({ notFound: true } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/marks/submissions/${fakeSubmission.id}`,
+      headers: instructorHeaders,
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("returns 409 when submission is not in DRAFT state", async () => {
+    mockWithTenant.mockResolvedValueOnce({ notDraft: true } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/marks/submissions/${fakeSubmission.id}`,
+      headers: instructorHeaders,
+    });
+    expect(res.statusCode).toBe(409);
+  });
+
+  it("returns 204 when a DRAFT submission is deleted", async () => {
+    mockWithTenant.mockResolvedValueOnce({ deleted: true } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/marks/submissions/${fakeSubmission.id}`,
+      headers: instructorHeaders,
+    });
+    expect(res.statusCode).toBe(204);
   });
 });

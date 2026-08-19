@@ -82,6 +82,7 @@ export function MarkCreatePage() {
     term: "",
     assessment_type: "end_of_term",
     weight: "",
+    assessment_date: "",
   });
 
   // Resolve programme UUID for course filtering
@@ -119,6 +120,7 @@ export function MarkCreatePage() {
       const result = await createSubmission({
         ...form,
         weight: form.weight ? Number(form.weight) : undefined,
+        assessment_date: form.assessment_date || undefined,
       });
       navigate(`/marks/${result.submission.id}`);
     } catch (err) {
@@ -248,6 +250,15 @@ export function MarkCreatePage() {
               value={form.weight}
               placeholder="e.g. 30"
               onChange={(e) => set("weight", e.target.value)}
+            />
+          </Field>
+
+          <Field label="Assessment Date">
+            <input
+              type="date"
+              style={inputCss}
+              value={form.assessment_date}
+              onChange={(e) => set("assessment_date", e.target.value)}
             />
           </Field>
 

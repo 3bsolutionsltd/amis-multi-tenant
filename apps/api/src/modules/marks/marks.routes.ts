@@ -9,17 +9,19 @@ import {
   CreateSubmissionSchema,
   PutEntriesSchema,
   SubmissionsQuerySchema,
+  UpdateSubmissionSchema,
 } from "./marks.schema.js";
 
 // ------------------------------------------------------------------ constants
 
 const PUBLISHED_STATE = "PUBLISHED";
+const DRAFT_STATE = "DRAFT";
 const ENTITY_TYPE = "marks";
 const WORKFLOW_KEY = "marks";
 
 const SUBMISSION_SELECT = `
   s.id, s.tenant_id, s.course_id, s.programme, s.intake, s.term,
-  s.assessment_type, s.weight,
+  s.assessment_type, s.weight, s.assessment_date,
   s.created_by, s.created_at, s.correction_of_submission_id,
   wi.current_state
 `;
@@ -47,6 +49,7 @@ export async function marksRoutes(app: FastifyInstance) {
         term,
         assessment_type,
         weight,
+        assessment_date,
         correction_of_submission_id,
       } = parsed.data;
       const actorUserId = req.user?.userId ?? null;
@@ -83,8 +86,8 @@ export async function marksRoutes(app: FastifyInstance) {
 
         const { rows: subRows } = await client.query(
           `INSERT INTO app.mark_submissions
-             (tenant_id, course_id, programme, intake, term, assessment_type, weight, created_by, correction_of_submission_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             (tenant_id, course_id, programme, intake, term, assessment_type, weight, assessment_date, created_by, correction_of_submission_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING *`,
           [
             tid,
@@ -94,6 +97,7 @@ export async function marksRoutes(app: FastifyInstance) {
             term,
             assessment_type ?? "end_of_term",
             weight ?? null,
+            assessment_date ?? null,
             actorUserId,
             correction_of_submission_id ?? null,
           ],
@@ -240,6 +244,123 @@ export async function marksRoutes(app: FastifyInstance) {
     },
   );
 
+  // ---------- PATCH /marks/submissions/:id  (issue #296 — edit while DRAFT)
+  app.patch<{ Params: { id: string } }>(
+    "/marks/submissions/:id",
+    { preHandler: requireRole("instructor", "admin") },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const parsed = UpdateSubmissionSchema.safeParse(req.body);
+      if (!parsed.success)
+        return reply.status(422).send({ error: parsed.error.flatten() });
+
+      const { id } = req.params;
+      const updates = parsed.data;
+
+      const result = await withTenant(tid, async (client) => {
+        const { rows: subRows } = await client.query(
+          `SELECT s.id, wi.current_state
+           FROM app.mark_submissions s
+           LEFT JOIN app.workflow_instances wi
+             ON wi.entity_type = $2 AND wi.entity_id = s.id
+           WHERE s.id = $1`,
+          [id, ENTITY_TYPE],
+        );
+        const submission = subRows[0];
+        if (!submission) return { notFound: true } as const;
+        if (submission.current_state !== DRAFT_STATE)
+          return { notDraft: true } as const;
+
+        const fields: string[] = [];
+        const params: unknown[] = [];
+        const addField = (col: string, val: unknown) => {
+          if (val !== undefined) {
+            params.push(val);
+            fields.push(`${col} = $${params.length}`);
+          }
+        };
+        addField("course_id", updates.course_id);
+        addField("programme", updates.programme);
+        addField("intake", updates.intake);
+        addField("term", updates.term);
+        addField("assessment_type", updates.assessment_type);
+        addField("weight", updates.weight);
+        addField("assessment_date", updates.assessment_date);
+
+        params.push(id);
+        const { rows } = await client.query(
+          `UPDATE app.mark_submissions SET ${fields.join(", ")}
+           WHERE id = $${params.length}
+           RETURNING *`,
+          params,
+        );
+        return { submission: { ...rows[0], current_state: submission.current_state } } as const;
+      });
+
+      if ("notFound" in result)
+        return reply.status(404).send({ error: "submission not found" });
+      if ("notDraft" in result)
+        return reply
+          .status(409)
+          .send({ error: "only DRAFT submissions can be edited" });
+
+      return reply.status(200).send(result.submission);
+    },
+  );
+
+  // ---------- DELETE /marks/submissions/:id  (issue #296 — delete while DRAFT)
+  app.delete<{ Params: { id: string } }>(
+    "/marks/submissions/:id",
+    { preHandler: requireRole("instructor", "admin") },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const { id } = req.params;
+
+      const result = await withTenant(tid, async (client) => {
+        const { rows: subRows } = await client.query(
+          `SELECT s.id, wi.current_state
+           FROM app.mark_submissions s
+           LEFT JOIN app.workflow_instances wi
+             ON wi.entity_type = $2 AND wi.entity_id = s.id
+           WHERE s.id = $1`,
+          [id, ENTITY_TYPE],
+        );
+        const submission = subRows[0];
+        if (!submission) return { notFound: true } as const;
+        if (submission.current_state !== DRAFT_STATE)
+          return { notDraft: true } as const;
+
+        await client.query(`DELETE FROM app.mark_entries WHERE submission_id = $1`, [id]);
+        await client.query(`DELETE FROM app.mark_audit_log WHERE submission_id = $1`, [id]);
+        await client.query(
+          `DELETE FROM app.workflow_events WHERE entity_type = $2 AND entity_id = $1`,
+          [id, ENTITY_TYPE],
+        );
+        await client.query(
+          `DELETE FROM app.workflow_instances WHERE entity_type = $2 AND entity_id = $1`,
+          [id, ENTITY_TYPE],
+        );
+        await client.query(`DELETE FROM app.mark_submissions WHERE id = $1`, [id]);
+        return { deleted: true } as const;
+      });
+
+      if ("notFound" in result)
+        return reply.status(404).send({ error: "submission not found" });
+      if ("notDraft" in result)
+        return reply
+          .status(409)
+          .send({ error: "only DRAFT submissions can be deleted" });
+
+      return reply.status(204).send();
+    },
+  );
+
   // ---------- GET /marks/submissions
   app.get(
     "/marks/submissions",
@@ -373,9 +494,15 @@ export async function marksRoutes(app: FastifyInstance) {
           `SELECT
              al.id, al.entry_id, al.old_score, al.new_score,
              al.actor_user_id, al.changed_at,
-             me.student_id
+             me.student_id,
+             s.first_name AS student_first_name, s.last_name AS student_last_name,
+             s.admission_number AS student_admission_number,
+             u.first_name AS actor_first_name, u.last_name AS actor_last_name,
+             u.email AS actor_email
            FROM app.mark_audit_log al
            LEFT JOIN app.mark_entries me ON me.id = al.entry_id
+           LEFT JOIN app.students s ON s.id = me.student_id
+           LEFT JOIN platform.users u ON u.id = al.actor_user_id
            WHERE al.submission_id = $1
            ORDER BY al.changed_at DESC`,
           [id],

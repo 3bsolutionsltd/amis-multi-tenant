@@ -1,15 +1,18 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   getNcheEnrollment,
   type NcheEnrollmentRow,
   type NcheEnrollmentParams,
 } from "./reports.api";
+import { listAcademicYears, listTerms } from "../academic-calendar/academic-calendar.api";
 import {
   ensureGlobalCss,
   PageHeader,
   Card,
   Field,
   inputCss,
+  selectCss,
   C,
 } from "../../lib/ui";
 
@@ -69,6 +72,19 @@ export function NcheEnrollmentPage() {
     grand_total: number;
   } | null>(null);
 
+  const { data: academicYears } = useQuery({
+    queryKey: ["academic-years"],
+    queryFn: () => listAcademicYears(),
+    staleTime: 60_000,
+  });
+  const selectedYear = (academicYears ?? []).find((y) => y.name === params.academic_year);
+  const { data: terms } = useQuery({
+    queryKey: ["terms", selectedYear?.id],
+    queryFn: () => listTerms({ academic_year_id: selectedYear?.id }),
+    enabled: !!selectedYear?.id,
+    staleTime: 60_000,
+  });
+
   async function handleGenerate() {
     setLoading(true);
     setError(null);
@@ -115,25 +131,38 @@ export function NcheEnrollmentPage() {
       <Card style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-end" }}>
           <Field label="Academic Year">
-            <input
-              style={{ ...inputCss, width: 160 }}
-              placeholder="e.g. 2024/2025"
+            <select
+              style={{ ...selectCss, width: 160 }}
               value={params.academic_year ?? ""}
               onChange={(e) =>
-                setParams((p) => ({ ...p, academic_year: e.target.value || undefined }))
+                setParams((p) => ({ ...p, academic_year: e.target.value || undefined, term: undefined }))
               }
-            />
+            >
+              <option value="">All years</option>
+              {(academicYears ?? []).map((y) => (
+                <option key={y.id} value={y.name}>
+                  {y.name}{y.is_current ? " (Current)" : ""}
+                </option>
+              ))}
+            </select>
           </Field>
 
           <Field label="Term">
-            <input
-              style={{ ...inputCss, width: 120 }}
-              placeholder="e.g. Term 1"
+            <select
+              style={{ ...selectCss, width: 140 }}
               value={params.term ?? ""}
+              disabled={!selectedYear}
               onChange={(e) =>
                 setParams((p) => ({ ...p, term: e.target.value || undefined }))
               }
-            />
+            >
+              <option value="">{!selectedYear ? "Select year first" : "All terms"}</option>
+              {(terms ?? []).map((t) => (
+                <option key={t.id} value={t.name}>
+                  {t.name}{t.is_current ? " (Current)" : ""}
+                </option>
+              ))}
+            </select>
           </Field>
 
           <button

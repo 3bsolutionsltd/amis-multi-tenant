@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getClassList, type ClassListParams } from "./reports.api";
+import { listProgrammes } from "../programmes/programmes.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -27,6 +28,12 @@ export function ClassListPage() {
   const reportQ = useQuery({
     queryKey: ["class-list", applied],
     queryFn: () => getClassList(applied),
+  });
+
+  const { data: programmesData } = useQuery({
+    queryKey: ["programmes-filter"],
+    queryFn: () => listProgrammes({ include_inactive: false }),
+    staleTime: 60_000,
   });
 
   function apply() {
@@ -66,12 +73,18 @@ export function ClassListPage() {
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
           <div>
             <div style={{ fontSize: 12, color: C.gray500, marginBottom: 4 }}>Programme</div>
-            <input
-              style={{ ...inputCss, width: 200 }}
-              placeholder="e.g. BSCS"
+            <select
+              style={{ ...selectCss, width: 200 }}
               value={filters.programme ?? ""}
               onChange={(e) => setFilters((f) => ({ ...f, programme: e.target.value || undefined }))}
-            />
+            >
+              <option value="">All programmes</option>
+              {(programmesData ?? []).map((p) => (
+                <option key={p.id} value={p.code ?? p.title}>
+                  {p.code ? `${p.code} — ${p.title}` : p.title}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
