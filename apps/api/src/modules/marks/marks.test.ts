@@ -544,6 +544,18 @@ describe("DELETE /marks/submissions/:id", () => {
     expect(res.statusCode).toBe(409);
   });
 
+  it("returns 409 when another submission references it as a correction (issue: delete 500)", async () => {
+    mockWithTenant.mockResolvedValueOnce({ referencedByCorrection: true } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/marks/submissions/${fakeSubmission.id}`,
+      headers: instructorHeaders,
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toMatch(/correction/);
+  });
+
   it("returns 204 when a DRAFT submission is deleted", async () => {
     mockWithTenant.mockResolvedValueOnce({ deleted: true } as never);
     const app = buildApp();

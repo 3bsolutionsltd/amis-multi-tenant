@@ -79,6 +79,32 @@ describe("GET /students", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual(fakeStudents);
   });
+
+  it("matches students by either programme_code or programme title (attendance/class-list roster fix)", async () => {
+    let capturedSql = "";
+    let capturedParams: unknown[] = [];
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
+      const fakeClient = {
+        query: vi.fn((sql: string, params: unknown[]) => {
+          capturedSql = sql;
+          capturedParams = params;
+          return Promise.resolve({ rows: [] });
+        }),
+      };
+      return cb(fakeClient as never);
+    });
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/students?programme=DICT",
+      headers: { "x-tenant-id": "tenant-uuid-1" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(capturedSql).toMatch(/programme_code = \$\d+ OR programme = \$\d+/);
+    expect(capturedParams).toContain("DICT");
+  });
 });
 
 describe("POST /students", () => {

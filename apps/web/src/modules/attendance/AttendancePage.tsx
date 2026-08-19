@@ -202,6 +202,12 @@ export function AttendancePage() {
       );
   const isRosterLoading = rosterQuery.isLoading && !!applied.programme;
 
+  // Human-readable course label for display (applied.course_id is the course UUID).
+  const appliedCourse = coursesList.find((c) => c.id === applied.course_id);
+  const appliedCourseLabel = appliedCourse
+    ? `${appliedCourse.code} — ${appliedCourse.title}`
+    : applied.course_id;
+
   function getStatus(studentId: string): AttendanceStatus {
     return sheet[studentId]?.status ?? "present";
   }
@@ -416,7 +422,7 @@ export function AttendancePage() {
                       {records.length} student{records.length !== 1 ? "s" : ""}{" "}
                       found for{" "}
                       <strong>
-                        {applied.course_id} on {applied.date}
+                        {appliedCourseLabel} on {applied.date}
                       </strong>
                     </span>
                     <SecondaryBtn onClick={seedSheet}>

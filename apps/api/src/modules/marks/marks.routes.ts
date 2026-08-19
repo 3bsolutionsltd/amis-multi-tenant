@@ -23,7 +23,7 @@ const SUBMISSION_SELECT = `
   s.id, s.tenant_id, s.course_id, s.programme, s.intake, s.term,
   s.assessment_type, s.weight, s.assessment_date,
   s.created_by, s.created_at, s.correction_of_submission_id,
-  wi.current_state
+  wi.current_state, c.title AS course_title
 `;
 
 // ------------------------------------------------------------------ routes
@@ -336,6 +336,14 @@ export async function marksRoutes(app: FastifyInstance) {
         if (submission.current_state !== DRAFT_STATE)
           return { notDraft: true } as const;
 
+        // Other submissions may reference this one as a correction — deleting
+        // it would violate the FK on correction_of_submission_id (500 in prod).
+        const { rows: referencing } = await client.query(
+          `SELECT id FROM app.mark_submissions WHERE correction_of_submission_id = $1 LIMIT 1`,
+          [id],
+        );
+        if (referencing.length > 0) return { referencedByCorrection: true } as const;
+
         await client.query(`DELETE FROM app.mark_entries WHERE submission_id = $1`, [id]);
         await client.query(`DELETE FROM app.mark_audit_log WHERE submission_id = $1`, [id]);
         await client.query(
@@ -356,6 +364,11 @@ export async function marksRoutes(app: FastifyInstance) {
         return reply
           .status(409)
           .send({ error: "only DRAFT submissions can be deleted" });
+      if ("referencedByCorrection" in result)
+        return reply.status(409).send({
+          error:
+            "cannot delete: another submission is recorded as a correction of this one",
+        });
 
       return reply.status(204).send();
     },
@@ -419,6 +432,8 @@ export async function marksRoutes(app: FastifyInstance) {
          FROM app.mark_submissions s
          LEFT JOIN app.workflow_instances wi
            ON wi.entity_type = '${ENTITY_TYPE}' AND wi.entity_id = s.id
+         LEFT JOIN app.courses c
+           ON c.tenant_id = s.tenant_id AND c.code = s.course_id
          WHERE s.tenant_id = $1 ${where}
          ORDER BY s.created_at DESC
          LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
@@ -446,6 +461,8 @@ export async function marksRoutes(app: FastifyInstance) {
            FROM app.mark_submissions s
            LEFT JOIN app.workflow_instances wi
              ON wi.entity_type = '${ENTITY_TYPE}' AND wi.entity_id = s.id
+           LEFT JOIN app.courses c
+             ON c.tenant_id = s.tenant_id AND c.code = s.course_id
            WHERE s.id = $1`,
           [id],
         );

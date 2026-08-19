@@ -460,6 +460,7 @@ export function MarkDetailPage() {
   const currentState = sub.current_state;
   const isPublished = currentState === "PUBLISHED";
   const isDraft = currentState === "DRAFT";
+  const submission = sub;
 
   const availableActions = wfDef
     ? wfDef.transitions
@@ -469,8 +470,8 @@ export function MarkDetailPage() {
 
   function startEdit() {
     setEditForm({
-      weight: sub.weight != null ? String(sub.weight) : "",
-      assessment_date: sub.assessment_date ?? "",
+      weight: submission.weight != null ? String(submission.weight) : "",
+      assessment_date: submission.assessment_date ?? "",
     });
     setEditError(null);
     setIsEditing(true);
@@ -518,7 +519,13 @@ export function MarkDetailPage() {
             </SecondaryBtn>
           </div>
           {deleteMut.isError && (
-            <ErrorBanner message="Failed to delete submission." />
+            <ErrorBanner
+              message={
+                deleteMut.error instanceof Error
+                  ? deleteMut.error.message
+                  : "Failed to delete submission."
+              }
+            />
           )}
         </Card>
       )}

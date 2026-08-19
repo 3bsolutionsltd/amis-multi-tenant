@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listSubmissions } from "./marks.api";
 import { listProgrammes } from "../programmes/programmes.api";
-import { listAcademicYears } from "../academic-calendar/academic-calendar.api";
+import { listAcademicYears, listTerms } from "../academic-calendar/academic-calendar.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -70,6 +70,13 @@ export function MarksListPage() {
   const { data: academicYears } = useQuery({
     queryKey: ["academic-years"],
     queryFn: () => listAcademicYears(),
+    staleTime: 60_000,
+  });
+
+  const selectedYear = (academicYears ?? []).find((y) => y.name === intake);
+  const { data: terms } = useQuery({
+    queryKey: ["terms", selectedYear?.id],
+    queryFn: () => listTerms({ academic_year_id: selectedYear?.id }),
     staleTime: 60_000,
   });
 
@@ -158,22 +165,24 @@ export function MarksListPage() {
           }}
         >
           <option value="">All terms</option>
-          <option value="Term 1">Term 1</option>
-          <option value="Term 2">Term 2</option>
-          <option value="Term 3">Term 3</option>
+          {(terms ?? []).map((t) => (
+            <option key={t.id} value={t.name}>
+              {t.name}{t.is_current ? " (Current)" : ""}
+            </option>
+          ))}
         </select>
       </FilterBar>
 
       <DataTable
         headers={viewMode === "consolidated"
-          ? ["Course", "Programme", "Intake / Term", "Type", "State", "Created"]
-          : ["Course", "Programme", "Intake / Term", "State", "Created"]}
+          ? ["Course", "Programme", "Intake / Term", "Type", "Assessment Date", "State", "Created"]
+          : ["Course", "Programme", "Intake / Term", "Type", "Assessment Date", "State", "Created"]}
         isLoading={isLoading}
         isEmpty={isEmpty}
         emptyIcon="📊"
         emptyTitle={viewMode === "consolidated" ? "No approved/published submissions" : "No submissions found"}
         emptyDescription={viewMode === "consolidated" ? "Approved and published marks will appear here." : 'Adjust filters or click "+ New Submission" to add one.'}
-        colCount={viewMode === "consolidated" ? 6 : 5}
+        colCount={7}
       >
         {displayData.map((sub) => (
           <TR key={sub.id} onClick={() => navigate(`/marks/${sub.id}`)}>
@@ -181,18 +190,26 @@ export function MarksListPage() {
               <span style={{ fontWeight: 600, color: "#111827" }}>
                 {sub.course_id}
               </span>
+              {sub.course_title && (
+                <span style={{ display: "block", fontSize: 12, color: "#6b7280" }}>
+                  {sub.course_title}
+                </span>
+              )}
             </TD>
             <TD muted>{sub.programme}</TD>
             <TD muted>
               {sub.intake} / {sub.term}
             </TD>
-            {viewMode === "consolidated" && (
-              <TD muted>
-                <span style={{ fontFamily: "monospace", fontSize: 12 }}>
-                  {sub.assessment_type ?? "—"}
-                </span>
-              </TD>
-            )}
+            <TD muted>
+              <span style={{ fontFamily: "monospace", fontSize: 12 }}>
+                {sub.assessment_type ?? "—"}
+              </span>
+            </TD>
+            <TD muted>
+              {sub.assessment_date
+                ? new Date(sub.assessment_date).toLocaleDateString()
+                : "—"}
+            </TD>
             <TD>
               <Badge
                 label={sub.current_state ?? "—"}

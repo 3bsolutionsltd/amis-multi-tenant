@@ -5,6 +5,7 @@ export interface Submission {
   id: string;
   tenant_id: string;
   course_id: string;
+  course_title?: string | null;
   programme: string;
   intake: string;
   term: string;
