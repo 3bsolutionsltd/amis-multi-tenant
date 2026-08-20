@@ -67,17 +67,31 @@ const ROLES_SHORT = ["admin", "registrar", "hod", "instructor", "finance", "prin
 
 type MatrixRow = { module: string; access: Access[] };
 
+// Illustrative only (not wired to real permission enforcement) — kept in sync
+// with the modules actually registered in routes.tsx (issue #301).
 const MATRIX: MatrixRow[] = [
-  { module: "Students",       access: [FULL, FULL, READ, READ, NONE, READ, READ, NONE, NONE] },
-  { module: "Admissions",     access: [FULL, FULL, NONE, NONE, NONE, READ, NONE, NONE, NONE] },
-  { module: "Marks",          access: [FULL, NONE, FULL, FULL, NONE, READ, READ, NONE, NONE] },
-  { module: "Finance / Fees", access: [FULL, NONE, NONE, NONE, FULL, READ, NONE, NONE, NONE] },
-  { module: "Procurement",    access: [FULL, NONE, NONE, NONE, READ, READ, NONE, FULL, NONE] },
-  { module: "Inventory",      access: [FULL, NONE, NONE, NONE, NONE, READ, NONE, READ, FULL] },
-  { module: "Staff / HR",     access: [FULL, NONE, READ, NONE, NONE, READ, READ, NONE, NONE] },
-  { module: "Users / IAM",    access: [FULL, FULL, NONE, NONE, NONE, READ, NONE, NONE, NONE] },
-  { module: "Reports",        access: [FULL, FULL, FULL, READ, FULL, FULL, FULL, READ, READ] },
-  { module: "Admin Studio",   access: [FULL, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE] },
+  { module: "Students",             access: [FULL, FULL, READ, READ, NONE, READ, READ, NONE, NONE] },
+  { module: "Admissions",           access: [FULL, FULL, NONE, NONE, NONE, READ, NONE, NONE, NONE] },
+  { module: "Term Registrations",   access: [FULL, FULL, READ, READ, NONE, READ, READ, NONE, NONE] },
+  { module: "Programmes",           access: [FULL, FULL, READ, READ, NONE, READ, READ, NONE, NONE] },
+  { module: "Marks",                access: [FULL, NONE, FULL, FULL, NONE, READ, READ, NONE, NONE] },
+  { module: "Results",              access: [FULL, READ, READ, FULL, NONE, READ, READ, NONE, NONE] },
+  { module: "Finance / Fees",       access: [FULL, NONE, NONE, NONE, FULL, READ, NONE, NONE, NONE] },
+  { module: "Procurement",          access: [FULL, NONE, NONE, NONE, NONE, READ, NONE, FULL, NONE] },
+  { module: "Inventory",            access: [FULL, NONE, NONE, NONE, NONE, READ, NONE, READ, FULL] },
+  { module: "Stores / SRQ / PCV",   access: [FULL, NONE, NONE, NONE, NONE, READ, NONE, FULL, FULL] },
+  { module: "Staff / HR",           access: [FULL, READ, READ, NONE, NONE, READ, READ, NONE, NONE] },
+  { module: "Users / IAM",          access: [FULL, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE] },
+  { module: "Timetable",            access: [FULL, FULL, READ, READ, NONE, READ, READ, NONE, NONE] },
+  { module: "Attendance",           access: [FULL, READ, READ, FULL, NONE, READ, READ, NONE, NONE] },
+  { module: "Clearance",            access: [FULL, FULL, READ, NONE, FULL, READ, READ, NONE, NONE] },
+  { module: "Industrial Training",  access: [FULL, READ, FULL, FULL, NONE, READ, READ, NONE, NONE] },
+  { module: "Field Placements",     access: [FULL, READ, FULL, FULL, NONE, READ, READ, NONE, NONE] },
+  { module: "Student Projects",     access: [FULL, READ, FULL, FULL, NONE, READ, READ, NONE, NONE] },
+  { module: "Alumni",               access: [FULL, FULL, READ, NONE, NONE, READ, READ, NONE, NONE] },
+  { module: "Analytics",            access: [FULL, READ, READ, NONE, READ, FULL, FULL, NONE, NONE] },
+  { module: "Reports",              access: [FULL, FULL, FULL, READ, FULL, FULL, FULL, READ, READ] },
+  { module: "Admin Studio",         access: [FULL, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE] },
 ];
 
 const CYCLE: Access[] = ["none", "read", "full"];
