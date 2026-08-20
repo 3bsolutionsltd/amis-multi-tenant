@@ -275,8 +275,14 @@ export function UserDetailPage() {
             <>
               <PrimaryBtn
                 onClick={() => {
-                  if (newPassword.length < 8) {
-                    setResetPwdError("Password must be at least 8 characters.");
+                  if (
+                    newPassword.length < 8 ||
+                    !/[A-Z]/.test(newPassword) ||
+                    !/[0-9]/.test(newPassword)
+                  ) {
+                    setResetPwdError(
+                      "Password must be at least 8 characters and contain at least one uppercase letter and one number.",
+                    );
                     return;
                   }
                   resetPwdMut.mutate(newPassword);
@@ -295,7 +301,7 @@ export function UserDetailPage() {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Min 8 characters"
+              placeholder="Min 8 characters, 1 uppercase, 1 number"
               style={inputCss}
             />
           </Field>

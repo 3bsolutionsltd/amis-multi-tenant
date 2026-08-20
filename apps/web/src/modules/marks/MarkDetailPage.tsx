@@ -7,6 +7,8 @@ import {
   fireTransition,
   putEntries,
   getAuditLog,
+  updateSubmission,
+  deleteSubmission,
 } from "./marks.api";
 import { EvidenceSection } from "./EvidenceSection";
 import { listStudents } from "../students/students.api";
@@ -219,44 +221,77 @@ function AuditPanel({ submissionId }: { submissionId: string }) {
             </p>
           ) : (
             <DataTable
-              headers={["Student ID", "Old Score", "New Score", "Changed", "By"]}
+              headers={["Student", "Old Score", "New Score", "Changed", "By"]}
               isLoading={false}
               isEmpty={false}
               colCount={5}
             >
-              {data.map((row) => (
-                <TR key={row.id}>
-                  <TD>
-                    <span
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: 11,
-                        color: C.gray500,
-                      }}
-                    >
-                      {row.student_id ?? "—"}
-                    </span>
-                  </TD>
-                  <TD muted>{row.old_score ?? "—"}</TD>
-                  <TD>
-                    <span style={{ fontWeight: 600 }}>{row.new_score}</span>
-                  </TD>
-                  <TD muted>{new Date(row.changed_at).toLocaleString()}</TD>
-                  <TD>
-                    <span
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: 10,
-                        color: C.gray400,
-                      }}
-                    >
-                      {row.actor_user_id
-                        ? row.actor_user_id.slice(0, 8) + "…"
-                        : "—"}
-                    </span>
-                  </TD>
-                </TR>
-              ))}
+              {data.map((row) => {
+                const studentName =
+                  row.student_first_name || row.student_last_name
+                    ? `${row.student_first_name ?? ""} ${row.student_last_name ?? ""}`.trim()
+                    : null;
+                const actorName =
+                  row.actor_first_name || row.actor_last_name
+                    ? `${row.actor_first_name ?? ""} ${row.actor_last_name ?? ""}`.trim()
+                    : row.actor_email ?? null;
+                return (
+                  <TR key={row.id}>
+                    <TD>
+                      {studentName ? (
+                        <>
+                          <span style={{ fontWeight: 500 }}>{studentName}</span>
+                          {row.student_admission_number && (
+                            <span
+                              style={{
+                                display: "block",
+                                fontSize: 11,
+                                color: C.gray400,
+                              }}
+                            >
+                              {row.student_admission_number}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: 11,
+                            color: C.gray500,
+                          }}
+                        >
+                          {row.student_id ?? "—"}
+                        </span>
+                      )}
+                    </TD>
+                    <TD muted>{row.old_score ?? "—"}</TD>
+                    <TD>
+                      <span style={{ fontWeight: 600 }}>{row.new_score}</span>
+                    </TD>
+                    <TD muted>{new Date(row.changed_at).toLocaleString()}</TD>
+                    <TD>
+                      {actorName ? (
+                        <span style={{ fontSize: 12, color: C.gray700 }}>
+                          {actorName}
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: 10,
+                            color: C.gray400,
+                          }}
+                        >
+                          {row.actor_user_id
+                            ? row.actor_user_id.slice(0, 8) + "…"
+                            : "—"}
+                        </span>
+                      )}
+                    </TD>
+                  </TR>
+                );
+              })}
             </DataTable>
           )}
         </div>
@@ -276,6 +311,13 @@ export function MarkDetailPage() {
   const [entriesError, setEntriesError] = useState<string | null>(null);
   const [entriesSuccess, setEntriesSuccess] = useState(false);
   const [evidenceEntryId, setEvidenceEntryId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    weight: "",
+    assessment_date: "",
+  });
+  const [editError, setEditError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: sub, isLoading } = useQuery({
     queryKey: ["submission", id],
@@ -318,6 +360,31 @@ export function MarkDetailPage() {
       setEntriesError(
         err instanceof Error ? err.message : "Failed to save entries",
       );
+    },
+  });
+
+  const updateMut = useMutation({
+    mutationFn: () =>
+      updateSubmission(id!, {
+        weight: editForm.weight ? Number(editForm.weight) : undefined,
+        assessment_date: editForm.assessment_date || undefined,
+      }),
+    onSuccess: () => {
+      setEditError(null);
+      setIsEditing(false);
+      qc.invalidateQueries({ queryKey: ["submission", id] });
+      qc.invalidateQueries({ queryKey: ["submissions"] });
+    },
+    onError: (err) => {
+      setEditError(err instanceof Error ? err.message : "Failed to save changes");
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: () => deleteSubmission(id!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["submissions"] });
+      navigate("/marks");
     },
   });
 
@@ -392,6 +459,8 @@ export function MarkDetailPage() {
 
   const currentState = sub.current_state;
   const isPublished = currentState === "PUBLISHED";
+  const isDraft = currentState === "DRAFT";
+  const submission = sub;
 
   const availableActions = wfDef
     ? wfDef.transitions
@@ -399,20 +468,67 @@ export function MarkDetailPage() {
         .map((t) => t.action)
     : [];
 
+  function startEdit() {
+    setEditForm({
+      weight: submission.weight != null ? String(submission.weight) : "",
+      assessment_date: submission.assessment_date ?? "",
+    });
+    setEditError(null);
+    setIsEditing(true);
+  }
+
   return (
     <div>
       <PageHeader
         title={`${sub.course_id} — ${sub.term}`}
         back={{ label: "Marks", to: "/marks" }}
         action={
-          currentState ? (
-            <Badge
-              label={currentState}
-              color={STATE_BADGE_COLOR[currentState] ?? "gray"}
-            />
-          ) : undefined
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {isDraft && !isEditing && (
+              <>
+                <SecondaryBtn onClick={startEdit}>Edit</SecondaryBtn>
+                <SecondaryBtn onClick={() => setConfirmDelete(true)}>
+                  Delete
+                </SecondaryBtn>
+              </>
+            )}
+            {currentState && (
+              <Badge
+                label={currentState}
+                color={STATE_BADGE_COLOR[currentState] ?? "gray"}
+              />
+            )}
+          </div>
         }
       />
+
+      {confirmDelete && (
+        <Card padding="16px 24px" style={{ marginBottom: 20, background: "#fef2f2" }}>
+          <p style={{ margin: "0 0 12px", fontSize: 14, color: "#7f1d1d" }}>
+            Delete this draft submission? This cannot be undone.
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <PrimaryBtn
+              onClick={() => deleteMut.mutate()}
+              disabled={deleteMut.isPending}
+            >
+              {deleteMut.isPending ? "Deleting…" : "Confirm Delete"}
+            </PrimaryBtn>
+            <SecondaryBtn onClick={() => setConfirmDelete(false)}>
+              Cancel
+            </SecondaryBtn>
+          </div>
+          {deleteMut.isError && (
+            <ErrorBanner
+              message={
+                deleteMut.error instanceof Error
+                  ? deleteMut.error.message
+                  : "Failed to delete submission."
+              }
+            />
+          )}
+        </Card>
+      )}
 
       {/* Metadata */}
       <Card padding="0 24px" style={{ marginBottom: 20 }}>
@@ -420,6 +536,50 @@ export function MarkDetailPage() {
         <DetailRow label="Programme">{sub.programme ?? "—"}</DetailRow>
         <DetailRow label="Intake">{sub.intake ?? "—"}</DetailRow>
         <DetailRow label="Term">{sub.term}</DetailRow>
+        <DetailRow label="Assessment Date">
+          {isEditing ? (
+            <input
+              type="date"
+              style={inputCss}
+              value={editForm.assessment_date}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, assessment_date: e.target.value }))
+              }
+            />
+          ) : sub.assessment_date ? (
+            new Date(sub.assessment_date).toLocaleDateString()
+          ) : (
+            "—"
+          )}
+        </DetailRow>
+        {isEditing && (
+          <DetailRow label="Weight (%)">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              style={inputCss}
+              value={editForm.weight}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, weight: e.target.value }))
+              }
+            />
+          </DetailRow>
+        )}
+        {isEditing && (
+          <div style={{ padding: "12px 0", display: "flex", gap: 8 }}>
+            <PrimaryBtn
+              onClick={() => updateMut.mutate()}
+              disabled={updateMut.isPending}
+            >
+              {updateMut.isPending ? "Saving…" : "Save Changes"}
+            </PrimaryBtn>
+            <SecondaryBtn onClick={() => setIsEditing(false)}>
+              Cancel
+            </SecondaryBtn>
+          </div>
+        )}
+        {editError && <ErrorBanner message={editError} />}
         <DetailRow label="Created">
           {new Date(sub.created_at).toLocaleString()}
         </DetailRow>

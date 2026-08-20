@@ -100,6 +100,11 @@ export const configPayloadSchema = z
     student_categories: z
       .array(z.string().min(1))
       .optional(),
+    // Default marksheet template (issue #295) — master/uvtab/instructor/registrar/principal.
+    // Defaults to "uvtab" when absent.
+    marksheet_default_template: z
+      .enum(["master", "uvtab", "instructor", "registrar", "principal"])
+      .optional(),
     fees: z
       .object({
         defaultTotalDue: z.number().positive().optional(),

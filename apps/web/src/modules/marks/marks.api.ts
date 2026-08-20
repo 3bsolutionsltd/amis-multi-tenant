@@ -5,11 +5,13 @@ export interface Submission {
   id: string;
   tenant_id: string;
   course_id: string;
+  course_title?: string | null;
   programme: string;
   intake: string;
   term: string;
   assessment_type?: string;
   weight?: number;
+  assessment_date?: string | null;
   created_by: string | null;
   created_at: string;
   correction_of_submission_id: string | null;
@@ -42,6 +44,7 @@ export interface CreateSubmissionBody {
   term: string;
   assessment_type?: string;
   weight?: number;
+  assessment_date?: string;
   correction_of_submission_id?: string;
 }
 
@@ -83,6 +86,30 @@ export function createSubmission(
   );
 }
 
+export interface UpdateSubmissionBody {
+  course_id?: string;
+  programme?: string;
+  intake?: string;
+  term?: string;
+  assessment_type?: string;
+  weight?: number;
+  assessment_date?: string;
+}
+
+export function updateSubmission(
+  id: string,
+  body: UpdateSubmissionBody,
+): Promise<Submission> {
+  return apiFetch<Submission>(`/marks/submissions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteSubmission(id: string): Promise<void> {
+  return apiFetch<void>(`/marks/submissions/${id}`, { method: "DELETE" });
+}
+
 export function putEntries(
   submissionId: string,
   entries: { student_id: string; score: number }[],
@@ -118,9 +145,15 @@ export interface AuditEntry {
   id: string;
   entry_id: string;
   student_id: string | null;
+  student_first_name?: string | null;
+  student_last_name?: string | null;
+  student_admission_number?: string | null;
   old_score: number | null;
   new_score: number;
   actor_user_id: string | null;
+  actor_first_name?: string | null;
+  actor_last_name?: string | null;
+  actor_email?: string | null;
   changed_at: string;
 }
 

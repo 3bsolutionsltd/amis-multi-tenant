@@ -632,8 +632,9 @@ export async function reportsRoutes(app: FastifyInstance) {
         const params: unknown[] = [tid];
 
         if (programme) {
+          // s.programme stores the resolved title; filters pass the code — match either.
           params.push(programme);
-          conditions.push(`s.programme = $${params.length}`);
+          conditions.push(`(s.programme_code = $${params.length} OR s.programme = $${params.length})`);
         }
         if (year_of_study != null) {
           params.push(year_of_study);

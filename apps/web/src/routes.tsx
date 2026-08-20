@@ -17,6 +17,7 @@ import { FeesPage } from "./modules/fees/FeesPage";
 import { FeeEntryPage } from "./modules/fees/FeeEntryPage";
 import { FeesImportPage } from "./modules/fees/FeesImportPage";
 import { MarksListPage } from "./modules/marks/MarksListPage";
+import { MarksheetPage } from "./modules/marks/MarksheetPage";
 import { MarkCreatePage } from "./modules/marks/MarkCreatePage";
 import { MarkDetailPage } from "./modules/marks/MarkDetailPage";
 import { BulkMarkEntryPage } from "./modules/marks/BulkMarkEntryPage";
@@ -40,6 +41,7 @@ import { AcademicCalendarPage } from "./admin-studio/AcademicCalendarPage";
 import { DashboardWidgetsEditor } from "./admin-studio/DashboardWidgetsEditor";
 import { ReceiptTemplateEditor } from "./admin-studio/ReceiptTemplateEditor";
 import { AssessmentTypesEditor } from "./admin-studio/AssessmentTypesEditor";
+import { MarksheetTemplateEditor } from "./admin-studio/MarksheetTemplateEditor";
 import { FeeTypesEditor } from "./admin-studio/FeeTypesEditor";
 import { DepartmentsEditor } from "./admin-studio/DepartmentsEditor";
 import { VtiSetupPage as _VtiSetupPage } from "./setup/VtiSetupPage"; // kept for platform admin
@@ -177,6 +179,7 @@ export const router = createBrowserRouter([
       { path: "finance/entry", element: <RequireRole roles={["admin", "finance", "principal"]}><FeeEntryPage /></RequireRole> },
       { path: "finance/import", element: <RequireRole roles={["admin", "finance", "principal"]}><FeesImportPage /></RequireRole> },
       { path: "marks", element: <MarksListPage /> },
+      { path: "marks/marksheet", element: <MarksheetPage /> },
       { path: "marks/new", element: <MarkCreatePage /> },
       { path: "marks/bulk-entry", element: <BulkMarkEntryPage /> },
       { path: "marks/:id", element: <MarkDetailPage /> },
@@ -278,6 +281,7 @@ export const router = createBrowserRouter([
       { path: "dashboards", element: <DashboardWidgetsEditor /> },
       { path: "receipt-template", element: <ReceiptTemplateEditor /> },
       { path: "assessment-types", element: <AssessmentTypesEditor /> },
+      { path: "marksheet-templates", element: <MarksheetTemplateEditor /> },
       { path: "fee-types", element: <FeeTypesEditor /> },
       { path: "departments", element: <DepartmentsEditor /> },
     ],

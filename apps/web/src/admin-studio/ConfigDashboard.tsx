@@ -73,6 +73,7 @@ export function ConfigDashboard() {
     { label: "Student Form Fields", to: "/admin-studio/student-form", icon: "📋" },
     { label: "Navigation", to: "/admin-studio/navigation", icon: "🗂️" },
     { label: "Receipt Template", to: "/admin-studio/receipt-template", icon: "🧾" },
+    { label: "Marksheet Templates", to: "/admin-studio/marksheet-templates", icon: "📑" },
     { label: "Workflows", to: "/admin-studio/workflows", icon: "⚙️" },
     { label: "Config Editor (JSON)", to: "/admin-studio/editor", icon: "🛠️" },
   ];

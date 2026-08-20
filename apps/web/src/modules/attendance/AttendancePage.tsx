@@ -103,9 +103,23 @@ export function AttendancePage() {
   // show every enrolled student, not just students who already have an
   // attendance record for this exact date (otherwise a never-recorded
   // course/date shows an empty, apparently "unresponsive" sheet).
+  // /students caps `limit` at 100 server-side, so page through all results.
   const rosterQuery = useQuery({
     queryKey: ["attendance-roster", applied.programme],
-    queryFn: () => listStudents({ programme: applied.programme, limit: 500 }),
+    queryFn: async () => {
+      const pageSize = 100;
+      const all = [];
+      for (let page = 1; ; page++) {
+        const batch = await listStudents({
+          programme: applied.programme,
+          limit: pageSize,
+          page,
+        });
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+      }
+      return all;
+    },
     enabled: canQuery && viewMode === "sheet" && !!applied.programme,
   });
 
@@ -187,6 +201,12 @@ export function AttendancePage() {
           arr.findIndex((x) => x.student_id === r.student_id) === i
       );
   const isRosterLoading = rosterQuery.isLoading && !!applied.programme;
+
+  // Human-readable course label for display (applied.course_id is the course UUID).
+  const appliedCourse = coursesList.find((c) => c.id === applied.course_id);
+  const appliedCourseLabel = appliedCourse
+    ? `${appliedCourse.code} — ${appliedCourse.title}`
+    : applied.course_id;
 
   function getStatus(studentId: string): AttendanceStatus {
     return sheet[studentId]?.status ?? "present";
@@ -402,7 +422,7 @@ export function AttendancePage() {
                       {records.length} student{records.length !== 1 ? "s" : ""}{" "}
                       found for{" "}
                       <strong>
-                        {applied.course_id} on {applied.date}
+                        {appliedCourseLabel} on {applied.date}
                       </strong>
                     </span>
                     <SecondaryBtn onClick={seedSheet}>

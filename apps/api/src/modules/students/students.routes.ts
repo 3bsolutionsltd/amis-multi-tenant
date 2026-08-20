@@ -76,8 +76,12 @@ export async function studentsRoutes(app: FastifyInstance) {
         }
 
         if (programme) {
+          // `programme` is stored as the resolved title on app.students, while
+          // callers (report/filter dropdowns) commonly pass the programme
+          // *code* — match either so filtering doesn't silently return zero
+          // rows (issue: attendance roster / class list showed no students).
           params.push(programme);
-          conditions.push(`programme = $${params.length}`);
+          conditions.push(`(programme_code = $${params.length} OR programme = $${params.length})`);
         }
 
         const where =

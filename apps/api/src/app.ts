@@ -12,6 +12,7 @@ import { configRoutes } from "./modules/config/config.routes.js";
 import { workflowRoutes } from "./modules/workflow/workflow.routes.js";
 import { admissionsRoutes } from "./modules/admissions/admissions.routes.js";
 import { marksRoutes } from "./modules/marks/marks.routes.js";
+import { marksheetRoutes } from "./modules/marksheet/marksheet.routes.js";
 import { feesRoutes } from "./modules/fees/fees.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import { usersRoutes } from "./modules/users/users.routes.js";
@@ -141,6 +142,7 @@ export function buildApp() {
   app.register(workflowRoutes);
   app.register(admissionsRoutes);
   app.register(marksRoutes);
+  app.register(marksheetRoutes);
   app.register(feesRoutes);
   app.register(termRegistrationsRoutes);
   app.register(programmesRoutes);
