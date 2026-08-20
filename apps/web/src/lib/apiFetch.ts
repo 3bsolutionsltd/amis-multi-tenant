@@ -11,6 +11,10 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 function describeApiError(status: number, body: unknown): string {
   if (typeof body === "string" && body.trim()) return body;
+  if (body && typeof body === "object" && "message" in body) {
+    const message = (body as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
   if (body && typeof body === "object" && "error" in body) {
     const error = (body as { error?: unknown }).error;
     if (typeof error === "string" && error.trim()) return error;
