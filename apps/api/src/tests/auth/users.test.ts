@@ -61,6 +61,12 @@ describeIf("Prompt 19 — password reset + user management (integration)", () =>
     );
     adminUserId = adminRows[0].id;
 
+    // Pre-cleanup: remove any user created by a previous failed run that wasn't cleaned up by afterAll
+    await adminPool.query(
+      `DELETE FROM platform.users WHERE tenant_id = $1 AND (email LIKE 'p19-%' OR email LIKE 'p19new-%')`,
+      [TENANT_A],
+    );
+
     // Create a test target user that tests can modify
     const pwHash = hashPassword(ADMIN_PASSWORD);
     const { rows: targetRows } = await adminPool.query<{ id: string }>(
