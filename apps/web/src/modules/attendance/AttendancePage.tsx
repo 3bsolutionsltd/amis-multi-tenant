@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getAttendance,
@@ -180,6 +180,12 @@ export function AttendancePage() {
     }
     setSheet(map);
   }
+
+  useEffect(() => {
+    if (attendanceQuery.data && attendanceQuery.data.length > 0) {
+      seedSheet();
+    }
+  }, [attendanceQuery.data]);
 
   const records = attendanceQuery.data ?? [];
   const summary = summaryQuery.data ?? [];
