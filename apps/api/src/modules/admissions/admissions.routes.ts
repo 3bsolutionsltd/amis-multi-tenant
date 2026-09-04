@@ -226,7 +226,7 @@ export async function admissionsRoutes(app: FastifyInstance) {
       // Create a preview batch — does NOT insert applications
       const preview = await withTenant(tid, async (client) => {
         const valid: object[] = [];
-        const invalid: { row: unknown; errors: unknown }[] = [];
+        const invalid: { rowNumber: number; row: unknown; errors: unknown }[] = [];
 
         for (const [index, row] of rawRows.entries()) {
           const parsed = CreateApplicationSchema.safeParse(row);
