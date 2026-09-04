@@ -228,10 +228,10 @@ export async function admissionsRoutes(app: FastifyInstance) {
         const valid: object[] = [];
         const invalid: { row: unknown; errors: unknown }[] = [];
 
-        for (const row of rawRows) {
+        for (const [index, row] of rawRows.entries()) {
           const parsed = CreateApplicationSchema.safeParse(row);
           if (!parsed.success) {
-            invalid.push({ row, errors: parsed.error.flatten() });
+            invalid.push({ rowNumber: index + 2, row, errors: parsed.error.flatten() });
             continue;
           }
 
@@ -240,6 +240,7 @@ export async function admissionsRoutes(app: FastifyInstance) {
           });
           if (!programmeRef) {
             invalid.push({
+              rowNumber: index + 2,
               row,
               errors: {
                 fieldErrors: { programme: ["programme not found"] },

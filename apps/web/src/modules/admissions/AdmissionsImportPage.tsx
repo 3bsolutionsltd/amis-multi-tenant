@@ -76,6 +76,18 @@ function parseCsv(text: string): Record<string, string>[] {
 // Key used to persist the current import batch across page reloads / re-login
 const PENDING_BATCH_KEY = "admissions_import_preview";
 
+function formatImportErrors(errors: unknown): string[] {
+  if (!errors || typeof errors !== "object") return ["Validation failed"];
+  const details = errors as {
+    fieldErrors?: Record<string, string[]>;
+    formErrors?: string[];
+  };
+  const fieldErrors = Object.entries(details.fieldErrors ?? {}).flatMap(
+    ([field, messages]) => messages.map((message) => `${field}: ${message}`),
+  );
+  return [...fieldErrors, ...(details.formErrors ?? [])].filter(Boolean);
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -391,20 +403,27 @@ export function AdmissionsImportPage() {
                 </SectionLabel>
               </div>
               <DataTable
-                headers={["Row data", "Errors"]}
+                headers={["Row", "Row data", "Errors"]}
                 isLoading={false}
                 isEmpty={false}
-                colCount={2}
+                colCount={3}
               >
                 {preview.invalid.map((item, i) => (
                   <TR key={i}>
+                    <TD> {item.rowNumber}</TD>
                     <TD>
                       <code style={{ fontSize: 11, color: C.gray500 }}>
                         {JSON.stringify(item.row).slice(0, 100)}…
                       </code>
                     </TD>
                     <TD>
-                      <Badge label="Invalid" color="red" />
+                      <div style={{ display: "grid", gap: 4 }}>
+                        {formatImportErrors(item.errors).map((message) => (
+                          <span key={message} style={{ color: C.red, fontSize: 13 }}>
+                            {message}
+                          </span>
+                        ))}
+                      </div>
                     </TD>
                   </TR>
                 ))}

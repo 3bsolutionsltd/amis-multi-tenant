@@ -306,6 +306,7 @@ describe("POST /admissions/import", () => {
     expect(body).toHaveProperty("batchId");
     expect(body.valid).toHaveLength(1);
     expect(body.invalid).toHaveLength(1);
+    expect(body.invalid[0].rowNumber).toBe(3);
     expect(body.total).toBe(2);
   });
 
@@ -339,6 +340,7 @@ describe("POST /admissions/import", () => {
     const body = res.json();
     expect(body.valid).toHaveLength(0);
     expect(body.invalid).toHaveLength(1);
+    expect(body.invalid[0].rowNumber).toBe(2);
     expect(body.invalid[0].errors.fieldErrors.programme).toEqual([
       "programme not found",
     ]);
