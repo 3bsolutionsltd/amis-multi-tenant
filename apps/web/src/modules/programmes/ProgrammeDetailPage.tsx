@@ -2,7 +2,10 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getProgramme, updateProgramme, deleteProgramme, type UpdateProgrammeBody } from "./programmes.api";
-import { listCourses, createCourse, deleteCourse, updateCourse, importCourses, downloadCourseTemplate, type CreateCourseBody, type UpdateCourseBody, type Course } from "../courses/courses.api";
+import { listCourses, createCourse, deleteCourse, updateCourse, importCourses, downloadCourseTemplate, listCourseOfferings, createCourseOffering, updateCourseOffering, type CreateCourseBody, type UpdateCourseBody, type Course } from "../courses/courses.api";
+import { listAcademicYears, listTerms } from "../academic-calendar/academic-calendar.api";
+import { listUsers } from "../users/users.api";
+import { useAuth } from "../../auth/AuthContext";
 import { useConfig } from "../../app/ConfigProvider";
 import {
   ensureGlobalCss,
@@ -41,6 +44,8 @@ export function ProgrammeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const canAssignInstructors = user?.role === "admin" || user?.role === "registrar";
   const { departments } = useConfig();
   const deptOptions = departments.length > 0 ? departments : FALLBACK_DEPARTMENTS;
   const [editing, setEditing] = useState(false);
@@ -64,6 +69,8 @@ export function ProgrammeDetailPage() {
   }>({ code: "", title: "", credit_hours: "3", course_type: "theory", year_of_study: "1", semester: "1" });
   const [courseError, setCourseError] = useState<string | null>(null);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
+  const [selectedTermId, setSelectedTermId] = useState("");
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [editCourseForm, setEditCourseForm] = useState<{
     code: string; title: string; credit_hours: string;
     course_type: "theory" | "practical" | "both"; year_of_study: string; semester: string;
@@ -96,6 +103,50 @@ export function ProgrammeDetailPage() {
     queryKey: ["courses", id],
     queryFn: () => listCourses({ programme_id: id! }),
     enabled: !!id,
+  });
+
+  const { data: academicYears = [] } = useQuery({
+    queryKey: ["academic-years"],
+    queryFn: () => listAcademicYears(),
+    enabled: canAssignInstructors,
+  });
+
+  const { data: terms = [] } = useQuery({
+    queryKey: ["terms", "course-offerings"],
+    queryFn: () => listTerms(),
+    enabled: canAssignInstructors,
+  });
+
+  const { data: instructorResult } = useQuery({
+    queryKey: ["users", "instructors"],
+    queryFn: () => listUsers({ role: "instructor", isActive: true, limit: 100 }),
+    enabled: canAssignInstructors,
+  });
+  const instructors = instructorResult?.data ?? [];
+
+  const { data: offerings = [] } = useQuery({
+    queryKey: ["course-offerings", id],
+    queryFn: () => listCourseOfferings(),
+    enabled: !!id && canAssignInstructors,
+  });
+
+  const currentTermId = selectedTermId || terms.find((term) => term.is_current)?.id || terms[0]?.id || "";
+
+  const assignmentMutation = useMutation({
+    mutationFn: ({ course, instructorId }: { course: Course; instructorId: string }) => {
+      const existing = offerings.find((o) => o.course_id === course.id && o.term_id === currentTermId);
+      if (!currentTermId) {
+        throw new Error("Select an academic term before assigning an instructor.");
+      }
+      return existing
+        ? updateCourseOffering(existing.id, { instructor_id: instructorId || null })
+        : createCourseOffering({ course_id: course.id, term_id: currentTermId, instructor_id: instructorId || undefined });
+    },
+    onSuccess: () => {
+      setAssignmentError(null);
+      qc.invalidateQueries({ queryKey: ["course-offerings", id] });
+    },
+    onError: (err: Error) => setAssignmentError(err.message),
   });
 
   const addCourseMutation = useMutation({
@@ -312,6 +363,33 @@ export function ProgrammeDetailPage() {
           )}
         </div>
 
+        {canAssignInstructors && (
+          <Card padding="16px" style={{ marginBottom: 16, border: `1px solid ${C.border}`, background: "#f8fafc" }}>
+            <div style={{ display: "flex", alignItems: "end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+              <Field label="Teaching assignments">
+                <select
+                  style={{ ...selectCss, minWidth: 240 }}
+                  value={currentTermId}
+                  onChange={(e) => setSelectedTermId(e.target.value)}
+                >
+                  <option value="">— Select term —</option>
+                  {academicYears.map((year) => (
+                    <optgroup key={year.id} label={year.name}>
+                      {terms.filter((term) => term.academic_year_id === year.id).map((term) => (
+                        <option key={term.id} value={term.id}>{term.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </Field>
+              <span style={{ color: C.textSecondary, fontSize: 12 }}>
+                Assign an instructor for each course in the selected term.
+              </span>
+            </div>
+            {assignmentError && <div style={{ marginTop: 10 }}><ErrorBanner message={assignmentError} /></div>}
+          </Card>
+        )}
+
         {addingCourse && (
           <Card padding="20px" style={{ marginBottom: 16, border: `1px solid ${C.border}` }}>
             <SectionLabel>New Course</SectionLabel>
@@ -383,7 +461,7 @@ export function ProgrammeDetailPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "#f9fafb", borderBottom: `1px solid ${C.border}` }}>
-                {["Code", "Title", "Yr", "Sem", "Credits", "Type", ""].map((h) => (
+                {["Code", "Title", "Yr", "Sem", "Credits", "Type", ...(canAssignInstructors ? ["Instructor"] : []), ""].map((h) => (
                   <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600, color: C.textSecondary, whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
@@ -420,6 +498,7 @@ export function ProgrammeDetailPage() {
                         <option value="both">Both</option>
                       </select>
                     </td>
+                    {canAssignInstructors && <td />}
                     <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
                       <button
                         onClick={() => updateCourseMutation.mutate({
@@ -459,6 +538,24 @@ export function ProgrammeDetailPage() {
                         color={course.course_type === "practical" ? "blue" : course.course_type === "both" ? "purple" : "gray"}
                       />
                     </td>
+                    {canAssignInstructors && (
+                      <td style={{ padding: "8px 10px", minWidth: 170 }}>
+                        <select
+                          style={{ ...selectCss, width: "100%" }}
+                          value={offerings.find((o) => o.course_id === course.id && o.term_id === currentTermId)?.instructor_id ?? ""}
+                          disabled={!currentTermId || assignmentMutation.isPending}
+                          onChange={(e) => assignmentMutation.mutate({ course, instructorId: e.target.value })}
+                          aria-label={`Instructor for ${course.code}`}
+                        >
+                          <option value="">— Unassigned —</option>
+                          {instructors.map((instructor) => (
+                            <option key={instructor.id} value={instructor.id}>
+                              {[instructor.firstName, instructor.lastName].filter(Boolean).join(" ") || instructor.email}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    )}
                     <td style={{ padding: "8px 10px", whiteSpace: "nowrap" }}>
                       <button
                         onClick={() => startEditCourse(course)}

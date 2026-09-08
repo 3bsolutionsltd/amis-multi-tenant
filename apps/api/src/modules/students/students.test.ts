@@ -105,6 +105,39 @@ describe("GET /students", () => {
     expect(capturedSql).toMatch(/programme_code = \$\d+ OR programme = \$\d+/);
     expect(capturedParams).toContain("DICT");
   });
+
+  it("scopes instructors to students in their assigned course offerings", async () => {
+    let capturedSql = "";
+    let capturedParams: unknown[] = [];
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
+      const fakeClient = {
+        query: vi.fn((sql: string, params: unknown[]) => {
+          capturedSql = sql;
+          capturedParams = params;
+          return Promise.resolve({ rows: [] });
+        }),
+      };
+      return cb(fakeClient as never);
+    });
+
+    const instructorId = "22222222-2222-2222-2222-222222222222";
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/students",
+      headers: {
+        "x-tenant-id": "tenant-uuid-1",
+        "x-dev-role": "instructor",
+        "x-dev-user-id": instructorId,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(capturedSql).toMatch(/EXISTS \(\s*SELECT 1\s+FROM app\.course_offerings co/);
+    expect(capturedSql).toContain("co.instructor_id = $1");
+    expect(capturedSql).toContain("c.year_of_study = app.students.year_of_study");
+    expect(capturedParams[0]).toBe(instructorId);
+  });
 });
 
 describe("POST /students", () => {
@@ -244,6 +277,27 @@ describe("GET /students/:id", () => {
     expect(body).toHaveProperty("industrial_training");
     expect(body).toHaveProperty("field_placements");
     expect(body).toHaveProperty("fees");
+  });
+
+  it("does not expose an unrelated student detail to an instructor", async () => {
+    let capturedSql = "";
+    const mockClient = {
+      query: vi.fn((sql: string) => {
+        capturedSql = sql;
+        return Promise.resolve({ rows: [] });
+      }),
+    };
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => cb(mockClient as never));
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/students/${SOME_ID}`,
+      headers: { "x-tenant-id": TID, "x-dev-role": "instructor" },
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(capturedSql).toContain("co.instructor_id = $2");
   });
 });
 

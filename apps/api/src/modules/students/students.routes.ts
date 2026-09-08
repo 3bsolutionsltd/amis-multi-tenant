@@ -54,6 +54,21 @@ export async function studentsRoutes(app: FastifyInstance) {
         const conditions: string[] = [];
         const params: unknown[] = [];
 
+        if (req.user.role === "instructor") {
+          params.push(req.user.userId);
+          conditions.push(`EXISTS (
+            SELECT 1
+            FROM app.course_offerings co
+            JOIN app.courses c ON c.id = co.course_id
+            JOIN app.programmes p ON p.id = c.programme_id
+            WHERE co.instructor_id = $${params.length}
+              AND c.year_of_study = app.students.year_of_study
+              AND (p.id = app.students.programme_id
+                   OR p.code = app.students.programme_code
+                   OR p.title = app.students.programme)
+          )`);
+        }
+
         if (!include_inactive) {
           conditions.push(`is_active = true`);
         }
@@ -112,9 +127,26 @@ export async function studentsRoutes(app: FastifyInstance) {
 
       const result = await withTenant(tenantId, async (client) => {
         // Core student record
+        const studentParams: unknown[] = [req.params.id];
+        const instructorScope =
+          req.user.role === "instructor"
+            ? ` AND EXISTS (
+                 SELECT 1
+                 FROM app.course_offerings co
+                 JOIN app.courses c ON c.id = co.course_id
+                 JOIN app.programmes p ON p.id = c.programme_id
+                 WHERE co.instructor_id = $2
+                   AND c.year_of_study = app.students.year_of_study
+                   AND (p.id = app.students.programme_id
+                        OR p.code = app.students.programme_code
+                        OR p.title = app.students.programme)
+               )`
+            : "";
+        if (req.user.role === "instructor") studentParams.push(req.user.userId);
         const { rows: stuRows } = await client.query(
-          `SELECT ${SELECT_COLS} FROM app.students WHERE id = $1`,
-          [req.params.id],
+          `SELECT ${SELECT_COLS} FROM app.students
+           WHERE id = $1${instructorScope}`,
+          studentParams,
         );
         if (stuRows.length === 0) return null;
 
