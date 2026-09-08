@@ -66,6 +66,9 @@ export function DepartmentsEditor() {
       const updated = buildUpdated();
       await createDraft(updated);
       await publishConfig(role);
+      qc.setQueryData(["config"], (current: { payload?: unknown } | undefined) =>
+        current ? { ...current, payload: updated } : current,
+      );
       await qc.invalidateQueries({ queryKey: ["config"] });
       setSavedMsg("published");
     } catch {
