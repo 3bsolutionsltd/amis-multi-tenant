@@ -103,7 +103,7 @@ const ConfigContext = createContext<ConfigContextValue>({
   dashboards: [],
   primaryColor: "#2563EB",
   studentFormConfig: null,
-  departments: [],
+  departments: DEFAULT_DEPARTMENTS,
   designations: [],
   receiptConfig: {
     template: "classic",

@@ -20,13 +20,14 @@ import {
   ErrorBanner,
   Pagination,
 } from "../../lib/ui";
-import { useConfig } from "../../app/ConfigProvider";
+import { DEFAULT_DEPARTMENTS, useConfig } from "../../app/ConfigProvider";
 
 export function UsersListPage() {
   ensureGlobalCss();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { departments } = useConfig();
+  const { departments: configuredDepartments } = useConfig();
+  const departments = configuredDepartments.length > 0 ? configuredDepartments : DEFAULT_DEPARTMENTS;
 
   const [params, setParams] = useSearchParams();
   const roleFilter = params.get("role") ?? "";
