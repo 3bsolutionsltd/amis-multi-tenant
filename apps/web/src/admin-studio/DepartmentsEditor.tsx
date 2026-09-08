@@ -53,6 +53,7 @@ export function DepartmentsEditor() {
       setFullPayload(updated);
       setSavedMsg("draft");
       await qc.invalidateQueries({ queryKey: ["config"] });
+      await qc.invalidateQueries({ queryKey: ["config-status"] });
     } catch {
       setError("Failed to save departments");
     } finally {
@@ -69,7 +70,12 @@ export function DepartmentsEditor() {
       qc.setQueryData(["config"], (current: { payload?: unknown } | undefined) =>
         current ? { ...current, payload: updated } : current,
       );
+      qc.setQueryData(["config-status"], (current: unknown) => {
+        if (!current || typeof current !== "object") return current;
+        return { ...(current as Record<string, unknown>), published: { payload: updated } };
+      });
       await qc.invalidateQueries({ queryKey: ["config"] });
+      await qc.invalidateQueries({ queryKey: ["config-status"] });
       setSavedMsg("published");
     } catch {
       setError("Failed to publish departments");

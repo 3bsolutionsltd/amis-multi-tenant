@@ -119,6 +119,13 @@ function withDynamicRoleColumns(row: MatrixRow): MatrixRow {
 function PermissionMatrix() {
   const qc = useQueryClient();
   const { config } = useConfig();
+  const { data: configStatus } = useQuery({
+    queryKey: ["config-status"],
+    queryFn: getConfigStatus,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+  const latestPayload = configStatus?.published?.payload ?? config?.payload;
   const [matrix, setMatrix] = useState<MatrixRow[]>(
     MATRIX.map(withDynamicRoleColumns)
   );
@@ -126,19 +133,21 @@ function PermissionMatrix() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   useEffect(() => {
-    const permissions = config?.payload.permissions;
+    const permissions = latestPayload?.permissions as
+      | Record<string, Record<string, Access>>
+      | undefined;
     if (!permissions) return;
     setMatrix((current) => current.map((row) => ({
       ...row,
       access: ROLES_SHORT.map((role, roleIndex) => permissions[role]?.[row.module] ?? row.access[roleIndex] ?? NONE),
     })));
-  }, [config]);
+  }, [latestPayload]);
 
   async function saveMatrix() {
     setSaveState("saving");
     try {
       const status = await getConfigStatus();
-      const base = status.draft?.payload ?? status.published?.payload ?? config?.payload ?? {};
+      const base = status.published?.payload ?? status.draft?.payload ?? config?.payload ?? {};
       const permissions = Object.fromEntries(
         ROLES_SHORT.map((role, roleIndex) => [
           role,
@@ -151,6 +160,11 @@ function PermissionMatrix() {
       qc.setQueryData(["config"], (current: { payload?: unknown } | undefined) =>
         current ? { ...current, payload: updatedPayload } : current,
       );
+      qc.setQueryData(["config-status"], (current: unknown) => {
+        if (!current || typeof current !== "object") return current;
+        return { ...(current as Record<string, unknown>), published: { payload: updatedPayload } };
+      });
+      await qc.invalidateQueries({ queryKey: ["config-status"] });
       await qc.invalidateQueries({ queryKey: ["config"] });
       setSaveState("saved");
     } catch {
@@ -319,7 +333,26 @@ export function StudioUsersPage() {
   const [editDepartment, setEditDepartment] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const { departments: configuredDepartments } = useConfig();
-  const departments = configuredDepartments.length > 0 ? configuredDepartments : DEFAULT_DEPARTMENTS;
+  const { data: configStatus } = useQuery({
+    queryKey: ["config-status"],
+    queryFn: getConfigStatus,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+  const statusPayload = configStatus?.published?.payload ?? configStatus?.draft?.payload;
+  const statusDepartments =
+    statusPayload?.institution &&
+    typeof statusPayload.institution === "object" &&
+    Array.isArray((statusPayload.institution as { departments?: unknown }).departments)
+      ? (statusPayload.institution as { departments: unknown[] }).departments.filter(
+          (department): department is string => typeof department === "string",
+        )
+      : [];
+  const departments = statusDepartments.length > 0
+    ? statusDepartments
+    : configuredDepartments.length > 0
+      ? configuredDepartments
+      : DEFAULT_DEPARTMENTS;
 
   const { data, isLoading } = useQuery({
     queryKey: ["studio-users", roleFilter],
