@@ -34,6 +34,7 @@ const VALID_ROLES = [
   "procurement_officer",
   "inventory_manager",
 ] as const;
+const RolesSchema = z.array(z.enum(VALID_ROLES)).min(1).max(VALID_ROLES.length);
 
 // ------------------------------------------------------------------ schemas
 
@@ -66,11 +67,16 @@ const CreateUserSchema = z.object({
   // temporary password; the user sets their own via the welcome-email link
   password: z.string().min(1).optional(),
   role: z.enum(VALID_ROLES),
+  roles: RolesSchema.optional(),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
   department: z.string().min(1).optional(),
 }).superRefine((data, ctx) => {
-  if (data.role === "hod" && !data.department) {
+  const assignedRoles = data.roles ?? [data.role];
+  if (!assignedRoles.includes(data.role)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["roles"], message: "Primary role must be included in roles" });
+  }
+  if (assignedRoles.includes("hod") && !data.department) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["department"], message: "HOD users must be assigned a department" });
   }
 });
@@ -78,12 +84,13 @@ const CreateUserSchema = z.object({
 const UpdateUserSchema = z
   .object({
     role: z.enum(VALID_ROLES).optional(),
+    roles: RolesSchema.optional(),
     isActive: z.boolean().optional(),
     firstName: z.string().min(1).optional(),
     lastName: z.string().min(1).optional(),
     department: z.string().min(1).nullable().optional(),
   })
-  .refine((d) => d.role !== undefined || d.isActive !== undefined || d.department !== undefined, {
+  .refine((d) => d.role !== undefined || d.roles !== undefined || d.isActive !== undefined || d.department !== undefined, {
     message: "At least one field must be provided",
   });
 
@@ -99,6 +106,7 @@ interface UserPublic {
   firstName: string | null;
   lastName: string | null;
   role: string;
+  roles: string[];
   department: string | null;
   isActive: boolean;
   createdAt: string;
@@ -113,6 +121,34 @@ async function revokeAllRefreshTokens(userId: string): Promise<void> {
     `UPDATE platform.refresh_tokens SET revoked = true WHERE user_id = $1`,
     [userId],
   );
+}
+
+async function syncUserRoles(userId: string, tenantId: string, roles: string[]): Promise<void> {
+  const uniqueRoles = Array.from(new Set(roles));
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("DELETE FROM platform.user_roles WHERE user_id = $1", [userId]);
+    for (const role of uniqueRoles) {
+      await client.query(
+        `INSERT INTO platform.roles (tenant_id, name) VALUES ($1, $2)
+         ON CONFLICT (tenant_id, name) DO NOTHING`,
+        [tenantId, role],
+      );
+      await client.query(
+        `INSERT INTO platform.user_roles (user_id, role_id)
+         SELECT $1, id FROM platform.roles WHERE tenant_id = $2 AND name = $3
+         ON CONFLICT (user_id, role_id) DO NOTHING`,
+        [userId, tenantId, role],
+      );
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /** Write a row to the IAM audit log (fire-and-forget; never throws). */
@@ -141,6 +177,7 @@ function toPublic(row: {
   first_name?: string | null;
   last_name?: string | null;
   role: string;
+  roles?: string[];
   department?: string | null;
   is_active: boolean;
   created_at: string;
@@ -152,6 +189,7 @@ function toPublic(row: {
     firstName: row.first_name ?? null,
     lastName: row.last_name ?? null,
     role: row.role,
+    roles: row.roles ?? [row.role],
     department: row.department ?? null,
     isActive: row.is_active,
     createdAt: row.created_at,
@@ -189,7 +227,7 @@ export async function usersRoutes(app: FastifyInstance) {
 
       if (role !== undefined) {
         params.push(role);
-        conditions.push(`role = $${params.length}`);
+        conditions.push(`u.role = $${params.length}`);
       }
       if (search !== undefined && search.length > 0) {
         params.push(`%${search.toLowerCase()}%`);
@@ -211,9 +249,13 @@ export async function usersRoutes(app: FastifyInstance) {
           created_at: string;
           last_login_at: string | null;
         }>(
-          `SELECT id, email, first_name, last_name, role, department, is_active, created_at, last_login_at
-           FROM platform.users
+            `SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.department, u.is_active, u.created_at, u.last_login_at,
+              COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), ARRAY[u.role]) AS roles
+             FROM platform.users u
+             LEFT JOIN platform.user_roles ur ON ur.user_id = u.id
+             LEFT JOIN platform.roles r ON r.id = ur.role_id
            WHERE ${where}
+             GROUP BY u.id
            ORDER BY created_at DESC
            LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
           [...params, limit, offset],
@@ -253,7 +295,7 @@ export async function usersRoutes(app: FastifyInstance) {
         });
       }
 
-      const { email, role, firstName, lastName, department } = parsed.data;
+      const { email, role, roles, firstName, lastName, department } = parsed.data;
       // Use caller-supplied password or auto-generate a secure random one
       // (admin invite flow: the user will set their own via the setup link)
       const password = parsed.data.password ?? randomBytes(24).toString("base64url");
@@ -284,6 +326,7 @@ export async function usersRoutes(app: FastifyInstance) {
         first_name: string | null;
         last_name: string | null;
         role: string;
+        roles: string[];
         is_active: boolean;
         created_at: string;
         last_login_at: string | null;
@@ -295,6 +338,7 @@ export async function usersRoutes(app: FastifyInstance) {
       );
 
       const created = rows[0];
+      await syncUserRoles(created.id, tenantId, roles ?? [role]);
       writeAuditLog(tenantId, req.user.userId, created.id, "created", null, role);
 
       // Issue a 48-hour account setup token and send welcome email
@@ -341,7 +385,7 @@ export async function usersRoutes(app: FastifyInstance) {
         });
       }
 
-      const { role, isActive, firstName, lastName, department } = parsed.data;
+      const { role, roles, isActive, firstName, lastName, department } = parsed.data;
 
       // Verify the user belongs to the same tenant
       const { rows: existing } = await pool.query<{
@@ -349,13 +393,18 @@ export async function usersRoutes(app: FastifyInstance) {
         email: string;
         first_name: string | null;
         role: string;
+        roles: string[];
         department: string | null;
         is_active: boolean;
         created_at: string;
       }>(
-        `SELECT id, email, first_name, role, department, is_active, created_at
-         FROM platform.users
-         WHERE id = $1 AND tenant_id = $2`,
+        `SELECT u.id, u.email, u.first_name, u.role, u.department, u.is_active, u.created_at,
+          COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), ARRAY[u.role]) AS roles
+         FROM platform.users u
+         LEFT JOIN platform.user_roles ur ON ur.user_id = u.id
+         LEFT JOIN platform.roles r ON r.id = ur.role_id
+         WHERE u.id = $1 AND u.tenant_id = $2
+         GROUP BY u.id`,
         [id, tenantId],
       );
 
@@ -364,9 +413,13 @@ export async function usersRoutes(app: FastifyInstance) {
       }
 
       const effectiveRole = role ?? existing[0].role;
+      const effectiveRoles = roles ?? Array.from(new Set([...(existing[0].roles ?? []), ...(role ? [role] : [])]));
       const effectiveDepartment = department !== undefined ? department : existing[0].department;
-      if (effectiveRole === "hod" && !effectiveDepartment) {
+      if (effectiveRoles.includes("hod") && !effectiveDepartment) {
         return reply.status(400).send({ message: "HOD users must be assigned a department" });
+      }
+      if (!effectiveRoles.includes(effectiveRole)) {
+        return reply.status(400).send({ message: "Primary role must be included in roles" });
       }
 
       // Build SET clause
@@ -421,6 +474,9 @@ export async function usersRoutes(app: FastifyInstance) {
       }
 
       const updated = rows[0];
+      if (roles !== undefined || role !== undefined) {
+        await syncUserRoles(id, tenantId, effectiveRoles);
+      }
       // Write audit entries for each changed field
       if (role !== undefined) {
         writeAuditLog(

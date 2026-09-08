@@ -53,7 +53,7 @@ export async function devIdentityHook(req: FastifyRequest): Promise<void> {
       ? req.headers["x-dev-user-id"]
       : (ROLE_IDS[role] ?? ROLE_IDS.admin);
 
-  req.user = { tenantId, role, userId };
+  req.user = { tenantId, role, roles: [role], userId };
 }
 
 /**

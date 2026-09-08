@@ -15,9 +15,10 @@ export function requireRole(...roles: string[]) {
     if ((req as unknown as { user?: object }).user === undefined) {
       return reply.status(401).send({ message: "Authentication required" });
     }
-    if (!roles.includes(req.user.role)) {
+    const assignedRoles = req.user.roles?.length ? req.user.roles : [req.user.role];
+    if (!roles.some((requiredRole) => assignedRoles.includes(requiredRole))) {
       return reply.status(403).send({
-        error: `Forbidden: role '${req.user.role}' is not allowed; requires one of: ${roles.join(", ")}`,
+        error: `Forbidden: roles '${assignedRoles.join(", ")}' are not allowed; requires one of: ${roles.join(", ")}`,
       });
     }
   };

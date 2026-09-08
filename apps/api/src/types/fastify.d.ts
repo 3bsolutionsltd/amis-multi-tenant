@@ -5,6 +5,7 @@ declare module "fastify" {
     user: {
       tenantId: string;
       role: string;
+      roles: string[];
       userId: string;
     };
   }

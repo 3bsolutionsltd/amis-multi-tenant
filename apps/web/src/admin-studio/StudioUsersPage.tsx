@@ -330,6 +330,7 @@ export function StudioUsersPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editRole, setEditRole] = useState("");
+  const [editRoles, setEditRoles] = useState<string[]>([]);
   const [editDepartment, setEditDepartment] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const { departments: configuredDepartments } = useConfig();
@@ -369,6 +370,7 @@ export function StudioUsersPage() {
       id: string;
       body: {
         role?: (typeof VALID_ROLES)[number];
+        roles?: (typeof VALID_ROLES)[number][];
         isActive?: boolean;
         department?: string | null;
       };
@@ -385,6 +387,7 @@ export function StudioUsersPage() {
   function openEdit(user: User) {
     setEditingUser(user);
     setEditRole(user.role);
+    setEditRoles(user.roles?.length ? user.roles : [user.role]);
     setEditDepartment(user.department ?? "");
     setEditError(null);
   }
@@ -395,7 +398,8 @@ export function StudioUsersPage() {
       id: editingUser.id,
       body: {
         role: editRole as (typeof VALID_ROLES)[number],
-        department: editRole === "hod" ? editDepartment || null : null,
+        roles: editRoles as (typeof VALID_ROLES)[number][],
+        department: editRoles.includes("hod") ? editDepartment || null : null,
       },
     });
   }
@@ -531,7 +535,9 @@ export function StudioUsersPage() {
                     {u.email}
                   </td>
                   <td style={{ padding: "11px 12px" }}>
-                    <RoleBadge role={u.role} />
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {(u.roles?.length ? u.roles : [u.role]).map((role) => <RoleBadge key={role} role={role} />)}
+                    </div>
                   </td>
                   <td style={{ padding: "11px 12px" }}>
                     <span
@@ -623,21 +629,36 @@ export function StudioUsersPage() {
             </p>
 
             <div style={{ marginBottom: 20 }}>
-              <label style={labelStyle}>Role</label>
+              <label style={labelStyle}>Assigned roles</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {VALID_ROLES.map((role) => (
+                  <label key={role} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                    <input
+                      type="checkbox"
+                      checked={editRoles.includes(role)}
+                      onChange={(event) => {
+                        setEditRoles((current) => {
+                          if (event.target.checked) return Array.from(new Set([...current, role]));
+                          if (role === editRole) return current;
+                          return current.filter((assigned) => assigned !== role);
+                        });
+                      }}
+                    />
+                    {role}
+                  </label>
+                ))}
+              </div>
+              <label style={{ ...labelStyle, marginTop: 14 }}>Primary role</label>
               <select
                 value={editRole}
                 onChange={(e) => setEditRole(e.target.value)}
                 style={selectCss}
               >
-                {VALID_ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
+                {editRoles.map((role) => <option key={role} value={role}>{role}</option>)}
               </select>
             </div>
 
-            {editRole === "hod" && (
+            {editRoles.includes("hod") && (
               <div style={{ marginBottom: 20 }}>
                 <label style={labelStyle}>Department</label>
                 <select

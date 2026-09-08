@@ -22,6 +22,7 @@ export interface User {
   firstName: string | null;
   lastName: string | null;
   role: UserRole;
+  roles: UserRole[];
   department: string | null;
   isActive: boolean;
   createdAt: string;
@@ -31,6 +32,7 @@ export interface User {
 export interface CreateUserBody {
   email: string;
   role: UserRole;
+  roles?: UserRole[];
   firstName?: string;
   lastName?: string;
   department?: string;
@@ -38,6 +40,7 @@ export interface CreateUserBody {
 
 export interface UpdateUserBody {
   role?: UserRole;
+  roles?: UserRole[];
   isActive?: boolean;
   firstName?: string;
   lastName?: string;

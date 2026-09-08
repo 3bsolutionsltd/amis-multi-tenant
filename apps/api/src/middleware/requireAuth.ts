@@ -68,12 +68,17 @@ export async function requireAuth(
   const { rows } = await superPool.query<{
     id: string;
     role: string;
+    roles: string[];
     tenant_id: string;
     is_active: boolean;
   }>(
-    `SELECT id, role, tenant_id, is_active
-     FROM platform.users
-     WHERE id = $1`,
+    `SELECT u.id, u.role, u.tenant_id, u.is_active,
+        COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), ARRAY[u.role]) AS roles
+     FROM platform.users u
+     LEFT JOIN platform.user_roles ur ON ur.user_id = u.id
+     LEFT JOIN platform.roles r ON r.id = ur.role_id
+     WHERE u.id = $1
+     GROUP BY u.id, u.role, u.tenant_id, u.is_active`,
     [payload.sub],
   );
 
@@ -87,5 +92,6 @@ export async function requireAuth(
     userId: rows[0].id,
     tenantId: rows[0].tenant_id,
     role: rows[0].role,
+    roles: rows[0].roles,
   };
 }
