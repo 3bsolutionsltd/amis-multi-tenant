@@ -20,11 +20,13 @@ import {
   ErrorBanner,
   Pagination,
 } from "../../lib/ui";
+import { useConfig } from "../../app/ConfigProvider";
 
 export function UsersListPage() {
   ensureGlobalCss();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { departments } = useConfig();
 
   const [params, setParams] = useSearchParams();
   const roleFilter = params.get("role") ?? "";
@@ -59,6 +61,7 @@ export function UsersListPage() {
 
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editRole, setEditRole] = useState("");
+  const [editDepartment, setEditDepartment] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -73,7 +76,7 @@ export function UsersListPage() {
       body,
     }: {
       id: string;
-      body: { role?: (typeof VALID_ROLES)[number]; isActive?: boolean };
+      body: { role?: (typeof VALID_ROLES)[number]; isActive?: boolean; department?: string | null };
     }) => updateUser(id, body),
     onSuccess: () => {
       setEditingUser(null);
@@ -88,6 +91,7 @@ export function UsersListPage() {
   function openEdit(user: User) {
     setEditingUser(user);
     setEditRole(user.role);
+    setEditDepartment(user.department ?? "");
     setEditError(null);
   }
 
@@ -95,7 +99,10 @@ export function UsersListPage() {
     if (!editingUser) return;
     updateMut.mutate({
       id: editingUser.id,
-      body: { role: editRole as (typeof VALID_ROLES)[number] },
+      body: {
+        role: editRole as (typeof VALID_ROLES)[number],
+        department: editRole === "hod" ? editDepartment || null : null,
+      },
     });
   }
 
@@ -236,6 +243,21 @@ export function UsersListPage() {
               ))}
             </select>
           </Field>
+          {editRole === "hod" && (
+            <Field label="Department" required>
+              <select
+                required
+                value={editDepartment}
+                onChange={(e) => setEditDepartment(e.target.value)}
+                style={selectCss}
+              >
+                <option value="">— Select department —</option>
+                {departments.map((department) => (
+                  <option key={department} value={department}>{department}</option>
+                ))}
+              </select>
+            </Field>
+          )}
         </Modal>
       )}
     </div>
