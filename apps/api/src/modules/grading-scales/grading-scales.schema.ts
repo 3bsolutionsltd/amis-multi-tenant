@@ -31,7 +31,9 @@ export const UpdateGradeBoundarySchema = z.object({
   grade_point: z.number().min(0).optional(),
 });
 
-export const BulkBoundariesSchema = z.array(CreateGradeBoundarySchema).min(1);
+// Bulk replacement also supports an empty list so an administrator can clear
+// a scale without leaving stale boundaries behind.
+export const BulkBoundariesSchema = z.array(CreateGradeBoundarySchema);
 
 export type CreateGradingScale = z.infer<typeof CreateGradingScaleSchema>;
 export type UpdateGradingScale = z.infer<typeof UpdateGradingScaleSchema>;

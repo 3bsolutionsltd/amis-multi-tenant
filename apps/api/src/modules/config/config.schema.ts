@@ -58,6 +58,12 @@ const moduleFormConfigSchema = z.object({
   extensionFields: z.array(formFieldSchema).optional(),
 });
 
+const permissionAccessSchema = z.enum(["full", "read", "none"]);
+const permissionMatrixSchema = z.record(
+  z.string().min(1),
+  z.record(z.string().min(1), permissionAccessSchema),
+);
+
 // The shape of a tenant's configuration payload.
 // Workflows live here so they benefit from config draft/validate/publish/rollback.
 export const configPayloadSchema = z
@@ -87,6 +93,7 @@ export const configPayloadSchema = z
       })
       .optional(),
     workflows: z.record(z.string(), workflowDefinitionSchema).optional(),
+    permissions: permissionMatrixSchema.optional(),
     assessment_types: z
       .array(z.string().min(1))
       .optional(),

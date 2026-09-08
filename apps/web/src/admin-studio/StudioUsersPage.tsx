@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
@@ -9,6 +9,8 @@ import {
   type User,
 } from "../modules/users/users.api";
 import { C, inputCss, selectCss } from "../lib/ui";
+import { createDraft, getConfigStatus, publishConfig } from "./admin-studio.api";
+import { useConfig } from "../app/ConfigProvider";
 
 const labelStyle: React.CSSProperties = {
   display: "block",
@@ -63,7 +65,7 @@ const FULL = "full" as const;
 const READ = "read" as const;
 const NONE = "none" as const;
 
-const ROLES_SHORT = ["admin", "registrar", "hod", "instructor", "finance", "principal", "dean", "proc.", "inv."] as const;
+const ROLES_SHORT = ["admin", "registrar", "hod", "instructor", "finance", "principal", "dean", "director", "deputy_principal", "proc.", "inv."] as const;
 
 type MatrixRow = { module: string; access: Access[] };
 
@@ -102,11 +104,53 @@ const ACCESS_DISPLAY: Record<Access, { icon: string; color: string; label: strin
   none: { icon: "—",  color: C.gray400,    label: "None"      },
 };
 
+function withDynamicRoleColumns(row: MatrixRow): MatrixRow {
+  return {
+    ...row,
+    access: [
+      ...row.access.slice(0, 7),
+      NONE,
+      NONE,
+      ...row.access.slice(7),
+    ],
+  };
+}
+
 function PermissionMatrix() {
+  const { config } = useConfig();
   const [matrix, setMatrix] = useState<MatrixRow[]>(
-    MATRIX.map((r) => ({ ...r, access: [...r.access] }))
+    MATRIX.map(withDynamicRoleColumns)
   );
   const [copied, setCopied] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  useEffect(() => {
+    const permissions = config?.payload.permissions;
+    if (!permissions) return;
+    setMatrix((current) => current.map((row) => ({
+      ...row,
+      access: ROLES_SHORT.map((role, roleIndex) => permissions[role]?.[row.module] ?? row.access[roleIndex] ?? NONE),
+    })));
+  }, [config]);
+
+  async function saveMatrix() {
+    setSaveState("saving");
+    try {
+      const status = await getConfigStatus();
+      const base = status.draft?.payload ?? status.published?.payload ?? config?.payload ?? {};
+      const permissions = Object.fromEntries(
+        ROLES_SHORT.map((role, roleIndex) => [
+          role,
+          Object.fromEntries(matrix.map((row) => [row.module, row.access[roleIndex]])),
+        ]),
+      );
+      await createDraft({ ...base, permissions });
+      await publishConfig("admin");
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    }
+  }
 
   function cycleCell(rowIdx: number, colIdx: number) {
     setMatrix((prev) =>
@@ -121,7 +165,7 @@ function PermissionMatrix() {
   }
 
   function resetMatrix() {
-    setMatrix(MATRIX.map((r) => ({ ...r, access: [...r.access] })));
+    setMatrix(MATRIX.map(withDynamicRoleColumns));
   }
 
   function copyJson() {
@@ -145,6 +189,13 @@ function PermissionMatrix() {
           &nbsp;<em>(proc. = procurement_officer, inv. = inventory_manager)</em>
         </p>
         <button
+          onClick={() => void saveMatrix()}
+          disabled={saveState === "saving"}
+          style={{ padding: "5px 14px", fontSize: 12, background: saveState === "saved" ? C.greenText : C.blue, border: "none", borderRadius: 6, cursor: saveState === "saving" ? "not-allowed" : "pointer", color: "#fff", fontWeight: 600 }}
+        >
+          {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save Matrix"}
+        </button>
+        <button
           onClick={resetMatrix}
           style={{
             padding: "5px 14px",
@@ -159,6 +210,7 @@ function PermissionMatrix() {
         >
           Reset
         </button>
+        {saveState === "error" && <span style={{ color: C.redText, fontSize: 12 }}>Failed to save matrix.</span>}
         <button
           onClick={copyJson}
           style={{
@@ -258,7 +310,9 @@ export function StudioUsersPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editRole, setEditRole] = useState("");
+  const [editDepartment, setEditDepartment] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
+  const { departments } = useConfig();
 
   const { data, isLoading } = useQuery({
     queryKey: ["studio-users", roleFilter],
@@ -273,7 +327,11 @@ export function StudioUsersPage() {
       body,
     }: {
       id: string;
-      body: { role?: (typeof VALID_ROLES)[number]; isActive?: boolean };
+      body: {
+        role?: (typeof VALID_ROLES)[number];
+        isActive?: boolean;
+        department?: string | null;
+      };
     }) => updateUser(id, body),
     onSuccess: () => {
       setEditingUser(null);
@@ -287,6 +345,7 @@ export function StudioUsersPage() {
   function openEdit(user: User) {
     setEditingUser(user);
     setEditRole(user.role);
+    setEditDepartment(user.department ?? "");
     setEditError(null);
   }
 
@@ -294,7 +353,10 @@ export function StudioUsersPage() {
     if (!editingUser) return;
     updateMut.mutate({
       id: editingUser.id,
-      body: { role: editRole as (typeof VALID_ROLES)[number] },
+      body: {
+        role: editRole as (typeof VALID_ROLES)[number],
+        department: editRole === "hod" ? editDepartment || null : null,
+      },
     });
   }
 
@@ -534,6 +596,22 @@ export function StudioUsersPage() {
                 ))}
               </select>
             </div>
+
+            {editRole === "hod" && (
+              <div style={{ marginBottom: 20 }}>
+                <label style={labelStyle}>Department</label>
+                <select
+                  value={editDepartment}
+                  onChange={(e) => setEditDepartment(e.target.value)}
+                  style={selectCss}
+                >
+                  <option value="">Select department</option>
+                  {departments.map((department) => (
+                    <option key={department} value={department}>{department}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {editError && (
               <div

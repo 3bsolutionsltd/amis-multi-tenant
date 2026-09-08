@@ -29,6 +29,8 @@ const VALID_ROLES = [
   "finance",
   "principal",
   "dean",
+  "director",
+  "deputy_principal",
   "procurement_officer",
   "inventory_manager",
 ] as const;

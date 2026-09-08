@@ -55,6 +55,7 @@ interface ConfigPayload {
   fee_types?: string[];
   student_categories?: string[];
   marksheet_default_template?: string;
+  permissions?: Record<string, Record<string, "full" | "read" | "none">>;
 }
 
 interface ConfigData {
