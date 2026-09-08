@@ -222,20 +222,25 @@ export async function usersRoutes(app: FastifyInstance) {
       const offset = (page - 1) * limit;
 
       // Build WHERE clauses dynamically
-      const conditions: string[] = ["tenant_id = $1"];
+      const conditions: string[] = ["u.tenant_id = $1"];
       const params: unknown[] = [tenantId];
 
       if (role !== undefined) {
         params.push(role);
-        conditions.push(`u.role = $${params.length}`);
+        conditions.push(`(u.role = $${params.length} OR EXISTS (
+          SELECT 1
+          FROM platform.user_roles filter_ur
+          JOIN platform.roles filter_r ON filter_r.id = filter_ur.role_id
+          WHERE filter_ur.user_id = u.id AND filter_r.name = $${params.length}
+        ))`);
       }
       if (search !== undefined && search.length > 0) {
         params.push(`%${search.toLowerCase()}%`);
-        conditions.push(`lower(email) LIKE $${params.length}`);
+        conditions.push(`lower(u.email) LIKE $${params.length}`);
       }
       if (isActive !== undefined) {
         params.push(isActive);
-        conditions.push(`is_active = $${params.length}`);
+        conditions.push(`u.is_active = $${params.length}`);
       }
 
       const where = conditions.join(" AND ");
@@ -261,7 +266,7 @@ export async function usersRoutes(app: FastifyInstance) {
           [...params, limit, offset],
         ),
         pool.query<{ count: string }>(
-          `SELECT count(*)::int AS count FROM platform.users WHERE ${where}`,
+          `SELECT count(*)::int AS count FROM platform.users u WHERE ${where}`,
           params,
         ),
       ]);
