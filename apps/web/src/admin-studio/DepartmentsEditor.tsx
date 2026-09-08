@@ -52,7 +52,7 @@ export function DepartmentsEditor() {
       await createDraft(updated);
       setFullPayload(updated);
       setSavedMsg("draft");
-      qc.invalidateQueries({ queryKey: ["config"] });
+      await qc.invalidateQueries({ queryKey: ["config"] });
     } catch {
       setError("Failed to save departments");
     } finally {
@@ -66,8 +66,8 @@ export function DepartmentsEditor() {
       const updated = buildUpdated();
       await createDraft(updated);
       await publishConfig(role);
+      await qc.invalidateQueries({ queryKey: ["config"] });
       setSavedMsg("published");
-      qc.invalidateQueries({ queryKey: ["config"] });
     } catch {
       setError("Failed to publish departments");
     } finally {

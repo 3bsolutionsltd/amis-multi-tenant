@@ -10,7 +10,7 @@ import {
 } from "../modules/users/users.api";
 import { C, inputCss, selectCss } from "../lib/ui";
 import { createDraft, getConfigStatus, publishConfig } from "./admin-studio.api";
-import { useConfig } from "../app/ConfigProvider";
+import { DEFAULT_DEPARTMENTS, useConfig } from "../app/ConfigProvider";
 
 const labelStyle: React.CSSProperties = {
   display: "block",
@@ -312,7 +312,8 @@ export function StudioUsersPage() {
   const [editRole, setEditRole] = useState("");
   const [editDepartment, setEditDepartment] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
-  const { departments } = useConfig();
+  const { departments: configuredDepartments } = useConfig();
+  const departments = configuredDepartments.length > 0 ? configuredDepartments : DEFAULT_DEPARTMENTS;
 
   const { data, isLoading } = useQuery({
     queryKey: ["studio-users", roleFilter],
