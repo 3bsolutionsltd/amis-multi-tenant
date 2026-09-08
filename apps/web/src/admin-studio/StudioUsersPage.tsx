@@ -117,6 +117,7 @@ function withDynamicRoleColumns(row: MatrixRow): MatrixRow {
 }
 
 function PermissionMatrix() {
+  const qc = useQueryClient();
   const { config } = useConfig();
   const [matrix, setMatrix] = useState<MatrixRow[]>(
     MATRIX.map(withDynamicRoleColumns)
@@ -144,8 +145,13 @@ function PermissionMatrix() {
           Object.fromEntries(matrix.map((row) => [row.module, row.access[roleIndex]])),
         ]),
       );
-      await createDraft({ ...base, permissions });
+      const updatedPayload = { ...base, permissions };
+      await createDraft(updatedPayload);
       await publishConfig("admin");
+      qc.setQueryData(["config"], (current: { payload?: unknown } | undefined) =>
+        current ? { ...current, payload: updatedPayload } : current,
+      );
+      await qc.invalidateQueries({ queryKey: ["config"] });
       setSaveState("saved");
     } catch {
       setSaveState("error");
