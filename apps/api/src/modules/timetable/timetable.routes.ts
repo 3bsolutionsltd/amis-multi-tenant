@@ -20,10 +20,10 @@ const READ_ROLES = [
 ] as const;
 
 const SLOT_COLS = `
-  id, programme, academic_year, term_number,
-  day_of_week, start_time, end_time,
-  course_id, room, instructor_name, notes,
-  created_at, updated_at
+  s.id, s.programme, s.academic_year, s.term_number,
+  s.day_of_week, s.start_time, s.end_time,
+  s.course_id, s.room, s.instructor_name, s.notes,
+  s.created_at, s.updated_at
 `;
 
 export async function timetableRoutes(app: FastifyInstance) {
@@ -68,11 +68,11 @@ export async function timetableRoutes(app: FastifyInstance) {
           conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
         const { rows } = await client.query(
-          `SELECT ${SLOT_COLS.replace(/\b(id|programme|academic_year|term_number|day_of_week|start_time|end_time|course_id|room|instructor_name|notes|created_at|updated_at)\b/g, "s.$1")},
+            `SELECT ${SLOT_COLS},
                   c.code AS course_code,
                   c.title AS course_title
            FROM app.timetable_slots s
-           JOIN app.courses c ON c.id = s.course_id
+             LEFT JOIN app.courses c ON c.id::text = s.course_id
            ${where}
            ORDER BY
              CASE s.day_of_week
