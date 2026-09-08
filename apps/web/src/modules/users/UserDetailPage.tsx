@@ -27,6 +27,7 @@ import {
   TR,
   TD,
 } from "../../lib/ui";
+import { useConfig } from "../../app/ConfigProvider";
 
 const ACTION_LABELS: Record<string, { label: string; color: "blue" | "green" | "red" | "gray" }> = {
   created:        { label: "Created",        color: "blue" },
@@ -40,11 +41,13 @@ export function UserDetailPage() {
   ensureGlobalCss();
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
+  const { departments } = useConfig();
 
   // ---- state -------------------------------------------------------
   const [showEditRole, setShowEditRole]       = useState(false);
   const [editRole, setEditRole]               = useState("");
   const [editRoleError, setEditRoleError]     = useState<string | null>(null);
+  const [editDepartment, setEditDepartment] = useState("");
 
   const [showResetPwd, setShowResetPwd]       = useState(false);
   const [newPassword, setNewPassword]         = useState("");
@@ -66,7 +69,7 @@ export function UserDetailPage() {
 
   // ---- mutations ---------------------------------------------------
   const updateMut = useMutation({
-    mutationFn: (body: { role?: (typeof VALID_ROLES)[number]; isActive?: boolean }) =>
+    mutationFn: (body: { role?: (typeof VALID_ROLES)[number]; isActive?: boolean; department?: string | null }) =>
       updateUser(id!, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["user", id] });
@@ -99,6 +102,7 @@ export function UserDetailPage() {
   function openEditRole() {
     if (!user) return;
     setEditRole(user.role);
+    setEditDepartment(user.department ?? "");
     setEditRoleError(null);
     setShowEditRole(true);
   }
@@ -158,6 +162,10 @@ export function UserDetailPage() {
           <div>
             <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>ROLE</div>
             <Badge label={user.role} color="blue" />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>DEPARTMENT</div>
+            <div style={{ fontSize: 14, color: "#374151" }}>{user.department ?? "—"}</div>
           </div>
           <div>
             <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>STATUS</div>
@@ -239,7 +247,10 @@ export function UserDetailPage() {
             <>
               <PrimaryBtn
                 onClick={() =>
-                  updateMut.mutate({ role: editRole as (typeof VALID_ROLES)[number] })
+                  updateMut.mutate({
+                    role: editRole as (typeof VALID_ROLES)[number],
+                    department: editRole === "hod" ? editDepartment || null : null,
+                  })
                 }
                 disabled={updateMut.isPending}
               >
@@ -263,6 +274,21 @@ export function UserDetailPage() {
               ))}
             </select>
           </Field>
+          {editRole === "hod" && (
+            <Field label="Department" required>
+              <select
+                required
+                value={editDepartment}
+                onChange={(e) => setEditDepartment(e.target.value)}
+                style={selectCss}
+              >
+                <option value="">— Select department —</option>
+                {departments.map((department) => (
+                  <option key={department} value={department}>{department}</option>
+                ))}
+              </select>
+            </Field>
+          )}
         </Modal>
       )}
 

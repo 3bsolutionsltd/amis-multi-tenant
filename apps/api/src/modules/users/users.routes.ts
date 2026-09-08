@@ -66,6 +66,11 @@ const CreateUserSchema = z.object({
   role: z.enum(VALID_ROLES),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
+  department: z.string().min(1).optional(),
+}).superRefine((data, ctx) => {
+  if (data.role === "hod" && !data.department) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["department"], message: "HOD users must be assigned a department" });
+  }
 });
 
 const UpdateUserSchema = z
@@ -74,9 +79,10 @@ const UpdateUserSchema = z
     isActive: z.boolean().optional(),
     firstName: z.string().min(1).optional(),
     lastName: z.string().min(1).optional(),
+    department: z.string().min(1).nullable().optional(),
   })
-  .refine((d) => d.role !== undefined || d.isActive !== undefined, {
-    message: "At least one of role or isActive must be provided",
+  .refine((d) => d.role !== undefined || d.isActive !== undefined || d.department !== undefined, {
+    message: "At least one field must be provided",
   });
 
 const UpdatePasswordSchema = z.object({
@@ -91,6 +97,7 @@ interface UserPublic {
   firstName: string | null;
   lastName: string | null;
   role: string;
+  department: string | null;
   isActive: boolean;
   createdAt: string;
   lastLoginAt: string | null;
@@ -132,6 +139,7 @@ function toPublic(row: {
   first_name?: string | null;
   last_name?: string | null;
   role: string;
+  department?: string | null;
   is_active: boolean;
   created_at: string;
   last_login_at: string | null;
@@ -142,6 +150,7 @@ function toPublic(row: {
     firstName: row.first_name ?? null,
     lastName: row.last_name ?? null,
     role: row.role,
+    department: row.department ?? null,
     isActive: row.is_active,
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at,
@@ -200,7 +209,7 @@ export async function usersRoutes(app: FastifyInstance) {
           created_at: string;
           last_login_at: string | null;
         }>(
-          `SELECT id, email, first_name, last_name, role, is_active, created_at, last_login_at
+          `SELECT id, email, first_name, last_name, role, department, is_active, created_at, last_login_at
            FROM platform.users
            WHERE ${where}
            ORDER BY created_at DESC
@@ -242,7 +251,7 @@ export async function usersRoutes(app: FastifyInstance) {
         });
       }
 
-      const { email, role, firstName, lastName } = parsed.data;
+      const { email, role, firstName, lastName, department } = parsed.data;
       // Use caller-supplied password or auto-generate a secure random one
       // (admin invite flow: the user will set their own via the setup link)
       const password = parsed.data.password ?? randomBytes(24).toString("base64url");
@@ -277,10 +286,10 @@ export async function usersRoutes(app: FastifyInstance) {
         created_at: string;
         last_login_at: string | null;
       }>(
-        `INSERT INTO platform.users (tenant_id, email, password_hash, role, first_name, last_name)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id, email, first_name, last_name, role, is_active, created_at, last_login_at`,
-        [tenantId, email, passwordHash, role, firstName ?? null, lastName ?? null],
+        `INSERT INTO platform.users (tenant_id, email, password_hash, role, first_name, last_name, department)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, email, first_name, last_name, role, department, is_active, created_at, last_login_at`,
+        [tenantId, email, passwordHash, role, firstName ?? null, lastName ?? null, department ?? null],
       );
 
       const created = rows[0];
@@ -330,7 +339,7 @@ export async function usersRoutes(app: FastifyInstance) {
         });
       }
 
-      const { role, isActive, firstName, lastName } = parsed.data;
+      const { role, isActive, firstName, lastName, department } = parsed.data;
 
       // Verify the user belongs to the same tenant
       const { rows: existing } = await pool.query<{
@@ -338,10 +347,11 @@ export async function usersRoutes(app: FastifyInstance) {
         email: string;
         first_name: string | null;
         role: string;
+        department: string | null;
         is_active: boolean;
         created_at: string;
       }>(
-        `SELECT id, email, first_name, role, is_active, created_at
+        `SELECT id, email, first_name, role, department, is_active, created_at
          FROM platform.users
          WHERE id = $1 AND tenant_id = $2`,
         [id, tenantId],
@@ -349,6 +359,12 @@ export async function usersRoutes(app: FastifyInstance) {
 
       if (existing.length === 0) {
         return reply.status(404).send({ message: "User not found" });
+      }
+
+      const effectiveRole = role ?? existing[0].role;
+      const effectiveDepartment = department !== undefined ? department : existing[0].department;
+      if (effectiveRole === "hod" && !effectiveDepartment) {
+        return reply.status(400).send({ message: "HOD users must be assigned a department" });
       }
 
       // Build SET clause
@@ -371,6 +387,10 @@ export async function usersRoutes(app: FastifyInstance) {
         params.push(lastName);
         setClauses.push(`last_name = $${params.length}`);
       }
+      if (department !== undefined) {
+        params.push(department);
+        setClauses.push(`department = $${params.length}`);
+      }
 
       params.push(id);
       const idParam = `$${params.length}`;
@@ -381,6 +401,7 @@ export async function usersRoutes(app: FastifyInstance) {
         first_name: string | null;
         last_name: string | null;
         role: string;
+        department: string | null;
         is_active: boolean;
         last_login_at: string | null;
         created_at: string;
@@ -388,7 +409,7 @@ export async function usersRoutes(app: FastifyInstance) {
         `UPDATE platform.users
          SET ${setClauses.join(", ")}
          WHERE id = ${idParam}
-         RETURNING id, email, first_name, last_name, role, is_active, created_at, last_login_at`,
+         RETURNING id, email, first_name, last_name, role, department, is_active, created_at, last_login_at`,
         params,
       );
 
@@ -501,11 +522,12 @@ export async function usersRoutes(app: FastifyInstance) {
         id: string;
         email: string;
         role: string;
+        department: string | null;
         is_active: boolean;
         created_at: string;
         last_login_at: string | null;
       }>(
-        `SELECT id, email, role, is_active, created_at, last_login_at
+        `SELECT id, email, role, department, is_active, created_at, last_login_at
          FROM platform.users
          WHERE id = $1 AND tenant_id = $2`,
         [id, tenantId],

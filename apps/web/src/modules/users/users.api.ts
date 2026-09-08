@@ -20,6 +20,7 @@ export interface User {
   firstName: string | null;
   lastName: string | null;
   role: UserRole;
+  department: string | null;
   isActive: boolean;
   createdAt: string;
   lastLoginAt: string | null;
@@ -30,6 +31,7 @@ export interface CreateUserBody {
   role: UserRole;
   firstName?: string;
   lastName?: string;
+  department?: string;
 }
 
 export interface UpdateUserBody {
@@ -37,6 +39,7 @@ export interface UpdateUserBody {
   isActive?: boolean;
   firstName?: string;
   lastName?: string;
+  department?: string | null;
 }
 
 export interface ListUsersParams {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createUser, VALID_ROLES, type UserRole } from "./users.api";
+import { useConfig } from "../../app/ConfigProvider";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -15,12 +16,14 @@ import {
 export function UserCreatePage() {
   ensureGlobalCss();
   const navigate = useNavigate();
+  const { departments } = useConfig();
 
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
     email: "",
     role: "registrar",
+    department: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +37,11 @@ export function UserCreatePage() {
     setSaving(true);
     setError(null);
     try {
-      await createUser({ ...form, role: form.role as UserRole });
+      await createUser({
+        ...form,
+        role: form.role as UserRole,
+        department: form.role === "hod" ? form.department || undefined : undefined,
+      });
       navigate("/users");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create user");
@@ -109,6 +116,22 @@ export function UserCreatePage() {
               ))}
             </select>
           </Field>
+
+          {form.role === "hod" && (
+            <Field label="Department" required>
+              <select
+                required
+                style={selectCss}
+                value={form.department}
+                onChange={(e) => set("department", e.target.value)}
+              >
+                <option value="">— Select department —</option>
+                {departments.map((department) => (
+                  <option key={department} value={department}>{department}</option>
+                ))}
+              </select>
+            </Field>
+          )}
 
           {error && <ErrorBanner message={error} />}
 

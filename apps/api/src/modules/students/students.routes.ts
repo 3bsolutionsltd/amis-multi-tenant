@@ -68,6 +68,18 @@ export async function studentsRoutes(app: FastifyInstance) {
                    OR p.title = app.students.programme)
           )`);
         }
+        if (req.user.role === "hod") {
+          params.push(req.user.userId);
+          conditions.push(`EXISTS (
+            SELECT 1
+            FROM platform.users u
+            JOIN app.programmes p ON p.department = u.department
+            WHERE u.id = $${params.length}
+              AND (p.id = app.students.programme_id
+                   OR p.code = app.students.programme_code
+                   OR p.title = app.students.programme)
+          )`);
+        }
 
         if (!include_inactive) {
           conditions.push(`is_active = true`);
@@ -141,8 +153,18 @@ export async function studentsRoutes(app: FastifyInstance) {
                         OR p.code = app.students.programme_code
                         OR p.title = app.students.programme)
                )`
-            : "";
-        if (req.user.role === "instructor") studentParams.push(req.user.userId);
+            : req.user.role === "hod"
+              ? ` AND EXISTS (
+                   SELECT 1
+                   FROM platform.users u
+                   JOIN app.programmes p ON p.department = u.department
+                   WHERE u.id = $2
+                     AND (p.id = app.students.programme_id
+                          OR p.code = app.students.programme_code
+                          OR p.title = app.students.programme)
+                 )`
+              : "";
+        if (req.user.role === "instructor" || req.user.role === "hod") studentParams.push(req.user.userId);
         const { rows: stuRows } = await client.query(
           `SELECT ${SELECT_COLS} FROM app.students
            WHERE id = $1${instructorScope}`,
