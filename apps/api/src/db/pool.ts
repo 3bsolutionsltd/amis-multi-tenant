@@ -117,7 +117,9 @@ function getSuperPool(): pg.Pool {
     }
     const p = new Pool({
       connectionString,
-      max: 5, // small — only used for auth
+      // Auth, requireAuth, user administration, tenant administration, sync,
+      // onboarding, and the outbox worker all share this pool.
+      max: parseInt(process.env.PG_SUPER_POOL_MAX ?? "10", 10),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
       keepAlive: true,
