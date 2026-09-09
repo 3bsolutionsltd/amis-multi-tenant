@@ -32,7 +32,7 @@ vi.mock("pg", () => ({
   },
 }));
 
-import { pool, _resetPoolForTesting } from "./pool.js";
+import { pool, superPool, _resetPoolForTesting } from "./pool.js";
 
 describe("pg-pool auto-recovery", () => {
   beforeEach(() => {
@@ -80,5 +80,20 @@ describe("pg-pool auto-recovery", () => {
     // 3rd error since last reset triggers replacement.
     first.emit("error", new Error("connection terminated"));
     expect(first.ended).toBe(true);
+  });
+
+  it("replaces the superuser pool after 3 consecutive idle-client errors", () => {
+    void (superPool as unknown as { query: unknown }).query;
+
+    expect(createdPools).toHaveLength(1);
+    const first = createdPools[0];
+
+    first.emit("error", new Error("connection terminated"));
+    first.emit("error", new Error("connection terminated"));
+    first.emit("error", new Error("connection terminated"));
+    expect(first.ended).toBe(true);
+
+    void (superPool as unknown as { query: unknown }).query;
+    expect(createdPools).toHaveLength(2);
   });
 });
