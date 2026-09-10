@@ -106,7 +106,7 @@ describe("GET /students", () => {
     expect(capturedParams).toContain("DICT");
   });
 
-  it("scopes instructors to students in their assigned course offerings", async () => {
+  it("allows instructors to view all students during training", async () => {
     let capturedSql = "";
     let capturedParams: unknown[] = [];
     mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
@@ -133,13 +133,12 @@ describe("GET /students", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(capturedSql).toMatch(/EXISTS \(\s*SELECT 1\s+FROM app\.course_offerings co/);
-    expect(capturedSql).toContain("co.instructor_id = $1");
-    expect(capturedSql).toContain("c.year_of_study = app.students.year_of_study");
-    expect(capturedParams[0]).toBe(instructorId);
+    expect(capturedSql).not.toContain("course_offerings");
+    expect(capturedSql).not.toContain("platform.users");
+    expect(capturedParams).toEqual([20, 0]);
   });
 
-  it("scopes HODs to students in their department", async () => {
+  it("allows HODs to view all students during training", async () => {
     let capturedSql = "";
     let capturedParams: unknown[] = [];
     mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
@@ -166,12 +165,12 @@ describe("GET /students", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(capturedSql).toContain("lower(trim(p.department)) = lower(trim(u.department))");
-    expect(capturedSql).toContain("u.id = $1");
-    expect(capturedParams[0]).toBe(hodId);
+    expect(capturedSql).not.toContain("course_offerings");
+    expect(capturedSql).not.toContain("platform.users");
+    expect(capturedParams).toEqual([20, 0]);
   });
 
-  it("unions HOD and instructor visibility for users with both roles", async () => {
+  it("allows dual-role users to view all students during training", async () => {
     let capturedSql = "";
     let capturedParams: unknown[] = [];
     mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
@@ -199,10 +198,9 @@ describe("GET /students", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(capturedSql).toContain("co.instructor_id = $1");
-    expect(capturedSql).toContain("u.id = $2");
-    expect(capturedSql).toContain(") OR EXISTS (");
-    expect(capturedParams.slice(0, 2)).toEqual([userId, userId]);
+    expect(capturedSql).not.toContain("course_offerings");
+    expect(capturedSql).not.toContain("platform.users");
+    expect(capturedParams).toEqual([20, 0]);
   });
 });
 
@@ -345,7 +343,7 @@ describe("GET /students/:id", () => {
     expect(body).toHaveProperty("fees");
   });
 
-  it("does not expose an unrelated student detail to an instructor", async () => {
+  it("allows an instructor to view any student during training", async () => {
     let capturedSql = "";
     const mockClient = {
       query: vi.fn((sql: string) => {
@@ -363,10 +361,11 @@ describe("GET /students/:id", () => {
     });
 
     expect(res.statusCode).toBe(404);
-    expect(capturedSql).toContain("co.instructor_id = $2");
+    expect(capturedSql).not.toContain("course_offerings");
+    expect(capturedSql).not.toContain("platform.users");
   });
 
-  it("uses one user parameter for both scopes in a dual-role detail query", async () => {
+  it("allows a dual-role user to view any student during training", async () => {
     let capturedSql = "";
     let capturedParams: unknown[] = [];
     const mockClient = {
@@ -392,10 +391,10 @@ describe("GET /students/:id", () => {
     });
 
     expect(res.statusCode).toBe(404);
-    expect(capturedSql).toContain("co.instructor_id = $2");
-    expect(capturedSql).toContain("u.id = $2");
-    expect(capturedSql).not.toContain("$3");
-    expect(capturedParams).toEqual([SOME_ID, userId]);
+    expect(capturedSql).not.toContain("course_offerings");
+    expect(capturedSql).not.toContain("platform.users");
+    expect(capturedSql).not.toContain("$2");
+    expect(capturedParams).toEqual([SOME_ID]);
   });
 });
 

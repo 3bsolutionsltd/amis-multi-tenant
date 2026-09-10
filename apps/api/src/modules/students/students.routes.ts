@@ -22,20 +22,13 @@ const SELECT_COLS =
   "is_active, created_at, updated_at";
 
 export async function studentsRoutes(app: FastifyInstance) {
-  const WIDE_ROLES = [
-    "admin",
-    "registrar",
-    "hod",
-    "instructor",
-    "finance",
-    "principal",
-    "dean",
-  ] as const;
+  // Temporary training access: authenticated users can read all students.
+  // Restore role-based visibility once the training period is complete.
+  const TEMPORARY_OPEN_STUDENT_READ = true;
 
-  // GET /students — search + paginated list
+  // GET /students — search + paginated list. Authentication is global.
   app.get(
     "/students",
-    { preHandler: requireRole(...WIDE_ROLES) },
     async (req, reply) => {
       const { tenantId } = req.user;
       if (!tenantId) {
@@ -56,7 +49,7 @@ export async function studentsRoutes(app: FastifyInstance) {
         const params: unknown[] = [];
         const visibilityConditions: string[] = [];
 
-        if (assignedRoles.includes("instructor")) {
+        if (!TEMPORARY_OPEN_STUDENT_READ && assignedRoles.includes("instructor")) {
           params.push(req.user.userId);
           visibilityConditions.push(`EXISTS (
             SELECT 1
@@ -70,7 +63,7 @@ export async function studentsRoutes(app: FastifyInstance) {
                   OR lower(trim(p.title)) = lower(trim(app.students.programme)))
           )`);
         }
-        if (assignedRoles.includes("hod")) {
+        if (!TEMPORARY_OPEN_STUDENT_READ && assignedRoles.includes("hod")) {
           params.push(req.user.userId);
           visibilityConditions.push(`EXISTS (
             SELECT 1
@@ -133,10 +126,9 @@ export async function studentsRoutes(app: FastifyInstance) {
     },
   );
 
-  // GET /students/:id — 360° student view (SR-F-008)
+  // GET /students/:id — 360° student view (SR-F-008). Authentication is global.
   app.get<{ Params: { id: string } }>(
     "/students/:id",
-    { preHandler: requireRole(...WIDE_ROLES) },
     async (req, reply) => {
       const { tenantId } = req.user;
       if (!tenantId) {
@@ -148,7 +140,7 @@ export async function studentsRoutes(app: FastifyInstance) {
         const studentParams: unknown[] = [req.params.id];
         const assignedRoles = req.user.roles?.length ? req.user.roles : [req.user.role];
         const visibilityScopes: string[] = [];
-        if (assignedRoles.includes("instructor")) {
+        if (!TEMPORARY_OPEN_STUDENT_READ && assignedRoles.includes("instructor")) {
           visibilityScopes.push(`EXISTS (
                  SELECT 1
                  FROM app.course_offerings co
@@ -161,7 +153,7 @@ export async function studentsRoutes(app: FastifyInstance) {
                       OR lower(trim(p.title)) = lower(trim(app.students.programme)))
                )`);
         }
-        if (assignedRoles.includes("hod")) {
+        if (!TEMPORARY_OPEN_STUDENT_READ && assignedRoles.includes("hod")) {
           visibilityScopes.push(`EXISTS (
                    SELECT 1
                    FROM platform.users u
