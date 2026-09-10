@@ -65,9 +65,9 @@ export async function studentsRoutes(app: FastifyInstance) {
             JOIN app.programmes p ON p.id = c.programme_id
             WHERE co.instructor_id = $${params.length}
               AND c.year_of_study = app.students.year_of_study
-              AND (p.id = app.students.programme_id
-                   OR p.code = app.students.programme_code
-                   OR p.title = app.students.programme)
+                AND (p.id = app.students.programme_id
+                  OR lower(trim(p.code)) = lower(trim(app.students.programme_code))
+                  OR lower(trim(p.title)) = lower(trim(app.students.programme)))
           )`);
         }
         if (assignedRoles.includes("hod")) {
@@ -75,11 +75,12 @@ export async function studentsRoutes(app: FastifyInstance) {
           visibilityConditions.push(`EXISTS (
             SELECT 1
             FROM platform.users u
-            JOIN app.programmes p ON p.department = u.department
+            JOIN app.programmes p
+              ON lower(trim(p.department)) = lower(trim(u.department))
             WHERE u.id = $${params.length}
               AND (p.id = app.students.programme_id
-                   OR p.code = app.students.programme_code
-                   OR p.title = app.students.programme)
+                   OR lower(trim(p.code)) = lower(trim(app.students.programme_code))
+                   OR lower(trim(p.title)) = lower(trim(app.students.programme)))
           )`);
         }
         if (visibilityConditions.length > 0) {
@@ -156,19 +157,20 @@ export async function studentsRoutes(app: FastifyInstance) {
                  WHERE co.instructor_id = $2
                    AND c.year_of_study = app.students.year_of_study
                    AND (p.id = app.students.programme_id
-                        OR p.code = app.students.programme_code
-                        OR p.title = app.students.programme)
+                      OR lower(trim(p.code)) = lower(trim(app.students.programme_code))
+                      OR lower(trim(p.title)) = lower(trim(app.students.programme)))
                )`);
         }
         if (assignedRoles.includes("hod")) {
           visibilityScopes.push(`EXISTS (
                    SELECT 1
                    FROM platform.users u
-                   JOIN app.programmes p ON p.department = u.department
+                   JOIN app.programmes p
+                     ON lower(trim(p.department)) = lower(trim(u.department))
                    WHERE u.id = $2
                      AND (p.id = app.students.programme_id
-                          OR p.code = app.students.programme_code
-                          OR p.title = app.students.programme)
+                          OR lower(trim(p.code)) = lower(trim(app.students.programme_code))
+                          OR lower(trim(p.title)) = lower(trim(app.students.programme)))
                  )`);
         }
         const visibilityScope = visibilityScopes.length > 0

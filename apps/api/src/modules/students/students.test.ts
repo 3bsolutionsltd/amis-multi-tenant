@@ -166,7 +166,7 @@ describe("GET /students", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(capturedSql).toContain("JOIN app.programmes p ON p.department = u.department");
+    expect(capturedSql).toContain("lower(trim(p.department)) = lower(trim(u.department))");
     expect(capturedSql).toContain("u.id = $1");
     expect(capturedParams[0]).toBe(hodId);
   });
