@@ -20,6 +20,7 @@ const ROLE_IDS: Record<string, string> = {
  *   x-tenant-id    → tenantId  (empty string if missing)
  *   x-dev-role     → role      (default: 'admin')
  *   x-dev-user-id  → userId    (default: deterministic UUID for role)
+ *   x-dev-roles    → comma-separated assigned roles (default: x-dev-role)
  *
  * Production guard: if NODE_ENV=production, this hook is a no-op — real JWT
  * auth is handled entirely by requireAuth (registered after this hook).
@@ -53,7 +54,11 @@ export async function devIdentityHook(req: FastifyRequest): Promise<void> {
       ? req.headers["x-dev-user-id"]
       : (ROLE_IDS[role] ?? ROLE_IDS.admin);
 
-  req.user = { tenantId, role, roles: [role], userId };
+  const rolesHeader = req.headers["x-dev-roles"];
+  const roles = typeof rolesHeader === "string"
+    ? rolesHeader.split(",").map((value) => value.trim()).filter(Boolean)
+    : [role];
+  req.user = { tenantId, role, roles: roles.length > 0 ? roles : [role], userId };
 }
 
 /**

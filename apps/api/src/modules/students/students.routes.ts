@@ -49,14 +49,16 @@ export async function studentsRoutes(app: FastifyInstance) {
 
       const { search, include_inactive, year_of_study, class_section, programme, page, limit } = parsed.data;
       const offset = (page - 1) * limit;
+      const assignedRoles = req.user.roles?.length ? req.user.roles : [req.user.role];
 
       const rows = await withTenant(tenantId, (client) => {
         const conditions: string[] = [];
         const params: unknown[] = [];
+        const visibilityConditions: string[] = [];
 
-        if (req.user.role === "instructor") {
+        if (assignedRoles.includes("instructor")) {
           params.push(req.user.userId);
-          conditions.push(`EXISTS (
+          visibilityConditions.push(`EXISTS (
             SELECT 1
             FROM app.course_offerings co
             JOIN app.courses c ON c.id = co.course_id
@@ -68,9 +70,9 @@ export async function studentsRoutes(app: FastifyInstance) {
                    OR p.title = app.students.programme)
           )`);
         }
-        if (req.user.role === "hod") {
+        if (assignedRoles.includes("hod")) {
           params.push(req.user.userId);
-          conditions.push(`EXISTS (
+          visibilityConditions.push(`EXISTS (
             SELECT 1
             FROM platform.users u
             JOIN app.programmes p ON p.department = u.department
@@ -79,6 +81,9 @@ export async function studentsRoutes(app: FastifyInstance) {
                    OR p.code = app.students.programme_code
                    OR p.title = app.students.programme)
           )`);
+        }
+        if (visibilityConditions.length > 0) {
+          conditions.push(`(${visibilityConditions.join(" OR ")})`);
         }
 
         if (!include_inactive) {
@@ -140,9 +145,10 @@ export async function studentsRoutes(app: FastifyInstance) {
       const result = await withTenant(tenantId, async (client) => {
         // Core student record
         const studentParams: unknown[] = [req.params.id];
-        const instructorScope =
-          req.user.role === "instructor"
-            ? ` AND EXISTS (
+        const assignedRoles = req.user.roles?.length ? req.user.roles : [req.user.role];
+        const visibilityScopes: string[] = [];
+        if (assignedRoles.includes("instructor")) {
+          visibilityScopes.push(`EXISTS (
                  SELECT 1
                  FROM app.course_offerings co
                  JOIN app.courses c ON c.id = co.course_id
@@ -152,9 +158,10 @@ export async function studentsRoutes(app: FastifyInstance) {
                    AND (p.id = app.students.programme_id
                         OR p.code = app.students.programme_code
                         OR p.title = app.students.programme)
-               )`
-            : req.user.role === "hod"
-              ? ` AND EXISTS (
+               )`);
+        }
+        if (assignedRoles.includes("hod")) {
+          visibilityScopes.push(`EXISTS (
                    SELECT 1
                    FROM platform.users u
                    JOIN app.programmes p ON p.department = u.department
@@ -162,12 +169,15 @@ export async function studentsRoutes(app: FastifyInstance) {
                      AND (p.id = app.students.programme_id
                           OR p.code = app.students.programme_code
                           OR p.title = app.students.programme)
-                 )`
-              : "";
-        if (req.user.role === "instructor" || req.user.role === "hod") studentParams.push(req.user.userId);
+                 )`);
+        }
+        const visibilityScope = visibilityScopes.length > 0
+          ? ` AND (${visibilityScopes.join(" OR ")})`
+          : "";
+        if (visibilityScopes.length > 0) studentParams.push(req.user.userId);
         const { rows: stuRows } = await client.query(
           `SELECT ${SELECT_COLS} FROM app.students
-           WHERE id = $1${instructorScope}`,
+           WHERE id = $1${visibilityScope}`,
           studentParams,
         );
         if (stuRows.length === 0) return null;

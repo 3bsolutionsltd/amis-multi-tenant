@@ -138,6 +138,72 @@ describe("GET /students", () => {
     expect(capturedSql).toContain("c.year_of_study = app.students.year_of_study");
     expect(capturedParams[0]).toBe(instructorId);
   });
+
+  it("scopes HODs to students in their department", async () => {
+    let capturedSql = "";
+    let capturedParams: unknown[] = [];
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
+      const fakeClient = {
+        query: vi.fn((sql: string, params: unknown[]) => {
+          capturedSql = sql;
+          capturedParams = params;
+          return Promise.resolve({ rows: [] });
+        }),
+      };
+      return cb(fakeClient as never);
+    });
+
+    const hodId = "33333333-3333-3333-3333-333333333333";
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/students",
+      headers: {
+        "x-tenant-id": "tenant-uuid-1",
+        "x-dev-role": "hod",
+        "x-dev-user-id": hodId,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(capturedSql).toContain("JOIN app.programmes p ON p.department = u.department");
+    expect(capturedSql).toContain("u.id = $1");
+    expect(capturedParams[0]).toBe(hodId);
+  });
+
+  it("unions HOD and instructor visibility for users with both roles", async () => {
+    let capturedSql = "";
+    let capturedParams: unknown[] = [];
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
+      const fakeClient = {
+        query: vi.fn((sql: string, params: unknown[]) => {
+          capturedSql = sql;
+          capturedParams = params;
+          return Promise.resolve({ rows: [] });
+        }),
+      };
+      return cb(fakeClient as never);
+    });
+
+    const userId = "44444444-4444-4444-4444-444444444444";
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/students",
+      headers: {
+        "x-tenant-id": "tenant-uuid-1",
+        "x-dev-role": "hod",
+        "x-dev-roles": "hod,instructor",
+        "x-dev-user-id": userId,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(capturedSql).toContain("co.instructor_id = $1");
+    expect(capturedSql).toContain("u.id = $2");
+    expect(capturedSql).toContain(") OR EXISTS (");
+    expect(capturedParams.slice(0, 2)).toEqual([userId, userId]);
+  });
 });
 
 describe("POST /students", () => {
@@ -298,6 +364,38 @@ describe("GET /students/:id", () => {
 
     expect(res.statusCode).toBe(404);
     expect(capturedSql).toContain("co.instructor_id = $2");
+  });
+
+  it("uses one user parameter for both scopes in a dual-role detail query", async () => {
+    let capturedSql = "";
+    let capturedParams: unknown[] = [];
+    const mockClient = {
+      query: vi.fn((sql: string, params: unknown[]) => {
+        capturedSql = sql;
+        capturedParams = params;
+        return Promise.resolve({ rows: [] });
+      }),
+    };
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => cb(mockClient as never));
+
+    const userId = "55555555-5555-5555-5555-555555555555";
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/students/${SOME_ID}`,
+      headers: {
+        "x-tenant-id": TID,
+        "x-dev-role": "hod",
+        "x-dev-roles": "hod,instructor",
+        "x-dev-user-id": userId,
+      },
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(capturedSql).toContain("co.instructor_id = $2");
+    expect(capturedSql).toContain("u.id = $2");
+    expect(capturedSql).not.toContain("$3");
+    expect(capturedParams).toEqual([SOME_ID, userId]);
   });
 });
 
