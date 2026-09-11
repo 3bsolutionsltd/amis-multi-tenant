@@ -54,7 +54,7 @@ const PO_STATUS_COLOR: Record<string, string> = {
 };
 const GRN_STATUS_COLOR: Record<string, string> = { draft: "gray", confirmed: "green" };
 
-const TABS = ["Requisitions", "Orders", "GRNs", "Suppliers"] as const;
+const TABS = ["Requisitions", "Orders", "Suppliers"] as const;
 type Tab = typeof TABS[number];
 
 // ===========================================================================
@@ -81,7 +81,6 @@ export default function ProcurementPage() {
 
       {tab === "Requisitions" && <RequisitionsTab />}
       {tab === "Orders" && <OrdersTab />}
-      {tab === "GRNs" && <GRNsTab />}
       {tab === "Suppliers" && <SuppliersTab />}
     </div>
   );
@@ -205,7 +204,7 @@ export function GRNsTab() {
     <div>
       <FilterBar>
         <SearchInput value={search} onChange={setSearch} placeholder="Search GRNs…" />
-        <PrimaryBtn onClick={() => navigate("/procurement/grns/new")}>+ New GRN</PrimaryBtn>
+        <PrimaryBtn onClick={() => navigate("/inventory/grns/new")}>+ New GRN</PrimaryBtn>
       </FilterBar>
 
       {error && <ErrorBanner message={String(error)} />}
@@ -215,7 +214,7 @@ export function GRNsTab() {
         headers={["GRN #", "Received By", "Received Date", "Status", "Actions"]}
       >
         {data.map((grn) => (
-          <TR key={grn.id} onClick={() => navigate(`/procurement/grns/${grn.id}`)}>
+          <TR key={grn.id} onClick={() => navigate(`/inventory/grns/${grn.id}`)}>
             <TD><code>{grn.grn_number}</code></TD>
             <TD>{grn.received_by ?? "—"}</TD>
             <TD>{grn.received_date ?? "—"}</TD>

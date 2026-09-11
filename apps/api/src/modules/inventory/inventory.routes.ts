@@ -188,7 +188,7 @@ export async function inventoryRoutes(app: FastifyInstance) {
            (SELECT COUNT(*) FROM app.inventory_replenishment_requests WHERE status IN ('draft', 'approved'))::int AS pending_replenishments`,
       );
       const { rows: recent } = await client.query(
-        `SELECT t.${TXN_COLS.split(", ").map((c) => `t.${c}`).join(", ")}, i.name AS item_name, i.unit_of_measure
+        `SELECT ${TXN_COLS.split(", ").map((c) => `t.${c}`).join(", ")}, i.name AS item_name, i.unit_of_measure
          FROM app.stock_transactions t JOIN app.inventory_items i ON i.id = t.item_id
          ORDER BY t.created_at DESC LIMIT 8`,
       );
@@ -325,7 +325,7 @@ export async function inventoryRoutes(app: FastifyInstance) {
       const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
       params.push(limit, offset);
       return client.query(
-        `SELECT t.${TXN_COLS.split(", ").map(c => `t.${c.trim()}`).join(", ")}, i.name AS item_name, i.unit_of_measure
+        `SELECT ${TXN_COLS.split(", ").map(c => `t.${c.trim()}`).join(", ")}, i.name AS item_name, i.unit_of_measure
          FROM app.stock_transactions t
          JOIN app.inventory_items i ON t.item_id = i.id
          ${where}
