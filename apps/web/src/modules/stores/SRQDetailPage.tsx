@@ -15,6 +15,7 @@ const STATUS_COLORS: Record<SRQStatus, "gray" | "blue" | "yellow" | "green" | "r
   draft: "gray",
   submitted: "blue",
   hod_approved: "cyan",
+  ready_for_issue: "yellow",
   fulfilled: "green",
   rejected: "red",
   escalated_to_pr: "yellow",
@@ -24,6 +25,7 @@ const STATUS_LABELS: Record<SRQStatus, string> = {
   draft: "Draft",
   submitted: "Submitted",
   hod_approved: "HOD Approved",
+  ready_for_issue: "Ready for Issue",
   fulfilled: "Fulfilled",
   rejected: "Rejected",
   escalated_to_pr: "Escalated → PR",
@@ -43,7 +45,7 @@ export function SRQDetailPage() {
   // Item approvals (qty + cost) editable during HOD approval
   const [itemApprovals, setItemApprovals] = useState<Record<string, { qty: string; cost: string }>>({});
 
-  const { data: srq, isLoading } = useQuery({
+  const { data: srq, isLoading, error: loadError } = useQuery({
     queryKey: ["srq", id],
     queryFn: () => getSRQ(id!),
     enabled: !!id,
@@ -75,6 +77,7 @@ export function SRQDetailPage() {
   });
 
   if (isLoading) return <div style={{ padding: 32, color: C.gray400 }}>Loading…</div>;
+  if (loadError) return <div style={{ padding: 32 }}><ErrorBanner message={(loadError as Error).message} /></div>;
   if (!srq) return <div style={{ padding: 32, color: C.red }}>SRQ not found.</div>;
 
   const totalEstimated = srq.items.reduce(
@@ -103,13 +106,18 @@ export function SRQDetailPage() {
             )}
             {srq.status === "hod_approved" && (
               <>
-                <PrimaryBtn onClick={() => actionMut.mutate([id!, "fulfill"])}>
-                  Mark Fulfilled
+                <PrimaryBtn onClick={() => actionMut.mutate([id!, "fulfill"])} disabled={actionMut.isPending}>
+                  Prepare Issuance
                 </PrimaryBtn>
                 <SecondaryBtn onClick={() => actionMut.mutate([id!, "escalate_to_pr"])}>
                   Escalate → PR
                 </SecondaryBtn>
               </>
+            )}
+            {srq.status === "ready_for_issue" && srq.gins[0] && (
+              <PrimaryBtn onClick={() => navigate(`/inventory/issuances/${srq.gins[0].id}`)}>
+                Open Issuance
+              </PrimaryBtn>
             )}
             <SecondaryBtn onClick={() => navigate("/stores/requisitions")}>← Back</SecondaryBtn>
           </div>

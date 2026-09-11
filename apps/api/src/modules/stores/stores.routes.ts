@@ -107,10 +107,12 @@ export async function storesRoutes(app: FastifyInstance) {
         const srq = await db.query(
           `SELECT ${SRQ_COLS}
            FROM app.store_requisitions
-           WHERE id = $1 AND tenant_id = app.current_tenant_id()`,
+           WHERE (id::text = $1 OR srq_number = $1)
+             AND tenant_id = app.current_tenant_id()`,
           [id]
         );
         if (!srq.rows[0]) throw { statusCode: 404, message: "SRQ not found" };
+        const srqId = srq.rows[0].id;
 
         const items = await db.query(
           `SELECT ${SRQ_ITEM_COLS}, inv.name AS item_name, inv.unit_of_measure,
@@ -119,7 +121,7 @@ export async function storesRoutes(app: FastifyInstance) {
            LEFT JOIN app.inventory_items inv ON inv.id = sri.item_id
            WHERE sri.srq_id = $1
            ORDER BY sri.created_at`,
-          [id]
+          [srqId]
         );
 
         // linked GINs
@@ -128,7 +130,7 @@ export async function storesRoutes(app: FastifyInstance) {
            FROM app.store_issuances
            WHERE srq_id = $1 AND tenant_id = app.current_tenant_id()
            ORDER BY created_at`,
-          [id]
+          [srqId]
         );
 
         return { ...srq.rows[0], items: items.rows, gins: gins.rows };
