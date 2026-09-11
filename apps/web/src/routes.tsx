@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, useParams } from "react-router-dom";
 import { AppShell } from "./app/AppShell";
 import { StudentsListPage } from "./modules/students/StudentsListPage";
 import { StudentCreatePage } from "./modules/students/StudentCreatePage";
@@ -104,6 +104,11 @@ import InventoryItemDetailPage from "./modules/inventory/InventoryItemDetailPage
 import IssuanceCreatePage from "./modules/inventory/IssuanceCreatePage";
 import StockTakeCreatePage from "./modules/inventory/StockTakeCreatePage";
 import StockTakeDetailPage from "./modules/inventory/StockTakeDetailPage";
+
+function LegacyGRNRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/inventory/grns/${id ?? ""}`} replace />;
+}
 import StockReceiptPage from "./modules/inventory/StockReceiptPage";
 import { GRNsTab } from "./modules/procurement/ProcurementPage";
 import AssetRegistryPage from "./modules/assets/AssetRegistryPage";
@@ -225,16 +230,16 @@ export const router = createBrowserRouter([
       { path: "procurement/requisitions/:id", element: <RequireRole roles={["admin", "procurement_officer", "principal"]}><RequisitionDetailPage /></RequireRole> },
       { path: "procurement/orders/new", element: <RequireRole roles={["admin", "procurement_officer", "principal"]}><PurchaseOrderCreatePage /></RequireRole> },
       { path: "procurement/orders/:id", element: <RequireRole roles={["admin", "procurement_officer", "principal"]}><PurchaseOrderDetailPage /></RequireRole> },
-      { path: "procurement/grns/new", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><GRNCreatePage /></RequireRole> },
-      { path: "procurement/grns/:id", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><GRNDetailPage /></RequireRole> },
+      { path: "procurement/grns/new", element: <Navigate to="/inventory/grns/new" replace /> },
+      { path: "procurement/grns/:id", element: <LegacyGRNRedirect /> },
       { path: "inventory", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal", "hod"]}><InventoryPage /></RequireRole> },
       { path: "inventory/items/new", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal", "hod"]}><InventoryItemCreatePage /></RequireRole> },
       { path: "inventory/items/:id", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><InventoryItemDetailPage /></RequireRole> },
       { path: "inventory/issuances/new", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><IssuanceCreatePage /></RequireRole> },
       { path: "inventory/receipts/new", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><StockReceiptPage /></RequireRole> },
-      { path: "inventory/grns", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal", "hod"]}><GRNsTab /></RequireRole> },
-      { path: "inventory/grns/new", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal", "hod"]}><GRNCreatePage /></RequireRole> },
-      { path: "inventory/grns/:id", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal", "hod"]}><GRNDetailPage /></RequireRole> },
+      { path: "inventory/grns", element: <RequireRole roles={["admin", "inventory_manager", "principal", "hod"]}><GRNsTab /></RequireRole> },
+      { path: "inventory/grns/new", element: <RequireRole roles={["admin", "inventory_manager", "principal"]}><GRNCreatePage /></RequireRole> },
+      { path: "inventory/grns/:id", element: <RequireRole roles={["admin", "inventory_manager", "principal", "hod"]}><GRNDetailPage /></RequireRole> },
       { path: "inventory/adjustments/new", element: <RequireRole roles={["admin", "inventory_manager", "principal"]}><StockReceiptPage /></RequireRole> },
       { path: "inventory/returns/new", element: <RequireRole roles={["admin", "inventory_manager", "principal"]}><StockReceiptPage /></RequireRole> },
       { path: "inventory/stock-takes/new", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><StockTakeCreatePage /></RequireRole> },

@@ -35,6 +35,9 @@ const READ_ROLES = [
 
 const WRITE_ROLES = ["admin", "registrar", "finance", "principal", "hod", "dean", "instructor", "procurement_officer", "inventory_manager"] as const;
 const ADMIN_ROLES = ["admin", "finance", "procurement_officer"] as const;
+const GRN_READ_ROLES = ["admin", "inventory_manager", "principal", "hod"] as const;
+const GRN_WRITE_ROLES = ["admin", "inventory_manager", "principal"] as const;
+const GRN_CONFIRM_ROLES = ["admin", "inventory_manager"] as const;
 
 const SUPPLIER_COLS =
   "id, name, contact_person, email, phone, address, tin_number, is_active, notes, created_at, updated_at";
@@ -677,7 +680,7 @@ export async function procurementRoutes(app: FastifyInstance) {
   // GOODS RECEIVED NOTES
   // ==========================================================================
 
-  app.get("/procurement/grns", { preHandler: requireRole(...READ_ROLES) }, async (req, reply) => {
+  app.get("/procurement/grns", { preHandler: requireRole(...GRN_READ_ROLES) }, async (req, reply) => {
     const { tenantId } = req.user;
     if (!tenantId) return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -709,7 +712,7 @@ export async function procurementRoutes(app: FastifyInstance) {
     return reply.send(rows.rows);
   });
 
-  app.post("/procurement/grns", { preHandler: requireRole(...WRITE_ROLES) }, async (req, reply) => {
+  app.post("/procurement/grns", { preHandler: requireRole(...GRN_WRITE_ROLES) }, async (req, reply) => {
     const { tenantId } = req.user;
     if (!tenantId) return reply.status(400).send({ error: "x-tenant-id header required" });
 
@@ -742,7 +745,7 @@ export async function procurementRoutes(app: FastifyInstance) {
     return reply.status(201).send(result);
   });
 
-  app.get("/procurement/grns/:id", { preHandler: requireRole(...READ_ROLES) }, async (req, reply) => {
+  app.get("/procurement/grns/:id", { preHandler: requireRole(...GRN_READ_ROLES) }, async (req, reply) => {
     const { tenantId } = req.user;
     const { id } = req.params as { id: string };
     if (!tenantId) return reply.status(400).send({ error: "x-tenant-id header required" });
@@ -762,7 +765,7 @@ export async function procurementRoutes(app: FastifyInstance) {
     return reply.send(result);
   });
 
-  app.patch("/procurement/grns/:id", { preHandler: requireRole(...WRITE_ROLES) }, async (req, reply) => {
+  app.patch("/procurement/grns/:id", { preHandler: requireRole(...GRN_WRITE_ROLES) }, async (req, reply) => {
     const { tenantId } = req.user;
     const { id } = req.params as { id: string };
     if (!tenantId) return reply.status(400).send({ error: "x-tenant-id header required" });
@@ -796,7 +799,7 @@ export async function procurementRoutes(app: FastifyInstance) {
     return reply.send(row);
   });
 
-  app.post("/procurement/grns/:id/confirm", { preHandler: requireRole(...ADMIN_ROLES) }, async (req, reply) => {
+  app.post("/procurement/grns/:id/confirm", { preHandler: requireRole(...GRN_CONFIRM_ROLES) }, async (req, reply) => {
     const { tenantId } = req.user;
     const { id } = req.params as { id: string };
     if (!tenantId) return reply.status(400).send({ error: "x-tenant-id header required" });

@@ -592,9 +592,9 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
   });
 
   // =========================================================================
-  // STEP 7 — Finance creates a GRN (supplier has delivered goods)
+  // STEP 7 — Stores creates a GRN (supplier has delivered goods)
   // =========================================================================
-  it("Step 7: Finance creates a GRN linked to the LPO → GRN status: 'draft'", async () => {
+  it("Step 7: Stores creates a GRN linked to the LPO → GRN status: 'draft'", async () => {
     const res = await post(app, "/procurement/grns", {
       grn_number: GRN_NUMBER,
       po_id: poId,
@@ -615,7 +615,7 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
           condition: "good",
         },
       ],
-    }, financeToken);
+    }, adminToken);
 
     expect(res.statusCode, `Create GRN failed: ${res.body}`).toBe(201);
     const grn = res.json();

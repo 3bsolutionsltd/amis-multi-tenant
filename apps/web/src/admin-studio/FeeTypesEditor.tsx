@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 const DEFAULT_FEE_TYPES = ["tuition", "examination", "functional", "other"];
 const DEFAULT_STUDENT_CATEGORIES = ["all", "boarding", "day"];
+const DEFAULT_ASSET_CATEGORIES = ["equipment", "furniture", "vehicle", "computer", "other"];
 
 const inputSt: React.CSSProperties = {
   padding: "7px 10px", border: "1px solid #d1d5db",
@@ -21,8 +22,10 @@ export function FeeTypesEditor() {
   const [fullPayload, setFullPayload] = useState<Record<string, unknown>>({});
   const [feeTypes, setFeeTypes] = useState<string[]>(DEFAULT_FEE_TYPES);
   const [studentCategories, setStudentCategories] = useState<string[]>(DEFAULT_STUDENT_CATEGORIES);
+  const [assetCategories, setAssetCategories] = useState<string[]>(DEFAULT_ASSET_CATEGORIES);
   const [newFeeType, setNewFeeType] = useState("");
-  const [newCategory, setNewCategory] = useState("");
+  const [newStudentCategory, setNewStudentCategory] = useState("");
+  const [newAssetCategory, setNewAssetCategory] = useState("");
 
   useEffect(() => {
     getConfigStatus()
@@ -34,15 +37,17 @@ export function FeeTypesEditor() {
         setFullPayload(payload);
         const savedFeeTypes = payload.fee_types as string[] | undefined;
         const savedCategories = payload.student_categories as string[] | undefined;
+        const savedAssetCategories = payload.asset_categories as string[] | undefined;
         setFeeTypes(savedFeeTypes && savedFeeTypes.length > 0 ? savedFeeTypes : DEFAULT_FEE_TYPES);
         setStudentCategories(savedCategories && savedCategories.length > 0 ? savedCategories : DEFAULT_STUDENT_CATEGORIES);
+        setAssetCategories(savedAssetCategories && savedAssetCategories.length > 0 ? savedAssetCategories : DEFAULT_ASSET_CATEGORIES);
       })
       .catch(() => setError("Failed to load config"))
       .finally(() => setLoading(false));
   }, []);
 
   function buildUpdated() {
-    return { ...fullPayload, fee_types: feeTypes, student_categories: studentCategories };
+    return { ...fullPayload, fee_types: feeTypes, student_categories: studentCategories, asset_categories: assetCategories };
   }
 
   async function handleSave() {
@@ -83,10 +88,17 @@ export function FeeTypesEditor() {
   }
 
   function addCategory() {
-    const c = newCategory.trim();
+    const c = newStudentCategory.trim();
     if (!c || studentCategories.includes(c)) return;
     setStudentCategories([...studentCategories, c]);
-    setNewCategory("");
+    setNewStudentCategory("");
+  }
+
+  function addAssetCategory() {
+    const category = newAssetCategory.trim();
+    if (!category || assetCategories.includes(category)) return;
+    setAssetCategories([...assetCategories, category]);
+    setNewAssetCategory("");
   }
 
   const chipSt: React.CSSProperties = {
@@ -156,8 +168,8 @@ export function FeeTypesEditor() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <input
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
+            value={newStudentCategory}
+            onChange={(e) => setNewStudentCategory(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCategory())}
             placeholder="e.g. Resident"
             style={{ ...inputSt, width: "auto", flex: 1 }}
@@ -168,6 +180,19 @@ export function FeeTypesEditor() {
           >
             Add
           </button>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 32 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>Asset Categories</h3>
+        <div style={{ marginBottom: 12 }}>
+          {assetCategories.map((category) => (
+            <div key={category} style={chipSt}><span style={{ flex: 1, fontSize: 14 }}>{category}</span><button onClick={() => setAssetCategories(assetCategories.filter((item) => item !== category))} style={removeBtnSt} title="Remove">×</button></div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input value={newAssetCategory} onChange={(e) => setNewAssetCategory(e.target.value)} placeholder="e.g. Generator" style={{ ...inputSt, width: "auto", flex: 1 }} />
+          <button onClick={addAssetCategory} style={{ padding: "7px 16px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>Add</button>
         </div>
       </div>
 
