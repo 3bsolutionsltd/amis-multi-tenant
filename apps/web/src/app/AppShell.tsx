@@ -114,6 +114,7 @@ const ALL_NAV: NavItem[] = [
   { label: "Reconciliation",     route: "/finance/reconciliation"  },
   { label: "Industrial Training",route: "/industrial-training"     },
   { label: "Field Placements",   route: "/field-placements"        },
+  { label: "Student Projects",   route: "/student-projects"        },
   { label: "Staff",              route: "/staff"                   },
   { label: "Timetable",          route: "/timetable"               },
   { label: "Attendance",         route: "/attendance"              },
@@ -128,6 +129,10 @@ const ALL_NAV: NavItem[] = [
   { label: "Users",              route: "/users"                   },
   { label: "Procurement",        route: "/procurement"             },
   { label: "Inventory",          route: "/inventory"               },
+  { label: "Goods Receipts",     route: "/inventory/grns"           },
+  { label: "Asset Registry",     route: "/assets"                   },
+  { label: "Store Requisitions", route: "/stores/requisitions"     },
+  { label: "PCVs",               route: "/stores/pcv"              },
 ];
 
 // Default nav per role — used when navigation config has not been published yet.
@@ -144,10 +149,10 @@ const ROLE_FALLBACK_NAV: Record<string, string[]> = {
     "/", "/finance", "/finance/reconciliation", "/students", "/admissions",
   ],
   hod: [
-    "/", "/students", "/marks", "/marks/marksheet", "/results", "/staff", "/timetable", "/attendance", "/clearance",
+    "/", "/students", "/marks", "/marks/marksheet", "/results", "/staff", "/timetable", "/attendance", "/clearance", "/inventory", "/assets", "/procurement/requisitions/new",
   ],
   instructor: [
-    "/", "/marks", "/marks/marksheet", "/attendance", "/timetable", "/results",
+    "/", "/marks", "/marks/marksheet", "/attendance", "/timetable", "/results", "/procurement/requisitions/new",
   ],
   principal: [
     "/", "/students", "/admissions", "/term-registrations", "/marks", "/marks/marksheet",
@@ -158,10 +163,10 @@ const ROLE_FALLBACK_NAV: Record<string, string[]> = {
     "/", "/students", "/term-registrations", "/clearance", "/results",
   ],
   procurement_officer: [
-    "/", "/procurement",
+    "/", "/procurement", "/stores/requisitions", "/stores/pcv",
   ],
   inventory_manager: [
-    "/", "/inventory",
+    "/", "/inventory", "/stores/requisitions", "/stores/pcv",
   ],
 };
 
@@ -191,6 +196,8 @@ const ROUTE_MODULE: Record<string, string> = {
   "/reports": "reports",
   "/procurement": "procurement",
   "/inventory": "inventory",
+  "/student-projects": "student-projects",
+  "/stores": "inventory",
 };
 
 // Category label for each route. Routes not listed get no header.
@@ -219,6 +226,8 @@ const NAV_GROUP: Record<string, string> = {
   "/users": "Administration",
   "/procurement": "",
   "/inventory": "",
+  "/stores/requisitions": "",
+  "/stores/pcv": "",
 };
 
 const NAV_ICONS: Record<string, string> = {
@@ -246,6 +255,9 @@ const NAV_ICONS: Record<string, string> = {
   "/alumni": "🎓",
   "/procurement": "🛒",
   "/inventory": "📦",
+  "/student-projects": "🧪",
+  "/stores/requisitions": "🧾",
+  "/stores/pcv": "📤",
 };
 
 function Header() {

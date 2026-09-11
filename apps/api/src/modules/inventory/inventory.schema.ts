@@ -76,6 +76,15 @@ export const StockTransactionQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(100),
 });
 
+export const CreateReplenishmentSchema = z.object({
+  quantity_requested: z.number().positive(),
+  reason: z.string().min(1),
+});
+
+export const ReplenishmentQuerySchema = z.object({
+  status: z.enum(["draft", "approved", "rejected", "ordered"]).optional(),
+});
+
 // ---------------------------------------------------------------------------
 // Store Issuances
 // ---------------------------------------------------------------------------

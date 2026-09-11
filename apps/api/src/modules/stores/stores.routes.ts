@@ -252,7 +252,7 @@ export async function storesRoutes(app: FastifyInstance) {
           hod_approve: "hod_approved",
           reject: "rejected",
           escalate_to_pr: "escalated_to_pr",
-          fulfill: "fulfilled",
+          fulfill: "ready_for_issue",
         };
 
         const allowed: Record<string, string[]> = {
@@ -303,7 +303,57 @@ export async function storesRoutes(app: FastifyInstance) {
            RETURNING ${SRQ_COLS}`,
           [...params, id]
         );
-        return rows[0];
+        if (body.action !== "fulfill") return rows[0];
+
+        const items = await db.query<{
+          item_id: string | null;
+          quantity_requested: string;
+          quantity_approved: string | null;
+          notes: string | null;
+        }>(
+          `SELECT item_id, quantity_requested, quantity_approved, notes
+           FROM app.store_requisition_items
+           WHERE srq_id = $1
+           ORDER BY created_at`,
+          [id],
+        );
+        if (items.rows.some((item) => !item.item_id)) {
+          throw { statusCode: 422, message: "Every approved SRQ item must be linked to an inventory item before issuance" };
+        }
+
+        const existing = await db.query<{ id: string }>(
+          `SELECT id FROM app.store_issuances WHERE srq_id = $1 AND status = 'draft' LIMIT 1`,
+          [id],
+        );
+        let issuanceId = existing.rows[0]?.id;
+        if (!issuanceId) {
+          const issuance = await db.query<{ id: string }>(
+            `INSERT INTO app.store_issuances
+               (tenant_id, issuance_number, issued_to, department, requisition_ref, srq_id, purpose, notes)
+             VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5, $6, $7)
+             RETURNING id`,
+            [
+              `GIN-${rows[0].srq_number}`,
+              rows[0].requested_by,
+              rows[0].department ?? null,
+              rows[0].srq_number,
+              id,
+              rows[0].purpose ?? null,
+              rows[0].notes ?? null,
+            ],
+          );
+          issuanceId = issuance.rows[0].id;
+          for (const item of items.rows) {
+            await db.query(
+              `INSERT INTO app.store_issuance_items
+                 (tenant_id, issuance_id, item_id, quantity_requested, quantity_issued, notes)
+               VALUES (app.current_tenant_id(), $1, $2, $3, $3, $4)`,
+              [issuanceId, item.item_id, Number(item.quantity_approved ?? item.quantity_requested), item.notes ?? null],
+            );
+          }
+        }
+
+        return { ...rows[0], issuance_id: issuanceId };
       });
     }
   );

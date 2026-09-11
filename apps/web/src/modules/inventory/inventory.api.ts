@@ -26,6 +26,63 @@ export interface InventoryItem {
   updated_at: string;
 }
 
+export interface InventoryDashboard {
+  total_items: number;
+  stock_value: number;
+  low_stock_items: number;
+  pending_issuances: number;
+  pending_replenishments: number;
+  recent_transactions: StockTransaction[];
+}
+
+export interface ReplenishmentRequest {
+  id: string;
+  item_id: string;
+  item_name?: string;
+  unit_of_measure?: string;
+  quantity_requested: number;
+  reason: string;
+  status: "draft" | "approved" | "rejected" | "ordered";
+  requested_by: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+}
+
+export interface InventoryAuditEntry {
+  id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+export function getInventoryDashboard(): Promise<InventoryDashboard> {
+  return apiFetch<InventoryDashboard>("/inventory/dashboard");
+}
+
+export function listReplenishments(status?: ReplenishmentRequest["status"]): Promise<ReplenishmentRequest[]> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  return apiFetch<ReplenishmentRequest[]>(`/inventory/replenishments${query}`);
+}
+
+export function createReplenishment(itemId: string, body: { quantity_requested: number; reason: string }): Promise<ReplenishmentRequest> {
+  return apiFetch<ReplenishmentRequest>(`/inventory/items/${itemId}/replenishments`, { method: "POST", body: JSON.stringify(body) });
+}
+
+export function listInventoryAudit(): Promise<InventoryAuditEntry[]> {
+  return apiFetch<InventoryAuditEntry[]>("/inventory/audit");
+}
+
+export function approveReplenishment(id: string, status: "approved" | "rejected"): Promise<ReplenishmentRequest> {
+  return apiFetch<ReplenishmentRequest>(`/inventory/replenishments/${id}/approval`, { method: "POST", body: JSON.stringify({ status }) });
+}
+
+export function exportInventoryCsv(): string {
+  return "/api/inventory/export.csv";
+}
+
 export interface StockTransaction {
   id: string;
   item_id: string;

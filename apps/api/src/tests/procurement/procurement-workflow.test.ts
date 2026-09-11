@@ -794,7 +794,7 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
       const res = await get(app, `/procurement/orders/${poId}`, financeToken);
       expect(res.statusCode).toBe(200);
       const po = res.json();
-      expect(po.status).toBe("issued");
+      expect(po.status).toBe("partial_received");
       expect(po.pr_id).toBe(prId);
       expect(po.supplier_id).toBe(supplierId);
     });

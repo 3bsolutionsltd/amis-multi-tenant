@@ -30,9 +30,10 @@ const READ_ROLES = [
   "dean",
   "procurement_officer",
   "inventory_manager",
+  "instructor",
 ] as const;
 
-const WRITE_ROLES = ["admin", "registrar", "finance", "procurement_officer"] as const;
+const WRITE_ROLES = ["admin", "registrar", "finance", "principal", "hod", "dean", "instructor", "procurement_officer", "inventory_manager"] as const;
 const ADMIN_ROLES = ["admin", "finance", "procurement_officer"] as const;
 
 const SUPPLIER_COLS =
@@ -48,13 +49,13 @@ const PO_COLS =
   "id, po_number, pr_id, supplier_id, title, status, order_date, expected_delivery_date, total_amount, notes, created_at, updated_at";
 
 const PO_ITEM_COLS =
-  "id, po_id, description, quantity, unit, unit_price, total_price, notes, created_at";
+  "id, po_id, inventory_item_id, description, quantity, unit, unit_price, total_price, notes, created_at";
 
 const GRN_COLS =
   "id, grn_number, po_id, received_by, received_date, status, notes, created_at, updated_at";
 
 const GRN_ITEM_COLS =
-  "id, grn_id, po_item_id, description, quantity_ordered, quantity_received, condition, notes, created_at";
+  "id, grn_id, po_item_id, inventory_item_id, description, quantity_ordered, quantity_received, condition, notes, created_at";
 
 export async function procurementRoutes(app: FastifyInstance) {
   // ==========================================================================
@@ -581,9 +582,9 @@ export async function procurementRoutes(app: FastifyInstance) {
       for (const item of d.items) {
         await client.query(
           `INSERT INTO app.purchase_order_items
-             (tenant_id, po_id, description, quantity, unit, unit_price, notes)
-           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-          [tenantId, po.id, item.description, item.quantity, item.unit, item.unit_price, item.notes ?? null],
+             (tenant_id, po_id, inventory_item_id, description, quantity, unit, unit_price, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          [tenantId, po.id, item.inventory_item_id ?? null, item.description, item.quantity, item.unit, item.unit_price, item.notes ?? null],
         );
       }
 
@@ -719,16 +720,19 @@ export async function procurementRoutes(app: FastifyInstance) {
     const result = await withTenant(tenantId, async (client) => {
       const { rows } = await client.query(
         `INSERT INTO app.goods_received_notes (tenant_id, grn_number, po_id, received_by, received_date, notes)
-         VALUES ($1,$2,$3,$4,$5,$6) RETURNING ${GRN_COLS}`,
+         VALUES ($1,$2,$3,$4,COALESCE($5::date, CURRENT_DATE),$6) RETURNING ${GRN_COLS}`,
         [tenantId, d.grn_number, d.po_id ?? null, d.received_by ?? null, d.received_date ?? null, d.notes ?? null],
       );
       const grn = rows[0];
 
       for (const item of d.items) {
         await client.query(
-          `INSERT INTO app.grn_items (tenant_id, grn_id, po_item_id, description, quantity_ordered, quantity_received, condition, notes)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-          [tenantId, grn.id, item.po_item_id ?? null, item.description, item.quantity_ordered ?? null, item.quantity_received, item.condition, item.notes ?? null],
+          `INSERT INTO app.grn_items
+             (tenant_id, grn_id, po_item_id, inventory_item_id, description, quantity_ordered, quantity_received, condition, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [tenantId, grn.id, item.po_item_id ?? null, item.inventory_item_id ?? null,
+           item.description, item.quantity_ordered ?? null, item.quantity_received,
+           item.condition, item.notes ?? null],
         );
       }
 
@@ -797,19 +801,96 @@ export async function procurementRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     if (!tenantId) return reply.status(400).send({ error: "x-tenant-id header required" });
 
-    const row = await withTenant(tenantId, async (client) => {
+    const result = await withTenant(tenantId, async (client) => {
       const { rows } = await client.query(
-        `UPDATE app.goods_received_notes SET status = 'confirmed', updated_at = now() WHERE id = $1 AND status = 'draft' RETURNING ${GRN_COLS}`,
+        `UPDATE app.goods_received_notes
+         SET status = 'confirmed', updated_at = now()
+         WHERE id = $1 AND status = 'draft'
+         RETURNING ${GRN_COLS}`,
         [id],
       );
-      return rows[0];
+      if (!rows[0]) return null;
+
+      const { rows: items } = await client.query<{
+        id: string;
+        inventory_item_id: string | null;
+        po_item_inventory_item_id: string | null;
+        quantity_received: string;
+        condition: string;
+      }>(
+        `SELECT gi.id, gi.inventory_item_id, poi.inventory_item_id AS po_item_inventory_item_id,
+                gi.quantity_received, gi.condition
+         FROM app.grn_items gi
+         LEFT JOIN app.purchase_order_items poi ON poi.id = gi.po_item_id
+         WHERE gi.grn_id = $1
+         FOR UPDATE OF gi`,
+        [id],
+      );
+
+      let posted = 0;
+      let unmapped = 0;
+      for (const item of items) {
+        const inventoryItemId = item.inventory_item_id ?? item.po_item_inventory_item_id;
+        const quantity = Number(item.quantity_received);
+        if (item.condition !== "good" || quantity <= 0) continue;
+        if (!inventoryItemId) {
+          unmapped++;
+          continue;
+        }
+
+        const { rows: stock } = await client.query<{ current_stock: string }>(
+          `SELECT current_stock FROM app.inventory_items WHERE id = $1 FOR UPDATE`,
+          [inventoryItemId],
+        );
+        if (!stock[0]) throw new Error(`Inventory item not found: ${inventoryItemId}`);
+
+        const balanceAfter = Number(stock[0].current_stock) + quantity;
+        const inserted = await client.query(
+          `INSERT INTO app.stock_transactions
+             (tenant_id, item_id, transaction_type, quantity, balance_after,
+              reference_type, reference_id, performed_by, transaction_date, notes)
+           VALUES ($1,$2,'receipt',$3,$4,'grn',$5,$6,$7,$8)
+           ON CONFLICT (reference_type, reference_id) DO NOTHING`,
+          [tenantId, inventoryItemId, quantity, balanceAfter, item.id,
+           rows[0].received_by ?? null, rows[0].received_date ?? null,
+           `Received via ${rows[0].grn_number}`],
+        );
+        if (inserted.rowCount) posted++;
+      }
+
+      if (rows[0].po_id) {
+        await client.query(
+          `UPDATE app.purchase_orders po
+           SET status = CASE
+             WHEN EXISTS (
+               SELECT 1
+               FROM app.purchase_order_items poi
+               LEFT JOIN (
+                 SELECT gi.po_item_id, SUM(gi.quantity_received) AS received
+                 FROM app.grn_items gi
+                 JOIN app.goods_received_notes g ON g.id = gi.grn_id
+                 WHERE g.po_id = po.id AND g.status = 'confirmed'
+                 GROUP BY gi.po_item_id
+               ) received ON received.po_item_id = poi.id
+               WHERE poi.po_id = po.id
+                 AND COALESCE(received.received, 0) < poi.quantity
+             ) THEN 'partial_received'
+             ELSE 'received'
+           END,
+           updated_at = now()
+           WHERE po.id = $1`,
+          [rows[0].po_id],
+        );
+      }
+
+      return { row: rows[0], posted, unmapped };
     });
 
-    if (!row) return reply.status(404).send({ error: "GRN not found or already confirmed" });
+    if (!result) return reply.status(404).send({ error: "GRN not found or already confirmed" });
 
     // fire-and-forget notification
-    notifyGRNConfirmed(tenantId, { id: row.id, grn_number: row.grn_number, po_id: row.po_id }).catch(console.error);
+    notifyGRNConfirmed(tenantId, { id: result.row.id, grn_number: result.row.grn_number, po_id: result.row.po_id }).catch(console.error);
 
-    return reply.send(row);
+    return reply.send({ ...result.row, inventory_posted: result.posted, inventory_unmapped: result.unmapped });
   });
 }

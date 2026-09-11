@@ -186,7 +186,7 @@ function OrdersTab() {
 // ===========================================================================
 // GRNs TAB
 // ===========================================================================
-function GRNsTab() {
+export function GRNsTab() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
 

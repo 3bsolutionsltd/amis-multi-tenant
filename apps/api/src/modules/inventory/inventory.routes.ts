@@ -15,6 +15,8 @@ import {
   UpdateStockTakeSchema,
   StockTakeQuerySchema,
   UpsertStockTakeItemSchema,
+  CreateReplenishmentSchema,
+  ReplenishmentQuerySchema,
 } from "./inventory.schema.js";
 
 const READ_ROLES = [
@@ -27,9 +29,10 @@ const READ_ROLES = [
   "instructor",
   "procurement_officer",
   "inventory_manager",
+  "procurement_officer",
 ] as const;
 
-const WRITE_ROLES = ["admin", "registrar", "finance", "inventory_manager", "procurement_officer"] as const;
+const WRITE_ROLES = ["admin", "registrar", "finance", "principal", "hod", "dean", "instructor", "inventory_manager", "procurement_officer"] as const;
 const ADMIN_ROLES = ["admin", "finance", "inventory_manager"] as const;
 
 const ITEM_COLS =
@@ -43,6 +46,8 @@ const ISSUANCE_COLS =
 
 const ISSUANCE_ITEM_COLS =
   "id, issuance_id, item_id, quantity_requested, quantity_issued, quantity_returned, notes, created_at";
+
+const csvCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
 
 export async function inventoryRoutes(app: FastifyInstance) {
   // ==========================================================================
@@ -167,6 +172,133 @@ export async function inventoryRoutes(app: FastifyInstance) {
     return reply.send(row);
   });
 
+  app.get("/inventory/dashboard", { preHandler: requireRole(...READ_ROLES) }, async (req, reply) => {
+    const { tenantId } = req.user;
+    if (!tenantId) return reply.status(400).send({ error: "x-tenant-id header required" });
+    const result = await withTenant(tenantId, async (client) => {
+      const { rows: metrics } = await client.query(
+        `SELECT COUNT(*)::int AS total_items,
+                COALESCE(SUM(current_stock * COALESCE(unit_cost, 0)), 0)::numeric AS stock_value,
+                COUNT(*) FILTER (WHERE current_stock <= reorder_level)::int AS low_stock_items
+         FROM app.inventory_items WHERE is_active = true`,
+      );
+      const { rows: pending } = await client.query(
+        `SELECT
+           (SELECT COUNT(*) FROM app.store_issuances WHERE status = 'draft')::int AS pending_issuances,
+           (SELECT COUNT(*) FROM app.inventory_replenishment_requests WHERE status IN ('draft', 'approved'))::int AS pending_replenishments`,
+      );
+      const { rows: recent } = await client.query(
+        `SELECT t.${TXN_COLS.split(", ").map((c) => `t.${c}`).join(", ")}, i.name AS item_name, i.unit_of_measure
+         FROM app.stock_transactions t JOIN app.inventory_items i ON i.id = t.item_id
+         ORDER BY t.created_at DESC LIMIT 8`,
+      );
+      return { ...metrics[0], ...pending[0], recent_transactions: recent };
+    });
+    return reply.send(result);
+  });
+
+  app.get("/inventory/replenishments", { preHandler: requireRole(...READ_ROLES) }, async (req, reply) => {
+    const { tenantId } = req.user;
+    if (!tenantId) return reply.status(400).send({ error: "x-tenant-id header required" });
+    const parsed = ReplenishmentQuerySchema.safeParse(req.query);
+    if (!parsed.success) return reply.status(422).send({ error: parsed.error.flatten() });
+    return withTenant(tenantId, async (client) => {
+      const params: unknown[] = [];
+      const status = parsed.data.status ? `WHERE r.status = $1` : "";
+      if (parsed.data.status) params.push(parsed.data.status);
+      const rows = await client.query(
+        `SELECT r.id, r.item_id, i.name AS item_name, i.unit_of_measure,
+                r.quantity_requested, r.reason, r.status, r.requested_by,
+                r.approved_by, r.approved_at, r.created_at
+         FROM app.inventory_replenishment_requests r
+         JOIN app.inventory_items i ON i.id = r.item_id
+         ${status} ORDER BY r.created_at DESC`, params,
+      );
+      return rows.rows;
+    });
+  });
+
+  app.post("/inventory/items/:id/replenishments", { preHandler: requireRole(...WRITE_ROLES) }, async (req, reply) => {
+    const { tenantId } = req.user;
+    if (!tenantId) return reply.status(400).send({ error: "x-tenant-id header required" });
+    const { id: itemId } = req.params as { id: string };
+    const parsed = CreateReplenishmentSchema.safeParse(req.body);
+    if (!parsed.success) return reply.status(422).send({ error: parsed.error.flatten() });
+    const row = await withTenant(tenantId, async (client) => {
+      const { rows } = await client.query(
+        `INSERT INTO app.inventory_replenishment_requests
+           (tenant_id, item_id, quantity_requested, reason, requested_by)
+         VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+        [tenantId, itemId, parsed.data.quantity_requested, parsed.data.reason, req.user.userId],
+      );
+      await client.query(
+        `INSERT INTO app.inventory_audit_log (tenant_id, action, entity_type, entity_id, details)
+         VALUES ($1, 'replenishment_requested', 'inventory_item', $2, $3)`,
+        [tenantId, itemId, JSON.stringify({ actor_id: req.user.userId, quantity: parsed.data.quantity_requested, reason: parsed.data.reason })],
+      );
+      return rows[0];
+    });
+    return reply.status(201).send(row);
+  });
+
+  app.post("/inventory/replenishments/:id/approval", { preHandler: requireRole(...ADMIN_ROLES) }, async (req, reply) => {
+    const { tenantId } = req.user;
+    if (!tenantId) return reply.status(400).send({ error: "x-tenant-id header required" });
+    const body = req.body as { status?: string };
+    if (body.status !== "approved" && body.status !== "rejected") return reply.status(422).send({ error: "status must be approved or rejected" });
+    const { id } = req.params as { id: string };
+    const row = await withTenant(tenantId, async (client) => {
+      const { rows: existing } = await client.query(
+        `SELECT requested_by FROM app.inventory_replenishment_requests WHERE id = $1 AND status = 'draft'`, [id],
+      );
+      if (!existing[0]) return null;
+      if (existing[0].requested_by === req.user.userId) return "self_approval";
+      const { rows } = await client.query(
+        `UPDATE app.inventory_replenishment_requests
+         SET status = $1, approved_by = $2, approved_at = now(), updated_at = now()
+         WHERE id = $3 AND status = 'draft' RETURNING *`,
+        [body.status, req.user.userId, id],
+      );
+      if (!rows[0]) return null;
+      await client.query(
+        `INSERT INTO app.inventory_audit_log (tenant_id, action, entity_type, entity_id, details)
+         VALUES ($1, $2, 'replenishment_request', $3, $4)`,
+        [tenantId, `replenishment_${body.status}`, id, JSON.stringify({ actor_id: req.user.userId })],
+      );
+      return rows[0];
+    });
+    if (row === "self_approval") return reply.status(409).send({ error: "The requester cannot approve their own replenishment request" });
+    if (!row) return reply.status(404).send({ error: "Draft replenishment request not found" });
+    return reply.send(row);
+  });
+
+  app.get("/inventory/audit", { preHandler: requireRole(...ADMIN_ROLES) }, async (req, reply) => {
+    const { tenantId } = req.user;
+    if (!tenantId) return reply.status(400).send({ error: "x-tenant-id header required" });
+    const rows = await withTenant(tenantId, (client) => client.query(
+      `SELECT id, action, entity_type, entity_id, details, created_at
+       FROM app.inventory_audit_log ORDER BY created_at DESC LIMIT 200`,
+    ));
+    return reply.send(rows.rows);
+  });
+
+  app.get("/inventory/export.csv", { preHandler: requireRole(...READ_ROLES) }, async (req, reply) => {
+    const { tenantId } = req.user;
+    if (!tenantId) return reply.status(400).send({ error: "x-tenant-id header required" });
+    const rows = await withTenant(tenantId, (client) => client.query(
+      `SELECT i.item_code, i.name, i.category, i.unit_of_measure, i.current_stock,
+              i.reorder_level, i.unit_cost,
+              COALESCE(i.current_stock * i.unit_cost, 0) AS stock_value
+       FROM app.inventory_items i WHERE i.is_active = true ORDER BY i.category, i.name`,
+    ));
+    const csv = [
+      ["Item Code", "Name", "Category", "Unit", "Current Stock", "Reorder Level", "Unit Cost", "Stock Value"],
+      ...rows.rows.map((row) => [row.item_code, row.name, row.category, row.unit_of_measure, row.current_stock, row.reorder_level, row.unit_cost, row.stock_value]),
+    ].map((row) => row.map(csvCell).join(",")).join("\r\n");
+    return reply.header("Content-Type", "text/csv; charset=utf-8")
+      .header("Content-Disposition", 'attachment; filename="inventory-balances.csv"').send(csv);
+  });
+
   // ==========================================================================
   // STOCK TRANSACTIONS (manual adjustments / receipts)
   // ==========================================================================
@@ -223,7 +355,11 @@ export async function inventoryRoutes(app: FastifyInstance) {
       if (!items[0]) throw new Error("Item not found");
 
       const currentStock = Number(items[0].current_stock);
-      const qty = d.transaction_type === "issuance" ? -Math.abs(d.quantity) : Math.abs(d.quantity);
+      const qty = d.transaction_type === "issuance"
+        ? -Math.abs(d.quantity)
+        : d.transaction_type === "adjustment"
+          ? d.quantity
+          : Math.abs(d.quantity);
       const balanceAfter = currentStock + qty;
 
       if (balanceAfter < 0) {
@@ -236,7 +372,7 @@ export async function inventoryRoutes(app: FastifyInstance) {
       const { rows } = await client.query(
         `INSERT INTO app.stock_transactions
            (tenant_id, item_id, transaction_type, quantity, balance_after, reference_type, reference_id, performed_by, transaction_date, notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING ${TXN_COLS}`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::date, CURRENT_DATE),$10) RETURNING ${TXN_COLS}`,
         [tenantId, d.item_id, d.transaction_type, qty, balanceAfter,
          refType, d.reference ?? null,
          d.performed_by ?? null, d.transaction_date ?? null, d.notes ?? null],
@@ -246,6 +382,12 @@ export async function inventoryRoutes(app: FastifyInstance) {
       await client.query(
         `UPDATE app.inventory_items SET current_stock = $1, updated_at = now() WHERE id = $2`,
         [balanceAfter, d.item_id],
+      );
+      await client.query(
+        `INSERT INTO app.inventory_audit_log (tenant_id, actor_id, action, entity_type, entity_id, details)
+         VALUES ($1, $2, $3, 'stock_transaction', $4, $5)`,
+        [tenantId, req.user.userId, `stock_${d.transaction_type}`, rows[0].id,
+          JSON.stringify({ item_id: d.item_id, quantity: qty, balance_after: balanceAfter, reference: d.reference ?? null })],
       );
 
       return rows[0];
@@ -300,7 +442,7 @@ export async function inventoryRoutes(app: FastifyInstance) {
     const result = await withTenant(tenantId, async (client) => {
       const { rows } = await client.query(
         `INSERT INTO app.store_issuances (tenant_id, issuance_number, issued_to, issued_by, department, requisition_ref, srq_id, purpose, issue_date, notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING ${ISSUANCE_COLS}`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::date, CURRENT_DATE),$10) RETURNING ${ISSUANCE_COLS}`,
         [tenantId, d.issuance_number, d.issued_to, d.issued_by ?? null, d.department ?? null, d.requisition_ref ?? null, d.srq_id ?? null, d.purpose ?? null, d.issue_date ?? null, d.notes ?? null],
       );
       const issuance = rows[0];
@@ -420,6 +562,17 @@ export async function inventoryRoutes(app: FastifyInstance) {
       const { rows: updated } = await client.query(
         `UPDATE app.store_issuances SET status = 'issued', updated_at = now() WHERE id = $1 RETURNING ${ISSUANCE_COLS}`,
         [id],
+      );
+      await client.query(
+        `UPDATE app.store_requisitions
+         SET status = 'fulfilled', updated_at = now()
+         WHERE id = $1 AND status = 'ready_for_issue'`,
+        [updated[0].srq_id],
+      );
+      await client.query(
+        `INSERT INTO app.inventory_audit_log (tenant_id, actor_id, action, entity_type, entity_id, details)
+         VALUES ($1, $2, 'issuance_completed', 'issuance', $3, $4)`,
+        [tenantId, req.user.userId, id, JSON.stringify({ item_count: items.length })],
       );
       return updated[0];
     });
