@@ -13,6 +13,9 @@ export interface Submission {
   weight?: number;
   assessment_date?: string | null;
   created_by: string | null;
+  created_by_first_name?: string | null;
+  created_by_last_name?: string | null;
+  created_by_email?: string | null;
   created_at: string;
   correction_of_submission_id: string | null;
   current_state: string | null;

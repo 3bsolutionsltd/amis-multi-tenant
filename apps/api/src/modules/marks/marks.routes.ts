@@ -23,7 +23,10 @@ const SUBMISSION_SELECT = `
   s.id, s.tenant_id, s.course_id, s.programme, s.intake, s.term,
   s.assessment_type, s.weight, s.assessment_date,
   s.created_by, s.created_at, s.correction_of_submission_id,
-  wi.current_state, c.title AS course_title
+  wi.current_state, c.title AS course_title,
+  creator.first_name AS created_by_first_name,
+  creator.last_name AS created_by_last_name,
+  creator.email AS created_by_email
 `;
 
 // ------------------------------------------------------------------ routes
@@ -390,10 +393,39 @@ export async function marksRoutes(app: FastifyInstance) {
       const { course_id, programme, intake, term, assessment_type, current_state, page, limit } =
         parsed.data;
       const offset = (page - 1) * limit;
+      const assignedRoles = req.user.roles?.length ? req.user.roles : [req.user.role];
+      const canViewAll = assignedRoles.some((role) => role === "admin" || role === "registrar");
 
       const rows = await withTenant(tid, async (client) => {
         const conditions: string[] = [];
         const params: unknown[] = [tid];
+
+        if (!canViewAll) {
+          params.push(req.user.userId);
+          const visibilityConditions: string[] = [];
+
+          if (assignedRoles.includes("instructor")) {
+            visibilityConditions.push(`s.created_by = $${params.length}`);
+          }
+          if (assignedRoles.includes("hod")) {
+            visibilityConditions.push(`EXISTS (
+              SELECT 1
+              FROM platform.users hod_user
+              JOIN app.programmes hod_programme
+                ON lower(trim(hod_programme.department)) = lower(trim(hod_user.department))
+              WHERE hod_user.id = $${params.length}
+                AND (
+                  lower(trim(hod_programme.code)) = lower(trim(s.programme))
+                  OR lower(trim(hod_programme.title)) = lower(trim(s.programme))
+                  OR hod_programme.id = c.programme_id
+                )
+            )`);
+          }
+
+          if (visibilityConditions.length > 0) {
+            conditions.push(`(${visibilityConditions.join(" OR ")})`);
+          }
+        }
 
         if (course_id) {
           params.push(course_id);
@@ -434,6 +466,8 @@ export async function marksRoutes(app: FastifyInstance) {
            ON wi.entity_type = '${ENTITY_TYPE}' AND wi.entity_id = s.id
          LEFT JOIN app.courses c
            ON c.tenant_id = s.tenant_id AND c.code = s.course_id
+         LEFT JOIN platform.users creator
+           ON creator.id = s.created_by
          WHERE s.tenant_id = $1 ${where}
          ORDER BY s.created_at DESC
          LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
