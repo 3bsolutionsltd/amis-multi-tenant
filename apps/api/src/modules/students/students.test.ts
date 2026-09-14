@@ -106,7 +106,7 @@ describe("GET /students", () => {
     expect(capturedParams).toContain("DICT");
   });
 
-  it("allows instructors to view all students during training", async () => {
+  it("scopes instructors to assigned course offerings", async () => {
     let capturedSql = "";
     let capturedParams: unknown[] = [];
     mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
@@ -133,12 +133,12 @@ describe("GET /students", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(capturedSql).not.toContain("course_offerings");
+    expect(capturedSql).toContain("course_offerings");
     expect(capturedSql).not.toContain("platform.users");
-    expect(capturedParams).toEqual([20, 0]);
+    expect(capturedParams).toEqual([instructorId, 20, 0]);
   });
 
-  it("allows HODs to view all students during training", async () => {
+  it("scopes HODs to department programmes", async () => {
     let capturedSql = "";
     let capturedParams: unknown[] = [];
     mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
@@ -165,12 +165,12 @@ describe("GET /students", () => {
     });
 
     expect(res.statusCode).toBe(200);
+    expect(capturedSql).toContain("platform.users");
     expect(capturedSql).not.toContain("course_offerings");
-    expect(capturedSql).not.toContain("platform.users");
-    expect(capturedParams).toEqual([20, 0]);
+    expect(capturedParams).toEqual([hodId, 20, 0]);
   });
 
-  it("allows dual-role users to view all students during training", async () => {
+  it("unions HOD and instructor scopes for dual-role users", async () => {
     let capturedSql = "";
     let capturedParams: unknown[] = [];
     mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
@@ -198,9 +198,9 @@ describe("GET /students", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(capturedSql).not.toContain("course_offerings");
-    expect(capturedSql).not.toContain("platform.users");
-    expect(capturedParams).toEqual([20, 0]);
+    expect(capturedSql).toContain("course_offerings");
+    expect(capturedSql).toContain("platform.users");
+    expect(capturedParams).toEqual([userId, 20, 0]);
   });
 });
 
@@ -343,7 +343,7 @@ describe("GET /students/:id", () => {
     expect(body).toHaveProperty("fees");
   });
 
-  it("allows an instructor to view any student during training", async () => {
+  it("applies instructor visibility when viewing a student", async () => {
     let capturedSql = "";
     const mockClient = {
       query: vi.fn((sql: string) => {
@@ -361,11 +361,11 @@ describe("GET /students/:id", () => {
     });
 
     expect(res.statusCode).toBe(404);
-    expect(capturedSql).not.toContain("course_offerings");
+    expect(capturedSql).toContain("course_offerings");
     expect(capturedSql).not.toContain("platform.users");
   });
 
-  it("allows a dual-role user to view any student during training", async () => {
+  it("applies the union of HOD and instructor visibility", async () => {
     let capturedSql = "";
     let capturedParams: unknown[] = [];
     const mockClient = {
@@ -391,10 +391,10 @@ describe("GET /students/:id", () => {
     });
 
     expect(res.statusCode).toBe(404);
-    expect(capturedSql).not.toContain("course_offerings");
-    expect(capturedSql).not.toContain("platform.users");
-    expect(capturedSql).not.toContain("$2");
-    expect(capturedParams).toEqual([SOME_ID]);
+    expect(capturedSql).toContain("course_offerings");
+    expect(capturedSql).toContain("platform.users");
+    expect(capturedSql).toContain("$2");
+    expect(capturedParams).toEqual([SOME_ID, userId]);
   });
 });
 
@@ -566,14 +566,15 @@ describe("GET /students/export/csv", () => {
     expect(res.statusCode).toBe(400);
   });
 
-  it("returns 403 for an instructor role", async () => {
+  it("allows an instructor to export within their visibility scope", async () => {
+    mockWithTenant.mockResolvedValueOnce({ rows: [] } as never);
     const app = buildApp();
     const res = await app.inject({
       method: "GET",
       url: "/students/export/csv",
       headers: { "x-tenant-id": TID, "x-dev-role": "instructor" },
     });
-    expect(res.statusCode).toBe(403);
+    expect(res.statusCode).toBe(200);
   });
 
   it("returns CSV with correct content-type", async () => {

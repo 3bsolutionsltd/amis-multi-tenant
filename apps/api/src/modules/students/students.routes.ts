@@ -21,14 +21,57 @@ const SELECT_COLS =
   "dropout_reason, dropout_date, dropout_notes, " +
   "is_active, created_at, updated_at";
 
-export async function studentsRoutes(app: FastifyInstance) {
-  // Temporary training access: authenticated users can read all students.
-  // Restore role-based visibility once the training period is complete.
-  const TEMPORARY_OPEN_STUDENT_READ = true;
+const STUDENT_READ_ROLES = [
+  "admin",
+  "registrar",
+  "hod",
+  "instructor",
+] as const;
 
-  // GET /students — search + paginated list. Authentication is global.
+function buildStudentVisibilityScope(
+  assignedRoles: string[],
+  userId: string,
+  userParamIndex: number,
+): string | null {
+  if (assignedRoles.includes("admin") || assignedRoles.includes("registrar")) {
+    return null;
+  }
+
+  const scopes: string[] = [];
+  if (assignedRoles.includes("instructor")) {
+    scopes.push(`EXISTS (
+      SELECT 1
+      FROM app.course_offerings co
+      JOIN app.courses c ON c.id = co.course_id
+      JOIN app.programmes p ON p.id = c.programme_id
+      WHERE co.instructor_id = $${userParamIndex}
+        AND c.year_of_study = app.students.year_of_study
+        AND (p.id = app.students.programme_id
+          OR lower(trim(p.code)) = lower(trim(app.students.programme_code))
+          OR lower(trim(p.title)) = lower(trim(app.students.programme)))
+    )`);
+  }
+  if (assignedRoles.includes("hod")) {
+    scopes.push(`EXISTS (
+      SELECT 1
+      FROM platform.users u
+      JOIN app.programmes p
+        ON lower(trim(p.department)) = lower(trim(u.department))
+      WHERE u.id = $${userParamIndex}
+        AND (p.id = app.students.programme_id
+          OR lower(trim(p.code)) = lower(trim(app.students.programme_code))
+          OR lower(trim(p.title)) = lower(trim(app.students.programme)))
+    )`);
+  }
+
+  return scopes.length > 0 ? `(${scopes.join(" OR ")})` : null;
+}
+
+export async function studentsRoutes(app: FastifyInstance) {
+  // GET /students — search + paginated list.
   app.get(
     "/students",
+    { preHandler: requireRole(...STUDENT_READ_ROLES) },
     async (req, reply) => {
       const { tenantId } = req.user;
       if (!tenantId) {
@@ -47,37 +90,15 @@ export async function studentsRoutes(app: FastifyInstance) {
       const rows = await withTenant(tenantId, (client) => {
         const conditions: string[] = [];
         const params: unknown[] = [];
-        const visibilityConditions: string[] = [];
 
-        if (!TEMPORARY_OPEN_STUDENT_READ && assignedRoles.includes("instructor")) {
+        const visibilityScope = buildStudentVisibilityScope(
+          assignedRoles,
+          req.user.userId,
+          1,
+        );
+        if (visibilityScope) {
           params.push(req.user.userId);
-          visibilityConditions.push(`EXISTS (
-            SELECT 1
-            FROM app.course_offerings co
-            JOIN app.courses c ON c.id = co.course_id
-            JOIN app.programmes p ON p.id = c.programme_id
-            WHERE co.instructor_id = $${params.length}
-              AND c.year_of_study = app.students.year_of_study
-                AND (p.id = app.students.programme_id
-                  OR lower(trim(p.code)) = lower(trim(app.students.programme_code))
-                  OR lower(trim(p.title)) = lower(trim(app.students.programme)))
-          )`);
-        }
-        if (!TEMPORARY_OPEN_STUDENT_READ && assignedRoles.includes("hod")) {
-          params.push(req.user.userId);
-          visibilityConditions.push(`EXISTS (
-            SELECT 1
-            FROM platform.users u
-            JOIN app.programmes p
-              ON lower(trim(p.department)) = lower(trim(u.department))
-            WHERE u.id = $${params.length}
-              AND (p.id = app.students.programme_id
-                   OR lower(trim(p.code)) = lower(trim(app.students.programme_code))
-                   OR lower(trim(p.title)) = lower(trim(app.students.programme)))
-          )`);
-        }
-        if (visibilityConditions.length > 0) {
-          conditions.push(`(${visibilityConditions.join(" OR ")})`);
+          conditions.push(visibilityScope);
         }
 
         if (!include_inactive) {
@@ -126,9 +147,10 @@ export async function studentsRoutes(app: FastifyInstance) {
     },
   );
 
-  // GET /students/:id — 360° student view (SR-F-008). Authentication is global.
+  // GET /students/:id — 360° student view (SR-F-008).
   app.get<{ Params: { id: string } }>(
     "/students/:id",
+    { preHandler: requireRole(...STUDENT_READ_ROLES) },
     async (req, reply) => {
       const { tenantId } = req.user;
       if (!tenantId) {
@@ -139,39 +161,16 @@ export async function studentsRoutes(app: FastifyInstance) {
         // Core student record
         const studentParams: unknown[] = [req.params.id];
         const assignedRoles = req.user.roles?.length ? req.user.roles : [req.user.role];
-        const visibilityScopes: string[] = [];
-        if (!TEMPORARY_OPEN_STUDENT_READ && assignedRoles.includes("instructor")) {
-          visibilityScopes.push(`EXISTS (
-                 SELECT 1
-                 FROM app.course_offerings co
-                 JOIN app.courses c ON c.id = co.course_id
-                 JOIN app.programmes p ON p.id = c.programme_id
-                 WHERE co.instructor_id = $2
-                   AND c.year_of_study = app.students.year_of_study
-                   AND (p.id = app.students.programme_id
-                      OR lower(trim(p.code)) = lower(trim(app.students.programme_code))
-                      OR lower(trim(p.title)) = lower(trim(app.students.programme)))
-               )`);
-        }
-        if (!TEMPORARY_OPEN_STUDENT_READ && assignedRoles.includes("hod")) {
-          visibilityScopes.push(`EXISTS (
-                   SELECT 1
-                   FROM platform.users u
-                   JOIN app.programmes p
-                     ON lower(trim(p.department)) = lower(trim(u.department))
-                   WHERE u.id = $2
-                     AND (p.id = app.students.programme_id
-                          OR lower(trim(p.code)) = lower(trim(app.students.programme_code))
-                          OR lower(trim(p.title)) = lower(trim(app.students.programme)))
-                 )`);
-        }
-        const visibilityScope = visibilityScopes.length > 0
-          ? ` AND (${visibilityScopes.join(" OR ")})`
-          : "";
-        if (visibilityScopes.length > 0) studentParams.push(req.user.userId);
+        const visibilityScope = buildStudentVisibilityScope(
+          assignedRoles,
+          req.user.userId,
+          2,
+        );
+        const visibilitySql = visibilityScope ? ` AND ${visibilityScope}` : "";
+        if (visibilityScope) studentParams.push(req.user.userId);
         const { rows: stuRows } = await client.query(
           `SELECT ${SELECT_COLS} FROM app.students
-           WHERE id = $1${visibilityScope}`,
+           WHERE id = $1${visibilitySql}`,
           studentParams,
         );
         if (stuRows.length === 0) return null;
@@ -553,19 +552,29 @@ export async function studentsRoutes(app: FastifyInstance) {
   // ─────────────────────────────────────────────────────────────────────────────
   app.get(
     "/students/export/csv",
-    { preHandler: requireRole("admin", "registrar") },
+    { preHandler: requireRole(...STUDENT_READ_ROLES) },
     async (req, reply) => {
       const { tenantId } = req.user;
       if (!tenantId) {
         return reply.status(400).send({ error: "x-tenant-id header required" });
       }
 
+      const assignedRoles = req.user.roles?.length ? req.user.roles : [req.user.role];
+      const visibilityScope = buildStudentVisibilityScope(
+        assignedRoles,
+        req.user.userId,
+        2,
+      );
+      const params: unknown[] = [tenantId];
+      const visibilitySql = visibilityScope ? ` AND ${visibilityScope}` : "";
+      if (visibilityScope) params.push(req.user.userId);
+
       const rows = await withTenant(tenantId, (client) =>
         client.query(
           `SELECT ${SELECT_COLS} FROM app.students
-           WHERE tenant_id = $1 AND is_active = true
+           WHERE tenant_id = $1 AND is_active = true${visibilitySql}
            ORDER BY last_name, first_name`,
-          [tenantId],
+          params,
         ),
       );
 
