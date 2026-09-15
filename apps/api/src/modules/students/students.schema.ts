@@ -72,6 +72,8 @@ export const StudentsQuerySchema = z.object({
   year_of_study: z.coerce.number().int().min(1).max(6).optional(),
   class_section: z.string().optional(),
   programme: z.string().optional(),
+  registration_academic_year: z.string().optional(),
+  registration_term: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });

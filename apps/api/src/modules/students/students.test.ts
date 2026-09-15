@@ -80,6 +80,35 @@ describe("GET /students", () => {
     expect(res.json()).toEqual(fakeStudents);
   });
 
+  it("supports full-name search and current-term registration status", async () => {
+    let capturedSql = "";
+    let capturedParams: unknown[] = [];
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
+      const fakeClient = {
+        query: vi.fn((sql: string, params: unknown[]) => {
+          capturedSql = sql;
+          capturedParams = params;
+          return Promise.resolve({ rows: [] });
+        }),
+      };
+      return cb(fakeClient as never);
+    });
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/students?search=Carol%20Nkosi&registration_academic_year=2026%2F2027&registration_term=Term%201",
+      headers: { "x-tenant-id": "tenant-uuid-1" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(capturedSql).toContain("concat_ws(' ', first_name, other_names, last_name)");
+    expect(capturedSql).toContain("registration_status");
+    expect(capturedParams).toContain("%Carol Nkosi%");
+    expect(capturedParams).toContain("2026/2027");
+    expect(capturedParams).toContain("Term 1");
+  });
+
   it("matches students by either programme_code or programme title (attendance/class-list roster fix)", async () => {
     let capturedSql = "";
     let capturedParams: unknown[] = [];

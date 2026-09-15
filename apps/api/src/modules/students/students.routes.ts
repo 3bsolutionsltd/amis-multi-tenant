@@ -14,7 +14,7 @@ import {
 } from "./students.schema.js";
 
 const SELECT_COLS =
-  "id, first_name, last_name, other_names, date_of_birth, gender, nin, " +
+  "id, first_name, last_name, other_names, date_of_birth::text AS date_of_birth, gender, nin, " +
   "admission_number, sponsorship_type, programme, programme_id, programme_code, email, phone, " +
   "year_of_study, class_section, assessment_level, previous_index, extension, " +
   "guardian_name, guardian_phone, guardian_email, guardian_relationship, " +
@@ -83,7 +83,17 @@ export async function studentsRoutes(app: FastifyInstance) {
         return reply.status(422).send({ error: parsed.error.flatten() });
       }
 
-      const { search, include_inactive, year_of_study, class_section, programme, page, limit } = parsed.data;
+      const {
+        search,
+        include_inactive,
+        year_of_study,
+        class_section,
+        programme,
+        registration_academic_year,
+        registration_term,
+        page,
+        limit,
+      } = parsed.data;
       const offset = (page - 1) * limit;
       const assignedRoles = req.user.roles?.length ? req.user.roles : [req.user.role];
 
@@ -108,7 +118,8 @@ export async function studentsRoutes(app: FastifyInstance) {
         if (search) {
           params.push(`%${search}%`);
           conditions.push(
-            `(first_name ILIKE $${params.length} OR last_name ILIKE $${params.length} OR admission_number ILIKE $${params.length})`,
+            `(first_name ILIKE $${params.length} OR last_name ILIKE $${params.length} OR admission_number ILIKE $${params.length}
+              OR concat_ws(' ', first_name, other_names, last_name) ILIKE $${params.length})`,
           );
         }
 
@@ -131,12 +142,25 @@ export async function studentsRoutes(app: FastifyInstance) {
           conditions.push(`(programme_code = $${params.length} OR programme = $${params.length})`);
         }
 
+        let registrationSelect = "NULL::text AS registration_status";
+        if (registration_academic_year && registration_term) {
+          params.push(registration_academic_year, registration_term);
+          const yearParam = params.length - 1;
+          const termParam = params.length;
+          registrationSelect = `CASE WHEN EXISTS (
+            SELECT 1 FROM app.term_registrations tr
+            WHERE tr.student_id = app.students.id
+              AND tr.academic_year = $${yearParam}
+              AND tr.term = $${termParam}
+          ) THEN 'registered' ELSE 'not_registered' END AS registration_status`;
+        }
+
         const where =
           conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
         params.push(limit, offset);
         return client.query(
-          `SELECT ${SELECT_COLS} FROM app.students
+          `SELECT ${SELECT_COLS}, ${registrationSelect} FROM app.students
            ${where}
            ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
           params,
@@ -657,7 +681,9 @@ export async function studentsRoutes(app: FastifyInstance) {
 
       if (body.programme) {
         params.push(body.programme);
-        conditions.push(`programme = $${params.length}`);
+        conditions.push(
+          `(lower(trim(programme_code)) = lower(trim($${params.length})) OR lower(trim(programme)) = lower(trim($${params.length})))`,
+        );
       }
       if (body.from_year != null) {
         params.push(Number(body.from_year));
@@ -702,7 +728,9 @@ export async function studentsRoutes(app: FastifyInstance) {
 
       if (body.programme) {
         params.push(body.programme);
-        conditions.push(`programme = $${params.length}`);
+        conditions.push(
+          `(lower(trim(programme_code)) = lower(trim($${params.length})) OR lower(trim(programme)) = lower(trim($${params.length})))`,
+        );
       }
       if (body.from_year != null) {
         params.push(Number(body.from_year));

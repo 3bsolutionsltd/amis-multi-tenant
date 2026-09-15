@@ -29,6 +29,7 @@ export interface Student {
   dropout_date: string | null;
   dropout_notes: string | null;
   is_active: boolean;
+  registration_status: "registered" | "not_registered" | null;
   created_at: string;
   updated_at: string;
 }
@@ -96,6 +97,8 @@ export interface ListStudentsParams {
   year_of_study?: number;
   class_section?: string;
   programme?: string;
+  registration_academic_year?: string;
+  registration_term?: string;
 }
 
 export function listStudents(params?: ListStudentsParams): Promise<Student[]> {
@@ -107,6 +110,8 @@ export function listStudents(params?: ListStudentsParams): Promise<Student[]> {
   if (params?.year_of_study != null) q.set("year_of_study", String(params.year_of_study));
   if (params?.class_section) q.set("class_section", params.class_section);
   if (params?.programme) q.set("programme", params.programme);
+  if (params?.registration_academic_year) q.set("registration_academic_year", params.registration_academic_year);
+  if (params?.registration_term) q.set("registration_term", params.registration_term);
   const qs = q.toString();
   return apiFetch<Student[]>(`/students${qs ? `?${qs}` : ""}`);
 }

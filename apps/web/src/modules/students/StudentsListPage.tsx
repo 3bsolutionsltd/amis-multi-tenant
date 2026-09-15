@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { listStudents, exportStudentsCsv } from "./students.api";
+import { listAcademicYears, listTerms } from "../academic-calendar/academic-calendar.api";
 import { formatStudentName } from "../../lib/formatStudentName";
 import {
   ensureGlobalCss,
@@ -26,6 +27,18 @@ export function StudentsListPage() {
   const showInactive = params.get("inactive") === "true";
   const yearFilter = params.get("year") ? Number(params.get("year")) : undefined;
   const programmeFilter = params.get("programme") ?? "";
+
+  const { data: currentYears } = useQuery({
+    queryKey: ["academic-years", "current"],
+    queryFn: () => listAcademicYears({ is_current: true }),
+  });
+  const currentYear = currentYears?.[0];
+  const { data: currentTerms } = useQuery({
+    queryKey: ["terms", "current-year", currentYear?.id],
+    queryFn: () => listTerms({ academic_year_id: currentYear!.id }),
+    enabled: !!currentYear,
+  });
+  const currentTerm = currentTerms?.find((t) => t.is_current);
 
   function setSearch(v: string) {
     setParams((p) => {
@@ -72,7 +85,7 @@ export function StudentsListPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["students", { search, page, showInactive, yearFilter, programmeFilter }],
+    queryKey: ["students", { search, page, showInactive, yearFilter, programmeFilter, currentYear: currentYear?.name, currentTerm: currentTerm?.name }],
     queryFn: () =>
       listStudents({
         search: search || undefined,
@@ -80,10 +93,14 @@ export function StudentsListPage() {
         include_inactive: showInactive || undefined,
         year_of_study: yearFilter,
         programme: programmeFilter || undefined,
+        registration_academic_year: currentYear?.name,
+        registration_term: currentTerm?.name,
       }),
+    enabled: !!currentYear,
   });
 
-  const isEmpty = !isLoading && !error && (students?.length ?? 0) === 0;
+  const periodLoading = !currentYears || (!!currentYear && !currentTerms);
+  const isEmpty = !isLoading && !periodLoading && !error && (students?.length ?? 0) === 0;
 
   return (
     <div>
@@ -176,8 +193,8 @@ export function StudentsListPage() {
       </FilterBar>
 
       <DataTable
-        headers={["Adm No.", "Student", "Programme", "Year", "Section", "Status"]}
-        isLoading={isLoading}
+        headers={["Adm No.", "Student", "Programme", "Year", "Section", "Active", "Current Term"]}
+        isLoading={isLoading || periodLoading}
         isEmpty={isEmpty}
         emptyIcon="👨‍🎓"
         emptyTitle={
@@ -188,7 +205,7 @@ export function StudentsListPage() {
             ? "Try a different search term."
             : 'Click "+ New Student" to add the first one.'
         }
-        colCount={6}
+        colCount={7}
       >
         {students?.map((s) => (
           <TR key={s.id} onClick={() => navigate(`/students/${s.id}`)}>
@@ -206,6 +223,23 @@ export function StudentsListPage() {
                 label={s.is_active ? "Active" : "Inactive"}
                 color={s.is_active ? "green" : "gray"}
               />
+            </TD>
+            <TD>
+              {s.registration_status === "registered" ? (
+                <Badge label="Registered" color="green" />
+              ) : s.registration_status === "not_registered" ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/term-registrations/new?student_id=${s.id}&student_name=${encodeURIComponent(formatStudentName(s))}`);
+                  }}
+                  style={{ border: "none", background: "none", color: "#b45309", cursor: "pointer", padding: 0, fontSize: 12, fontWeight: 600 }}
+                >
+                  Not registered · Register
+                </button>
+              ) : (
+                <span style={{ color: "#6b7280", fontSize: 12 }}>No current term</span>
+              )}
             </TD>
           </TR>
         ))}
