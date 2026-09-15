@@ -21,8 +21,8 @@ export interface User {
   email: string;
   firstName: string | null;
   lastName: string | null;
-  role: UserRole;
-  roles: UserRole[];
+  role: string;
+  roles: string[];
   department: string | null;
   isActive: boolean;
   createdAt: string;
@@ -31,16 +31,16 @@ export interface User {
 
 export interface CreateUserBody {
   email: string;
-  role: UserRole;
-  roles?: UserRole[];
+  role: string;
+  roles?: string[];
   firstName?: string;
   lastName?: string;
   department?: string;
 }
 
 export interface UpdateUserBody {
-  role?: UserRole;
-  roles?: UserRole[];
+  role?: string;
+  roles?: string[];
   isActive?: boolean;
   firstName?: string;
   lastName?: string;
@@ -71,6 +71,17 @@ export function listUsers(params?: ListUsersParams): Promise<ListUsersResult> {
   if (params?.limit != null) q.set("limit", String(params.limit));
   const qs = q.toString();
   return apiFetch<ListUsersResult>(`/users${qs ? `?${qs}` : ""}`);
+}
+
+export function listRoles(): Promise<{ data: string[] }> {
+  return apiFetch<{ data: string[] }>("/users/roles");
+}
+
+export function createRole(name: string): Promise<{ name: string }> {
+  return apiFetch<{ name: string }>("/users/roles", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
 }
 
 export function createUser(body: CreateUserBody): Promise<User> {

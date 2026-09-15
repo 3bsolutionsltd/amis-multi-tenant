@@ -6,7 +6,7 @@ import {
   getIamAuditLog,
   updateUser,
   resetUserPassword,
-  VALID_ROLES,
+  listRoles,
   type AuditLogEntry,
 } from "./users.api";
 import {
@@ -45,6 +45,8 @@ export function UserDetailPage() {
 
   // ---- state -------------------------------------------------------
   const [showEditRole, setShowEditRole]       = useState(false);
+  const [editFirstName, setEditFirstName]     = useState("");
+  const [editLastName, setEditLastName]       = useState("");
   const [editRole, setEditRole]               = useState("");
   const [editRoleError, setEditRoleError]     = useState<string | null>(null);
   const [editDepartment, setEditDepartment] = useState("");
@@ -66,10 +68,12 @@ export function UserDetailPage() {
     queryFn: () => getIamAuditLog(id!),
     enabled: !!id,
   });
+  const { data: roleData } = useQuery({ queryKey: ["user-roles"], queryFn: listRoles });
+  const roleOptions = roleData?.data ?? (user ? [user.role] : []);
 
   // ---- mutations ---------------------------------------------------
   const updateMut = useMutation({
-    mutationFn: (body: { role?: (typeof VALID_ROLES)[number]; isActive?: boolean; department?: string | null }) =>
+    mutationFn: (body: { role?: string; isActive?: boolean; firstName?: string; lastName?: string; department?: string | null }) =>
       updateUser(id!, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["user", id] });
@@ -101,6 +105,8 @@ export function UserDetailPage() {
   // ---- helpers -----------------------------------------------------
   function openEditRole() {
     if (!user) return;
+    setEditFirstName(user.firstName ?? "");
+    setEditLastName(user.lastName ?? "");
     setEditRole(user.role);
     setEditDepartment(user.department ?? "");
     setEditRoleError(null);
@@ -117,7 +123,7 @@ export function UserDetailPage() {
   if (isLoading) {
     return (
       <div>
-        <PageHeader title="User Detail" back={{ label: "Users", to: "/users" }} />
+        <PageHeader title="User Detail" back={{ label: "Users", to: "/admin-studio/users" }} />
         <p style={{ color: "#6b7280", padding: "24px 0" }}>Loading…</p>
       </div>
     );
@@ -126,7 +132,7 @@ export function UserDetailPage() {
   if (error || !user) {
     return (
       <div>
-        <PageHeader title="User Detail" back={{ label: "Users", to: "/users" }} />
+        <PageHeader title="User Detail" back={{ label: "Users", to: "/admin-studio/users" }} />
         <ErrorBanner message="User not found or you do not have permission to view this account." />
       </div>
     );
@@ -134,7 +140,7 @@ export function UserDetailPage() {
 
   return (
     <div>
-      <PageHeader title={user.email} back={{ label: "Users", to: "/users" }} />
+      <PageHeader title={user.email} back={{ label: "Users", to: "/admin-studio/users" }} />
 
       {resetPwdSuccess && (
         <div
@@ -155,6 +161,12 @@ export function UserDetailPage() {
       {/* User Info Card */}
       <Card padding="24px" style={{ maxWidth: 600, marginBottom: 24 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 32px" }}>
+          <div>
+            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>NAME</div>
+            <div style={{ fontWeight: 600, color: "#111827" }}>
+              {[user.firstName, user.lastName].filter(Boolean).join(" ") || "—"}
+            </div>
+          </div>
           <div>
             <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>EMAIL</div>
             <div style={{ fontWeight: 600, color: "#111827" }}>{user.email}</div>
@@ -248,7 +260,9 @@ export function UserDetailPage() {
               <PrimaryBtn
                 onClick={() =>
                   updateMut.mutate({
-                    role: editRole as (typeof VALID_ROLES)[number],
+                    firstName: editFirstName.trim() || undefined,
+                    lastName: editLastName.trim() || undefined,
+                    role: editRole,
                     department: editRole === "hod" ? editDepartment || null : null,
                   })
                 }
@@ -261,13 +275,19 @@ export function UserDetailPage() {
           }
         >
           {editRoleError && <ErrorBanner message={editRoleError} />}
+          <Field label="First Name">
+            <input value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} style={inputCss} />
+          </Field>
+          <Field label="Last Name">
+            <input value={editLastName} onChange={(e) => setEditLastName(e.target.value)} style={inputCss} />
+          </Field>
           <Field label="New Role">
             <select
               value={editRole}
               onChange={(e) => setEditRole(e.target.value)}
               style={selectCss}
             >
-              {VALID_ROLES.map((r) => (
+              {roleOptions.map((r) => (
                 <option key={r} value={r}>
                   {r}
                 </option>

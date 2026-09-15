@@ -2,15 +2,17 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
+  createRole,
   createUser,
+  listRoles,
   listUsers,
   updateUser,
   VALID_ROLES,
   type User,
 } from "../modules/users/users.api";
-import { C, inputCss, selectCss } from "../lib/ui";
+import { C, inputCss, selectCss, ErrorBanner } from "../lib/ui";
 import { createDraft, getConfigStatus, publishConfig } from "./admin-studio.api";
-import { DEFAULT_DEPARTMENTS, useConfig } from "../app/ConfigProvider";
+import { useConfig } from "../app/ConfigProvider";
 
 const labelStyle: React.CSSProperties = {
   display: "block",
@@ -65,7 +67,7 @@ const FULL = "full" as const;
 const READ = "read" as const;
 const NONE = "none" as const;
 
-const ROLES_SHORT = ["admin", "registrar", "hod", "instructor", "finance", "principal", "dean", "director", "deputy_principal", "proc.", "inv."] as const;
+const ROLES_SHORT = ["admin", "registrar", "hod", "instructor", "finance", "principal", "dean", "director", "deputy_principal", "procurement_officer", "inventory_manager"] as const;
 
 type MatrixRow = { module: string; access: Access[] };
 
@@ -119,6 +121,9 @@ function withDynamicRoleColumns(row: MatrixRow): MatrixRow {
 function PermissionMatrix() {
   const qc = useQueryClient();
   const { config } = useConfig();
+  const { data: roleData } = useQuery({ queryKey: ["user-roles"], queryFn: listRoles });
+  const roleColumns = Array.from(new Set([...ROLES_SHORT, ...(roleData?.data ?? [])]));
+  const roleColumnKey = roleColumns.join("|");
   const { data: configStatus } = useQuery({
     queryKey: ["config-status"],
     queryFn: getConfigStatus,
@@ -136,12 +141,11 @@ function PermissionMatrix() {
     const permissions = latestPayload?.permissions as
       | Record<string, Record<string, Access>>
       | undefined;
-    if (!permissions) return;
     setMatrix((current) => current.map((row) => ({
       ...row,
-      access: ROLES_SHORT.map((role, roleIndex) => permissions[role]?.[row.module] ?? row.access[roleIndex] ?? NONE),
+      access: roleColumns.map((role, roleIndex) => permissions?.[role]?.[row.module] ?? row.access[roleIndex] ?? NONE),
     })));
-  }, [latestPayload]);
+  }, [latestPayload, roleColumnKey]);
 
   async function saveMatrix() {
     setSaveState("saving");
@@ -149,7 +153,7 @@ function PermissionMatrix() {
       const status = await getConfigStatus();
       const base = status.published?.payload ?? status.draft?.payload ?? config?.payload ?? {};
       const permissions = Object.fromEntries(
-        ROLES_SHORT.map((role, roleIndex) => [
+        roleColumns.map((role, roleIndex) => [
           role,
           Object.fromEntries(matrix.map((row) => [row.module, row.access[roleIndex]])),
         ]),
@@ -255,7 +259,7 @@ function PermissionMatrix() {
               <th style={{ textAlign: "left", padding: "8px 14px", fontWeight: 700, color: C.gray700 }}>
                 Module
               </th>
-              {ROLES_SHORT.map((r) => (
+              {roleColumns.map((r) => (
                 <th
                   key={r}
                   style={{
@@ -327,7 +331,11 @@ export function StudioUsersPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"users" | "matrix">("users");
   const [roleFilter, setRoleFilter] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
+  const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [roleError, setRoleError] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editRole, setEditRole] = useState("");
   const [editRoles, setEditRoles] = useState<string[]>([]);
@@ -340,6 +348,7 @@ export function StudioUsersPage() {
     staleTime: 0,
     refetchOnMount: "always",
   });
+  const { data: roleData } = useQuery({ queryKey: ["user-roles"], queryFn: listRoles });
   const statusPayload = configStatus?.published?.payload ?? configStatus?.draft?.payload;
   const statusDepartments =
     statusPayload?.institution &&
@@ -349,16 +358,12 @@ export function StudioUsersPage() {
           (department): department is string => typeof department === "string",
         )
       : [];
-  const departments = statusDepartments.length > 0
-    ? statusDepartments
-    : configuredDepartments.length > 0
-      ? configuredDepartments
-      : DEFAULT_DEPARTMENTS;
+  const departments = statusDepartments.length > 0 ? statusDepartments : configuredDepartments;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["studio-users", roleFilter],
+      queryKey: ["studio-users", roleFilter, searchFilter, page],
     queryFn: () =>
-      listUsers({ role: roleFilter || undefined, limit: 100 }),
+        listUsers({ role: roleFilter || undefined, search: searchFilter || undefined, page, limit: 20 }),
     staleTime: 30_000,
   });
 
@@ -369,8 +374,8 @@ export function StudioUsersPage() {
     }: {
       id: string;
       body: {
-        role?: (typeof VALID_ROLES)[number];
-        roles?: (typeof VALID_ROLES)[number][];
+          role?: string;
+          roles?: string[];
         isActive?: boolean;
         department?: string | null;
       };
@@ -381,6 +386,19 @@ export function StudioUsersPage() {
     },
     onError: (err) => {
       setEditError(err instanceof Error ? err.message : "Update failed");
+    },
+  });
+
+  const createRoleMut = useMutation({
+    mutationFn: () => createRole(newRoleName.trim()),
+    onSuccess: () => {
+      setNewRoleName("");
+      setRoleError(null);
+      setShowCreate(false);
+      void qc.invalidateQueries({ queryKey: ["user-roles"] });
+    },
+    onError: (err) => {
+      setRoleError(err instanceof Error ? err.message : "Failed to create role");
     },
   });
 
@@ -397,8 +415,8 @@ export function StudioUsersPage() {
     updateMut.mutate({
       id: editingUser.id,
       body: {
-        role: editRole as (typeof VALID_ROLES)[number],
-        roles: editRoles as (typeof VALID_ROLES)[number][],
+        role: editRole,
+        roles: editRoles,
         department: editRoles.includes("hod") ? editDepartment || null : null,
       },
     });
@@ -415,6 +433,7 @@ export function StudioUsersPage() {
   }
 
   const users = data?.data ?? [];
+  const roleOptions = Array.from(new Set([...(roleData?.data ?? []), ...VALID_ROLES]));
 
   return (
     <div>
@@ -435,6 +454,21 @@ export function StudioUsersPage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={() => { setRoleError(null); setShowCreate(true); }}
+            style={{
+              padding: "9px 20px",
+              background: "#fff",
+              color: C.blue,
+              border: `1px solid ${C.blue}`,
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            + New Role
+          </button>
           <button
             onClick={() => navigate("/users/new")}
             style={{
@@ -493,9 +527,9 @@ export function StudioUsersPage() {
           style={{ ...selectCss, maxWidth: 200 }}
         >
           <option value="">All Roles</option>
-          {VALID_ROLES.map((r) => (
-            <option key={r} value={r}>
-              {r}
+          {roleOptions.map((role) => (
+            <option key={role} value={role}>
+              {role}
             </option>
           ))}
         </select>
@@ -532,7 +566,13 @@ export function StudioUsersPage() {
               {users.map((u) => (
                 <tr key={u.id} style={{ borderBottom: `1px solid ${C.gray100}` }}>
                   <td style={{ padding: "11px 12px", fontWeight: 600, color: C.gray900 }}>
-                    {u.email}
+                    <button
+                      onClick={() => navigate(`/users/${u.id}`)}
+                      style={{ padding: 0, border: 0, background: "transparent", color: C.blue, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      {u.firstName || u.lastName ? `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() : u.email}
+                    </button>
+                    {(u.firstName || u.lastName) && <div style={{ color: C.gray500, fontSize: 12 }}>{u.email}</div>}
                   </td>
                   <td style={{ padding: "11px 12px" }}>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -558,6 +598,12 @@ export function StudioUsersPage() {
                   </td>
                   <td style={{ padding: "11px 12px" }}>
                     <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        onClick={() => navigate(`/users/${u.id}`)}
+                        style={{ padding: "4px 12px", background: C.gray100, border: `1px solid ${C.gray300}`, borderRadius: 6, fontSize: 12, cursor: "pointer" }}
+                      >
+                        Details
+                      </button>
                       <button
                         onClick={() => openEdit(u)}
                         style={{
@@ -594,10 +640,61 @@ export function StudioUsersPage() {
           </table>
         )}
       </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+        <button disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</button>
+        <span style={{ padding: "5px 8px", color: C.gray500, fontSize: 13 }}>Page {page}</span>
+        <button disabled={users.length < 20} onClick={() => setPage((current) => current + 1)}>Next</button>
+      </div>
       </> /* end users tab */
       )}
 
       {activeTab === "matrix" && <PermissionMatrix />}
+
+      {showCreate && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div style={{ background: "#fff", borderRadius: 12, padding: 28, width: 380, boxShadow: "0 8px 40px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 17, color: C.gray900 }}>Create Role</h3>
+            <p style={{ margin: "0 0 20px", fontSize: 13, color: C.gray500 }}>
+              Create the role first, then configure its access in Permission Matrix.
+            </p>
+            <label style={labelStyle}>Role name</label>
+            <input
+              autoFocus
+              value={newRoleName}
+              onChange={(event) => setNewRoleName(event.target.value)}
+              placeholder="e.g. quality_assurance"
+              style={inputCss}
+              maxLength={80}
+            />
+            {roleError && <div style={{ marginTop: 12 }}><ErrorBanner message={roleError} /></div>}
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button
+                onClick={() => createRoleMut.mutate()}
+                disabled={!newRoleName.trim() || createRoleMut.isPending}
+                style={{ flex: 1, padding: "10px", background: createRoleMut.isPending ? C.gray400 : C.blue, color: "#fff", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}
+              >
+                {createRoleMut.isPending ? "Creating…" : "Create Role"}
+              </button>
+              <button
+                onClick={() => setShowCreate(false)}
+                style={{ flex: 1, padding: "10px", background: C.gray100, border: `1px solid ${C.gray300}`, borderRadius: 8, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Role Modal */}
       {editingUser && (
@@ -631,7 +728,7 @@ export function StudioUsersPage() {
             <div style={{ marginBottom: 20 }}>
               <label style={labelStyle}>Assigned roles</label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {VALID_ROLES.map((role) => (
+                {roleOptions.map((role) => (
                   <label key={role} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
                     <input
                       type="checkbox"

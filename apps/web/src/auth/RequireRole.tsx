@@ -16,7 +16,8 @@ interface RequireRoleProps {
 export function RequireRole({ children, roles }: RequireRoleProps) {
   const { user } = useAuth();
 
-  if (!user || !roles.includes(user.role)) {
+  const assignedRoles = user?.roles?.length ? user.roles : user ? [user.role] : [];
+  if (!user || !roles.some((role) => assignedRoles.includes(role))) {
     return <Navigate to="/" replace />;
   }
 

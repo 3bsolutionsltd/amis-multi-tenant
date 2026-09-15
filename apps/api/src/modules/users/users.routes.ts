@@ -21,20 +21,8 @@ import { sendMail, buildWelcomeEmail, buildPasswordChangedByAdminEmail, buildAcc
 
 // ------------------------------------------------------------------ constants
 
-const VALID_ROLES = [
-  "admin",
-  "registrar",
-  "hod",
-  "instructor",
-  "finance",
-  "principal",
-  "dean",
-  "director",
-  "deputy_principal",
-  "procurement_officer",
-  "inventory_manager",
-] as const;
-const RolesSchema = z.array(z.enum(VALID_ROLES)).min(1).max(VALID_ROLES.length);
+const ROLE_NAME = z.string().trim().min(1).max(80).regex(/^[a-zA-Z0-9 _-]+$/);
+const RolesSchema = z.array(ROLE_NAME).min(1).max(50);
 
 // ------------------------------------------------------------------ schemas
 
@@ -66,7 +54,7 @@ const CreateUserSchema = z.object({
   // password is optional — when omitted the API auto-generates a random
   // temporary password; the user sets their own via the welcome-email link
   password: z.string().min(1).optional(),
-  role: z.enum(VALID_ROLES),
+  role: ROLE_NAME,
   roles: RolesSchema.optional(),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
@@ -83,7 +71,7 @@ const CreateUserSchema = z.object({
 
 const UpdateUserSchema = z
   .object({
-    role: z.enum(VALID_ROLES).optional(),
+    role: ROLE_NAME.optional(),
     roles: RolesSchema.optional(),
     isActive: z.boolean().optional(),
     firstName: z.string().min(1).optional(),
@@ -200,6 +188,34 @@ function toPublic(row: {
 // ------------------------------------------------------------------ routes
 
 export async function usersRoutes(app: FastifyInstance) {
+  app.get(
+    "/users/roles",
+    { preHandler: requireRole("admin") },
+    async (req, reply) => {
+      const { rows } = await pool.query<{ name: string }>(
+        `SELECT DISTINCT name FROM platform.roles WHERE tenant_id = $1 ORDER BY name`,
+        [req.user.tenantId],
+      );
+      return reply.status(200).send({ data: rows.map((row) => row.name) });
+    },
+  );
+
+  app.post(
+    "/users/roles",
+    { preHandler: requireRole("admin") },
+    async (req, reply) => {
+      const parsed = z.object({ name: ROLE_NAME }).safeParse(req.body);
+      if (!parsed.success) return reply.status(400).send({ message: "Invalid role name" });
+      const { rows } = await pool.query<{ name: string }>(
+        `INSERT INTO platform.roles (tenant_id, name) VALUES ($1, $2)
+         ON CONFLICT (tenant_id, name) DO UPDATE SET name = EXCLUDED.name
+         RETURNING name`,
+        [req.user.tenantId, parsed.data.name],
+      );
+      return reply.status(201).send({ name: rows[0].name });
+    },
+  );
+
   /**
    * GET /users
    * Query: ?role=admin&isActive=true&page=1&limit=20
@@ -236,7 +252,12 @@ export async function usersRoutes(app: FastifyInstance) {
       }
       if (search !== undefined && search.length > 0) {
         params.push(`%${search.toLowerCase()}%`);
-        conditions.push(`lower(u.email) LIKE $${params.length}`);
+        conditions.push(`(
+          lower(u.email) LIKE $${params.length}
+          OR lower(coalesce(u.first_name, '')) LIKE $${params.length}
+          OR lower(coalesce(u.last_name, '')) LIKE $${params.length}
+          OR lower(concat_ws(' ', u.first_name, u.last_name)) LIKE $${params.length}
+        )`);
       }
       if (isActive !== undefined) {
         params.push(isActive);
@@ -584,15 +605,19 @@ export async function usersRoutes(app: FastifyInstance) {
       const { rows } = await pool.query<{
         id: string;
         email: string;
+        first_name: string | null;
+        last_name: string | null;
         role: string;
+        roles: string[];
         department: string | null;
         is_active: boolean;
         created_at: string;
         last_login_at: string | null;
       }>(
-        `SELECT id, email, role, department, is_active, created_at, last_login_at
-         FROM platform.users
-         WHERE id = $1 AND tenant_id = $2`,
+         `SELECT id, email, first_name, last_name, role, department, is_active, created_at, last_login_at,
+            ARRAY[role]::text[] AS roles
+          FROM platform.users
+          WHERE id = $1 AND tenant_id = $2`,
         [id, tenantId],
       );
 

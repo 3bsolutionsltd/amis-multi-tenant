@@ -178,7 +178,7 @@ export const router = createBrowserRouter([
       { path: "admissions/new", element: <ApplicationCreatePage /> },
       { path: "admissions/import", element: <AdmissionsImportPage /> },
       { path: "admissions/:id", element: <ApplicationDetailPage /> },
-      { path: "users", element: <RequireRole roles={["admin"]}><UsersListPage /></RequireRole> },
+      { path: "users", element: <Navigate to="/admin-studio/users" replace /> },
       { path: "users/new", element: <RequireRole roles={["admin"]}><UserCreatePage /></RequireRole> },
       { path: "users/:id", element: <RequireRole roles={["admin"]}><UserDetailPage /></RequireRole> },
       { path: "my-profile", element: <ProfilePage /> },
@@ -280,7 +280,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <ConfigDashboard /> },
       { path: "profile", element: <InstituteProfilePage /> },
-      { path: "users", element: <StudioUsersPage /> },
+      { path: "users", element: <RequireRole roles={["admin"]}><StudioUsersPage /></RequireRole> },
       { path: "editor", element: <ConfigEditor /> },
       { path: "branding", element: <BrandingEditor /> },
       { path: "modules", element: <ModuleToggles /> },
