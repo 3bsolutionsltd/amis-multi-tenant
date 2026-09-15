@@ -162,12 +162,12 @@ export function StudentDetailPage() {
       first_name: student!.first_name,
       last_name: student!.last_name,
       other_names: student!.other_names ?? "",
-      date_of_birth: student!.date_of_birth ?? "",
+      date_of_birth: student!.date_of_birth?.slice(0, 10) ?? "",
       gender: student!.gender ?? "",
       nin: student!.nin ?? "",
       admission_number: student!.admission_number ?? "",
       sponsorship_type: student!.sponsorship_type ?? "",
-      programme: student!.programme ?? "",
+      programme: student!.programme_code ?? student!.programme ?? "",
       programme_code: student!.programme_code ?? "",
       email: student!.email ?? "",
       phone: student!.phone ?? "",
@@ -445,7 +445,9 @@ export function StudentDetailPage() {
             ) : (
               <Card padding="16px 20px">
                 <span style={{ fontSize: 13, color: C.gray400 }}>
-                  Fee data unavailable — ensure a published config exists.
+                  {feeQ.isError
+                    ? `Fee data unavailable: ${feeQ.error instanceof Error ? feeQ.error.message : "the fee summary request failed."}`
+                    : "No fee summary was returned for this student."}
                 </span>
               </Card>
             )}

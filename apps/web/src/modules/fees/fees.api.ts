@@ -69,6 +69,24 @@ export function recordFeeEntry(body: FeeEntryBody): Promise<Transaction> {
   });
 }
 
+export interface FeeUpdateBody {
+  amount?: number;
+  currency?: string;
+  payment_method?: string | null;
+  reference?: string;
+  paid_at?: string;
+}
+
+export function updateFeeTransaction(
+  id: string,
+  body: FeeUpdateBody,
+): Promise<{ payment: Transaction }> {
+  return apiFetch<{ payment: Transaction }>(`/fees/transactions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export interface FeeImportRow {
   studentId: string;
   amount: number;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getFeeSummary,
@@ -10,6 +10,7 @@ import {
   type Transaction,
   type FeeOverview,
   type Defaulter,
+  updateFeeTransaction,
 } from "./fees.api";
 import { listStudents, type Student } from "../students/students.api";
 import {
@@ -124,6 +125,7 @@ function FeeStructureBreakdown({ summary }: { summary: FeeSummary }) {
 export function FeesPage() {
   ensureGlobalCss();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [params] = useSearchParams();
   const prefillId = params.get("student_id");
   const prefillName = params.get("student_name");
@@ -140,6 +142,10 @@ export function FeesPage() {
       ? ({ id: prefillId, first_name: prefillName, last_name: "" } as Student)
       : null,
   );
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [editForm, setEditForm] = useState({ amount: "", payment_method: "", reference: "", paid_at: "" });
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   const overviewQ = useQuery({
     queryKey: ["feeOverview"],
@@ -169,6 +175,42 @@ export function FeesPage() {
     enabled: !!selectedStudentId,
   });
   const transactions: Transaction[] = txnResult?.rows ?? [];
+
+  function startEditing(transaction: Transaction) {
+    setEditingTransaction(transaction);
+    setEditForm({
+      amount: String(transaction.amount),
+      payment_method: transaction.payment_method ?? "",
+      reference: transaction.reference ?? "",
+      paid_at: transaction.paid_at.slice(0, 10),
+    });
+    setEditError(null);
+  }
+
+  async function saveEditedTransaction() {
+    if (!editingTransaction) return;
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await updateFeeTransaction(editingTransaction.id, {
+        amount: Number(editForm.amount),
+        payment_method: editForm.payment_method || null,
+        reference: editForm.reference,
+        paid_at: editForm.paid_at,
+      });
+      setEditingTransaction(null);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["feeTransactions", selectedStudentId] }),
+        qc.invalidateQueries({ queryKey: ["feeSummary", selectedStudentId] }),
+        qc.invalidateQueries({ queryKey: ["feeOverview"] }),
+        qc.invalidateQueries({ queryKey: ["feeDefaulters"] }),
+      ]);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Failed to update payment");
+    } finally {
+      setEditSaving(false);
+    }
+  }
 
   function selectStudent(student: Student) {
     setSelectedStudentId(student.id);
@@ -407,14 +449,31 @@ export function FeesPage() {
             Payment History
           </div>
 
+          {editingTransaction && (
+            <Card padding="16px 20px" style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, marginBottom: 12 }}>Edit payment</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10 }}>
+                <input type="number" min={0.01} step="0.01" value={editForm.amount} onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))} aria-label="Amount" />
+                <input value={editForm.payment_method} onChange={(e) => setEditForm((f) => ({ ...f, payment_method: e.target.value }))} placeholder="Method" aria-label="Payment method" />
+                <input value={editForm.reference} onChange={(e) => setEditForm((f) => ({ ...f, reference: e.target.value }))} placeholder="Reference" aria-label="Reference" />
+                <input type="date" value={editForm.paid_at} onChange={(e) => setEditForm((f) => ({ ...f, paid_at: e.target.value }))} aria-label="Paid date" />
+              </div>
+              {editError && <div style={{ color: "#dc2626", fontSize: 13, marginTop: 8 }}>{editError}</div>}
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <PrimaryBtn onClick={saveEditedTransaction} disabled={editSaving}>{editSaving ? "Saving…" : "Save changes"}</PrimaryBtn>
+                <SecondaryBtn onClick={() => setEditingTransaction(null)} disabled={editSaving}>Cancel</SecondaryBtn>
+              </div>
+            </Card>
+          )}
+
           <DataTable
-            headers={["Date", "Amount", "Currency", "Method", "Reference", "Source"]}
+            headers={["Date", "Amount", "Currency", "Method", "Reference", "Source", ""]}
             isLoading={txnLoading}
             isEmpty={!txnLoading && transactions.length === 0}
             emptyIcon="💳"
             emptyTitle="No payments recorded"
             emptyDescription='Click "+ Record Payment" to add the first.'
-            colCount={6}
+            colCount={7}
           >
             {transactions.map((txn) => (
               <TR key={txn.id}>
@@ -428,6 +487,9 @@ export function FeesPage() {
                 <TD muted>{txn.payment_method ?? "—"}</TD>
                 <TD muted>{txn.reference ?? "—"}</TD>
                 <TD muted>{txn.source}</TD>
+                <TD>
+                  <SecondaryBtn onClick={() => startEditing(txn)}>Edit</SecondaryBtn>
+                </TD>
               </TR>
             ))}
           </DataTable>
