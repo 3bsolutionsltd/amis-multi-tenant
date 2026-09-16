@@ -57,6 +57,7 @@ type FeeBalanceResult =
 
 type PaymentRow = {
   id: string;
+  student_id: string;
   amount: string | number;
   currency: string | null;
   reference: string | null;
@@ -320,7 +321,7 @@ export async function feesRoutes(app: FastifyInstance) {
 
         const fields = Object.keys(updates) as (keyof typeof updates)[];
         const setClauses = fields.map((field, index) => `${field} = $${index + 2}`).join(", ");
-        const values = fields.map((field) => updates[field]);
+        const values = fields.map((field) => updates[field] as string | number | null);
         const { rows } = await client.query<PaymentRow>(
           `UPDATE app.payments SET ${setClauses} WHERE id = $1 RETURNING *`,
           [req.params.id, ...values],
