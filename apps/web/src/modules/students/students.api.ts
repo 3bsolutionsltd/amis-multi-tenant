@@ -44,6 +44,7 @@ export interface CreateStudentBody {
   admission_number?: string;
   sponsorship_type?: string;
   programme?: string;
+  programme_id?: string;
   programme_code?: string;
   year_of_study?: number;
   class_section?: string;

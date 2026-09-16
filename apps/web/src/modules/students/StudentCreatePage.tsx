@@ -75,7 +75,7 @@ const INITIAL_FORM = {
   first_name: "", last_name: "", other_names: "", date_of_birth: "",
   gender: "", nin: "", phone: "", email: "", district_of_origin: "",
   // Academic Placement
-  admission_number: "", programme: "", year_of_study: "", class_section: "",
+  admission_number: "", programme: "", programme_id: "", year_of_study: "", class_section: "",
   sponsorship_type: "", intake_year: "", entry_qualification: "",
   // Guardian / NOK
   guardian_name: "", guardian_relationship: "", guardian_phone: "", guardian_email: "",
@@ -120,10 +120,14 @@ export function StudentCreatePage() {
     },
     onError: (err) => {
       if (err instanceof ApiError && err.status === 422) {
-        const body = err.body as { error?: { fieldErrors?: Record<string, string[]> } };
+        const body = err.body as { error?: string | { fieldErrors?: Record<string, string[]> } };
         const fe: Record<string, string> = {};
-        for (const [k, v] of Object.entries(body?.error?.fieldErrors ?? {})) {
-          fe[k] = Array.isArray(v) ? v[0] : String(v);
+        if (typeof body?.error === "object") {
+          for (const [k, v] of Object.entries(body.error.fieldErrors ?? {})) {
+            fe[k] = Array.isArray(v) ? v[0] : String(v);
+          }
+        } else if (body?.error) {
+          fe.form = body.error;
         }
         setFieldErrors(fe);
       }
@@ -168,6 +172,7 @@ export function StudentCreatePage() {
     if (form.email)           payload.email            = form.email;
     if (form.admission_number) payload.admission_number = form.admission_number;
     if (form.programme)       payload.programme        = form.programme;
+    if (form.programme_id)    payload.programme_id     = form.programme_id;
     if (form.programme_code)  payload.programme_code   = form.programme_code;
     if (form.year_of_study)   payload.year_of_study    = Number(form.year_of_study);
     if (form.class_section)   payload.class_section    = form.class_section;
@@ -320,10 +325,14 @@ export function StudentCreatePage() {
               </Field>
               <div style={full}>
                 <Field label="Programme">
-                  <select style={selectCss} value={form.programme} onChange={setField("programme")}>
+                  <select style={selectCss} value={form.programme_id} onChange={(e) => {
+                    const selected = (programmes ?? []).find((p) => p.id === e.target.value);
+                    setForm((p) => ({ ...p, programme_id: e.target.value, programme: selected?.code ?? "" }));
+                    setFieldErrors((p) => { const n = { ...p }; delete n.programme; delete n.form; return n; });
+                  }}>
                     <option value="">— Select Programme —</option>
                     {(programmes ?? []).map((p) => (
-                      <option key={p.id} value={p.code}>{p.code} — {p.title}</option>
+                      <option key={p.id} value={p.id}>{p.code} — {p.title}</option>
                     ))}
                   </select>
                 </Field>
@@ -416,6 +425,7 @@ export function StudentCreatePage() {
             </>
           )}
 
+          {fieldErrors.form && <ErrorBanner message={fieldErrors.form} />}
           {apiError && <ErrorBanner message={apiError} />}
 
           {/* ── Navigation buttons ── */}
