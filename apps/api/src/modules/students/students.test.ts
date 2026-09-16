@@ -55,6 +55,20 @@ describe("GET /students", () => {
     );
   });
 
+  it("allows finance to read the student list", async () => {
+    mockWithTenant.mockResolvedValueOnce({ rows: [] } as never);
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/students",
+      headers: { "x-tenant-id": "tenant-uuid-1", "x-dev-role": "finance" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([]);
+  });
+
   it("filters by search query when provided", async () => {
     const fakeStudents = [
       {

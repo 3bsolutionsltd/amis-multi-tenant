@@ -163,10 +163,10 @@ const ROLE_FALLBACK_NAV: Record<string, string[]> = {
     "/", "/students", "/term-registrations", "/clearance", "/results",
   ],
   procurement_officer: [
-    "/", "/procurement", "/stores/requisitions", "/stores/pcv",
+    "/", "/students", "/procurement", "/stores/requisitions", "/stores/pcv",
   ],
   inventory_manager: [
-    "/", "/inventory", "/stores/requisitions", "/stores/pcv",
+    "/", "/students", "/inventory", "/stores/requisitions", "/stores/pcv",
   ],
 };
 

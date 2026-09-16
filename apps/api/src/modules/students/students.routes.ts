@@ -26,6 +26,13 @@ const STUDENT_READ_ROLES = [
   "registrar",
   "hod",
   "instructor",
+  "finance",
+  "principal",
+  "dean",
+  "director",
+  "deputy_principal",
+  "procurement_officer",
+  "inventory_manager",
 ] as const;
 
 function buildStudentVisibilityScope(
