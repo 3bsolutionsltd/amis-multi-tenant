@@ -39,6 +39,11 @@ import {
 } from "../../lib/ui";
 import { formatStudentName } from "../../lib/formatStudentName";
 
+const GUARDIAN_RELATIONSHIPS = [
+  "Mother", "Father", "Brother", "Sister", "Uncle", "Aunt",
+  "Grandparent", "Guardian", "Other",
+];
+
 export function StudentDetailPage() {
   ensureGlobalCss();
   const { id } = useParams<{ id: string }>();
@@ -58,6 +63,9 @@ export function StudentDetailPage() {
     sponsorship_type: "",
     residence_category: "",
     programme: "",
+    district_of_origin: "",
+    intake_year: "",
+    entry_qualification: "",
     programme_code: "",
     email: "",
     phone: "",
@@ -170,6 +178,9 @@ export function StudentDetailPage() {
       sponsorship_type: student!.sponsorship_type ?? "",
       residence_category: student!.residence_category ?? "",
       programme: student!.programme_code ?? student!.programme ?? "",
+      district_of_origin: String(student!.extension?.district_of_origin ?? ""),
+      intake_year: String(student!.extension?.intake_year ?? ""),
+      entry_qualification: String(student!.extension?.entry_qualification ?? ""),
       programme_code: student!.programme_code ?? "",
       email: student!.email ?? "",
       phone: student!.phone ?? "",
@@ -210,6 +221,14 @@ export function StudentDetailPage() {
       previous_index: form.previous_index || undefined,
     };
     if (form.date_of_birth) body.date_of_birth = form.date_of_birth;
+    const extension = { ...student!.extension };
+    if (form.district_of_origin) extension.district_of_origin = form.district_of_origin;
+    else delete extension.district_of_origin;
+    if (form.intake_year) extension.intake_year = form.intake_year;
+    else delete extension.intake_year;
+    if (form.entry_qualification) extension.entry_qualification = form.entry_qualification;
+    else delete extension.entry_qualification;
+    body.extension = extension;
     mutation.mutate(body);
   }
 
@@ -782,7 +801,7 @@ export function StudentDetailPage() {
                   onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
                 />
               </Field>
-              <Field label="Sponsorship / Fee Category">
+              <Field label="Sponsorship / Funding" required>
                 <select
                   style={selectCss}
                   value={form.sponsorship_type}
@@ -794,7 +813,7 @@ export function StudentDetailPage() {
                   ))}
                 </select>
               </Field>
-              <Field label="Residence / Fee Category">
+              <Field label="Residence / Fee Category" required>
                 <select
                   style={selectCss}
                   value={form.residence_category}
@@ -806,8 +825,12 @@ export function StudentDetailPage() {
                 </select>
               </Field>
             </div>
+            <div style={{ marginTop: 4, padding: "12px 14px", background: "#f0f7ff", border: "1px solid #c9e1f7", borderRadius: 6 }}>
+              <strong style={{ display: "block", fontSize: 14, color: C.gray700 }}>Financial Status</strong>
+              <span style={{ fontSize: 13, color: C.gray600 }}>Programme and year of study determine the fee schedule. Sponsorship and residence determine the matching fee category.</span>
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Programme">
+              <Field label="Programme (required for fees)" required>
                 <select
                   style={selectCss}
                   value={form.programme}
@@ -831,7 +854,17 @@ export function StudentDetailPage() {
               </Field>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Year of Study">
+              <Field label="Intake Year">
+                <input style={inputCss} placeholder={String(new Date().getFullYear())} maxLength={4}
+                  value={form.intake_year} onChange={(e) => setForm({ ...form, intake_year: e.target.value })} />
+              </Field>
+              <Field label="District of Origin">
+                <input style={inputCss} value={form.district_of_origin}
+                  onChange={(e) => setForm({ ...form, district_of_origin: e.target.value })} />
+              </Field>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Field label="Year of Study (required for fees)" required>
                 <select
                   style={selectCss}
                   value={form.year_of_study}
@@ -850,6 +883,10 @@ export function StudentDetailPage() {
                   value={form.class_section}
                   onChange={(e) => setForm({ ...form, class_section: e.target.value })}
                 />
+              </Field>
+              <Field label="Entry Qualification">
+                <input style={inputCss} placeholder="e.g. UCE, PLE, UACE" value={form.entry_qualification}
+                  onChange={(e) => setForm({ ...form, entry_qualification: e.target.value })} />
               </Field>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -935,12 +972,11 @@ export function StudentDetailPage() {
               />
             </Field>
             <Field label="Relationship">
-              <input
-                style={inputCss}
-                value={form.guardian_relationship}
-                onChange={(e) => setForm({ ...form, guardian_relationship: e.target.value })}
-                placeholder="e.g. Mother, Father, Sibling"
-              />
+              <select style={selectCss} value={form.guardian_relationship}
+                onChange={(e) => setForm({ ...form, guardian_relationship: e.target.value })}>
+                <option value="">— Select —</option>
+                {GUARDIAN_RELATIONSHIPS.map((relationship) => <option key={relationship} value={relationship}>{relationship}</option>)}
+              </select>
             </Field>
             <Field label="Guardian phone">
               <input

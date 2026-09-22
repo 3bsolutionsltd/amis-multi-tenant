@@ -12,6 +12,7 @@ export interface Student {
   sponsorship_type: string | null;
   residence_category: "day" | "boarding" | null;
   programme: string | null;
+  programme_id: string | null;
   programme_code: string | null;
   email: string | null;
   phone: string | null;

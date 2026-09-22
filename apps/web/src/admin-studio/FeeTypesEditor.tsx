@@ -118,7 +118,7 @@ export function FeeTypesEditor() {
       <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>Fee Types &amp; Student Categories</h2>
       <p style={{ fontSize: 13, color: "#64748b", marginBottom: 28 }}>
         Configure the fee type labels and student category labels available when building fee structures.
-        Defaults are used when none are saved.
+        Save a draft while editing, then use Save &amp; Publish before creating fee structures with new types.
       </p>
 
       {/* Fee Types section */}
