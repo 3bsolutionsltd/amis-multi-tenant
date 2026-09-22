@@ -39,6 +39,28 @@ import {
 } from "../../lib/ui";
 import { formatStudentName } from "../../lib/formatStudentName";
 
+const UGANDA_DISTRICTS = [
+  "Abim", "Adjumani", "Agago", "Alebtong", "Amolatar", "Amudat", "Amuria",
+  "Amuru", "Apac", "Arua", "Budaka", "Bududa", "Bugiri", "Buhweju", "Buikwe",
+  "Bukedea", "Bukomansimbi", "Bukwo", "Bulambuli", "Buliisa", "Bundibugyo",
+  "Bunyangabu", "Bushenyi", "Busia", "Butaleja", "Butebo", "Buvuma", "Buyende",
+  "Dokolo", "Gomba", "Gulu", "Hoima", "Ibanda", "Iganga", "Isingiro", "Jinja",
+  "Kaabong", "Kabale", "Kabarole", "Kaberamaido", "Kagadi", "Kakumiro",
+  "Kalangala", "Kaliro", "Kalungu", "Kampala", "Kamuli", "Kamwenge", "Kanungu",
+  "Kapchorwa", "Kapelebyong", "Kasanda", "Kasese", "Katakwi", "Kayunga", "Kazo",
+  "Kibale", "Kiboga", "Kibuku", "Kikuube", "Kiruhura", "Kiryandongo", "Kisoro",
+  "Kitagwenda", "Kitgum", "Koboko", "Kole", "Kotido", "Kumi", "Kwania",
+  "Kyankwanzi", "Kyegegwa", "Kyenjojo", "Kyotera", "Lamwo", "Lira", "Luuka",
+  "Luwero", "Lwengo", "Lyantonde", "Madi-Okollo", "Manafwa", "Maracha", "Masaka",
+  "Masindi", "Mayuge", "Mbale", "Mbarara", "Mitooma", "Mityana", "Moroto", "Moyo",
+  "Mpigi", "Mubende", "Mukono", "Nabilatuk", "Nakapiripirit", "Nakaseke",
+  "Nakasongola", "Namayingo", "Namisindwa", "Namutumba", "Napak", "Nebbi",
+  "Ngora", "Ntoroko", "Ntungamo", "Nwoya", "Obongi", "Omoro", "Otuke", "Oyam",
+  "Pader", "Pakwach", "Pallisa", "Rakai", "Rubanda", "Rubirizi", "Rukiga",
+  "Rukungiri", "Rwampara", "Sembabule", "Serere", "Sheema", "Sironko", "Soroti",
+  "Tororo", "Wakiso", "Yumbe", "Zombo",
+];
+
 const GUARDIAN_RELATIONSHIPS = [
   "Mother", "Father", "Brother", "Sister", "Uncle", "Aunt",
   "Grandparent", "Guardian", "Other",
@@ -859,8 +881,13 @@ export function StudentDetailPage() {
                   value={form.intake_year} onChange={(e) => setForm({ ...form, intake_year: e.target.value })} />
               </Field>
               <Field label="District of Origin">
-                <input style={inputCss} value={form.district_of_origin}
-                  onChange={(e) => setForm({ ...form, district_of_origin: e.target.value })} />
+                <select style={selectCss} value={form.district_of_origin}
+                  onChange={(e) => setForm({ ...form, district_of_origin: e.target.value })}>
+                  <option value="">— Select District —</option>
+                  {UGANDA_DISTRICTS.map((district) => (
+                    <option key={district} value={district}>{district}</option>
+                  ))}
+                </select>
               </Field>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
