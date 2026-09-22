@@ -47,6 +47,7 @@ export function TermRegistrationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   const [transitionError, setTransitionError] = useState<string | null>(null);
 
@@ -109,7 +110,6 @@ export function TermRegistrationDetailPage() {
     );
 
   const currentState = reg.current_state;
-  const { user } = useAuth();
   const myRole = user?.role ?? null;
   const superRoles = ["admin", "platform_admin"];
   const canReviewDocs = myRole !== null && (superRoles.includes(myRole) || myRole === "registrar");

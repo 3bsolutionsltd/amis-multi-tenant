@@ -32,6 +32,7 @@ type StudentFeeContext = {
   programme: string | null;
   programme_code: string | null;
   sponsorship_type: string | null;
+  residence_category: string | null;
 };
 
 type FeeStructureLine = {
@@ -75,7 +76,9 @@ type ManualFeeEntryResult =
   | { overpayment: true; totalDue: number; totalPaid: number; balance: number }
   | { payment: PaymentRow; student: StudentSmsContact | null };
 
-function studentCategory(sponsorshipType: string | null) {
+function studentCategory(residenceCategory: string | null, sponsorshipType: string | null) {
+  const explicitCategory = residenceCategory?.toLowerCase();
+  if (explicitCategory === "day" || explicitCategory === "boarding") return explicitCategory;
   const normalized = sponsorshipType?.toLowerCase() ?? "";
   if (normalized.includes("boarding") || normalized.includes("boarder")) return "boarding";
   if (normalized.includes("day")) return "day";
@@ -98,7 +101,7 @@ async function getDefaultTotalDue(client: Queryable, tid: string) {
 
 async function loadStudentFeeContext(client: Queryable, studentId: string) {
   const { rows } = await client.query<StudentFeeContext>(
-    `SELECT id, programme_id, programme, programme_code, sponsorship_type
+    `SELECT id, programme_id, programme, programme_code, sponsorship_type, residence_category
      FROM app.students
      WHERE id = $1`,
     [studentId],
@@ -110,7 +113,7 @@ async function listApplicableFeeStructures(
   client: Queryable,
   student: StudentFeeContext,
 ) {
-  const category = studentCategory(student.sponsorship_type);
+  const category = studentCategory(student.residence_category, student.sponsorship_type);
   const categoryFilter = category === "all" ? ["all"] : ["all", category];
 
   const { rows } = await client.query<FeeStructureLine>(

@@ -10,6 +10,7 @@ export interface Student {
   nin: string | null;
   admission_number: string | null;
   sponsorship_type: string | null;
+  residence_category: "day" | "boarding" | null;
   programme: string | null;
   programme_code: string | null;
   email: string | null;
@@ -42,11 +43,12 @@ export interface CreateStudentBody {
   gender?: "male" | "female" | "other";
   nin?: string;
   admission_number?: string;
-  sponsorship_type?: string;
-  programme?: string;
+  sponsorship_type: "Government" | "Private";
+  residence_category: "day" | "boarding";
+  programme: string;
   programme_id?: string;
   programme_code?: string;
-  year_of_study?: number;
+  year_of_study: number;
   class_section?: string;
   assessment_level?: number;
   previous_index?: string;
@@ -68,6 +70,7 @@ export interface UpdateStudentBody {
   nin?: string;
   admission_number?: string;
   sponsorship_type?: string;
+  residence_category?: "day" | "boarding";
   programme?: string;
   programme_id?: string;
   programme_code?: string;

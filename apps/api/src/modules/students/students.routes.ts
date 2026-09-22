@@ -15,7 +15,7 @@ import {
 
 const SELECT_COLS =
   "id, first_name, last_name, other_names, date_of_birth::text AS date_of_birth, gender, nin, " +
-  "admission_number, sponsorship_type, programme, programme_id, programme_code, email, phone, " +
+  "admission_number, sponsorship_type, residence_category, programme, programme_id, programme_code, email, phone, " +
   "year_of_study, class_section, assessment_level, previous_index, extension, " +
   "guardian_name, guardian_phone, guardian_email, guardian_relationship, " +
   "dropout_reason, dropout_date, dropout_notes, " +
@@ -318,6 +318,7 @@ export async function studentsRoutes(app: FastifyInstance) {
         nin,
         admission_number,
         sponsorship_type,
+        residence_category,
         programme,
         programme_id,
         programme_code,
@@ -347,10 +348,10 @@ export async function studentsRoutes(app: FastifyInstance) {
         return client.query(
           `INSERT INTO app.students
              (tenant_id, first_name, last_name, other_names, date_of_birth, gender, nin,
-              admission_number, sponsorship_type, programme, programme_id, programme_code, email, phone,
+              admission_number, sponsorship_type, residence_category, programme, programme_id, programme_code, email, phone,
               year_of_study, class_section, assessment_level, previous_index, extension,
               guardian_name, guardian_phone, guardian_email, guardian_relationship)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
            RETURNING ${SELECT_COLS}`,
           [
             tenantId,
@@ -362,6 +363,7 @@ export async function studentsRoutes(app: FastifyInstance) {
             nin ?? null,
             admission_number ?? null,
             sponsorship_type ?? null,
+            residence_category,
             programmeRef?.title ?? programme ?? null,
             programmeRef?.id ?? programme_id ?? null,
             programmeRef?.code ?? programme_code ?? null,
@@ -412,6 +414,7 @@ export async function studentsRoutes(app: FastifyInstance) {
         nin,
         admission_number,
         sponsorship_type,
+        residence_category,
         programme,
         programme_id,
         programme_code,
@@ -449,20 +452,21 @@ export async function studentsRoutes(app: FastifyInstance) {
              nin                   = COALESCE($7, nin),
              admission_number      = COALESCE($8, admission_number),
              sponsorship_type      = COALESCE($9, sponsorship_type),
-             programme             = COALESCE($10, programme),
-             programme_id          = COALESCE($11::uuid, programme_id),
-             programme_code        = COALESCE($12, programme_code),
-             email                 = COALESCE($13, email),
-             phone                 = COALESCE($14, phone),
-             year_of_study         = COALESCE($15::smallint, year_of_study),
-             class_section         = COALESCE($16, class_section),
-             assessment_level      = COALESCE($17::smallint, assessment_level),
-             previous_index        = COALESCE($18, previous_index),
-             extension             = COALESCE($19::jsonb, extension),
-             guardian_name         = COALESCE($20, guardian_name),
-             guardian_phone        = COALESCE($21, guardian_phone),
-             guardian_email        = COALESCE($22, guardian_email),
-             guardian_relationship = COALESCE($23, guardian_relationship),
+             residence_category    = COALESCE($10, residence_category),
+             programme             = COALESCE($11, programme),
+             programme_id          = COALESCE($12::uuid, programme_id),
+             programme_code        = COALESCE($13, programme_code),
+             email                 = COALESCE($14, email),
+             phone                 = COALESCE($15, phone),
+             year_of_study         = COALESCE($16::smallint, year_of_study),
+             class_section         = COALESCE($17, class_section),
+             assessment_level      = COALESCE($18::smallint, assessment_level),
+             previous_index        = COALESCE($19, previous_index),
+             extension             = COALESCE($20::jsonb, extension),
+             guardian_name         = COALESCE($21, guardian_name),
+             guardian_phone        = COALESCE($22, guardian_phone),
+             guardian_email        = COALESCE($23, guardian_email),
+             guardian_relationship = COALESCE($24, guardian_relationship),
              updated_at            = now()
            WHERE id = $1
            RETURNING ${SELECT_COLS}`,
@@ -476,6 +480,7 @@ export async function studentsRoutes(app: FastifyInstance) {
             nin ?? null,
             admission_number ?? null,
             sponsorship_type ?? null,
+            residence_category ?? null,
             programmeRef?.title ?? programme ?? null,
             programmeRef?.id ?? programme_id ?? null,
             programmeRef?.code ?? programme_code ?? null,
@@ -863,6 +868,8 @@ export async function studentsRoutes(app: FastifyInstance) {
           const intakeYear      = COL(row, "Intake Year", "intake_year", "Intake");
           const enrolledRaw     = COL(row, "Enrolled status", "Enrolled Status", "enrolled_status", "is_active");
           const sponsorship     = COL(row, "sponsorship", "Sponsorship", "sponsorship_type");
+          const residence       = COL(row, "Residence", "Residence Category", "residence_category").toLowerCase();
+          const residenceCategory = residence === "day" || residence === "boarding" ? residence : null;
 
           // Normalise date
           let dob: string | null = null;
@@ -899,15 +906,16 @@ export async function studentsRoutes(app: FastifyInstance) {
               queryText = `
                 INSERT INTO app.students
                   (tenant_id, first_name, last_name, date_of_birth, admission_number,
-                   sponsorship_type, programme, programme_id, email, phone,
+                   sponsorship_type, residence_category, programme, programme_id, email, phone,
                    guardian_name, guardian_phone, extension, is_active)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
                 ON CONFLICT (tenant_id, admission_number)
                 DO UPDATE SET
                   first_name       = EXCLUDED.first_name,
                   last_name        = EXCLUDED.last_name,
                   date_of_birth    = COALESCE(EXCLUDED.date_of_birth, app.students.date_of_birth),
                   sponsorship_type = COALESCE(EXCLUDED.sponsorship_type, app.students.sponsorship_type),
+                  residence_category = COALESCE(EXCLUDED.residence_category, app.students.residence_category),
                   programme        = COALESCE(EXCLUDED.programme, app.students.programme),
                   programme_id     = COALESCE(EXCLUDED.programme_id, app.students.programme_id),
                   email            = COALESCE(EXCLUDED.email, app.students.email),
@@ -918,7 +926,7 @@ export async function studentsRoutes(app: FastifyInstance) {
                 RETURNING id, (xmax = 0) AS was_inserted`;
               queryValues = [
                 tenantId, firstName, lastName, dob, admissionNumber || null,
-                sponsorship || null, resolvedProgrammeText, resolvedProgrammeId,
+                sponsorship || null, residenceCategory, resolvedProgrammeText, resolvedProgrammeId,
                 email || null, phone || null, nokName || null, nokPhone || null,
                 JSON.stringify(extension), isActive,
               ];
@@ -926,13 +934,13 @@ export async function studentsRoutes(app: FastifyInstance) {
               queryText = `
                 INSERT INTO app.students
                   (tenant_id, first_name, last_name, date_of_birth, admission_number,
-                   sponsorship_type, programme, programme_id, email, phone,
+                   sponsorship_type, residence_category, programme, programme_id, email, phone,
                    guardian_name, guardian_phone, extension, is_active)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
                 RETURNING id`;
               queryValues = [
                 tenantId, firstName, lastName, dob, admissionNumber || null,
-                sponsorship || null, resolvedProgrammeText, resolvedProgrammeId,
+                sponsorship || null, residenceCategory, resolvedProgrammeText, resolvedProgrammeId,
                 email || null, phone || null, nokName || null, nokPhone || null,
                 JSON.stringify(extension), isActive,
               ];

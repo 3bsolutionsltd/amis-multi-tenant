@@ -56,6 +56,7 @@ export function StudentDetailPage() {
     nin: "",
     admission_number: "",
     sponsorship_type: "",
+    residence_category: "",
     programme: "",
     programme_code: "",
     email: "",
@@ -167,6 +168,7 @@ export function StudentDetailPage() {
       nin: student!.nin ?? "",
       admission_number: student!.admission_number ?? "",
       sponsorship_type: student!.sponsorship_type ?? "",
+      residence_category: student!.residence_category ?? "",
       programme: student!.programme_code ?? student!.programme ?? "",
       programme_code: student!.programme_code ?? "",
       email: student!.email ?? "",
@@ -193,6 +195,7 @@ export function StudentDetailPage() {
       nin: form.nin || undefined,
       admission_number: form.admission_number || undefined,
       sponsorship_type: form.sponsorship_type || undefined,
+      residence_category: (form.residence_category as "day" | "boarding") || undefined,
       programme: form.programme || undefined,
       programme_code: form.programme_code || undefined,
       email: form.email || undefined,
@@ -300,6 +303,7 @@ export function StudentDetailPage() {
             <DetailRow label="Admission No.">{student.admission_number ?? "—"}</DetailRow>
             <DetailRow label="Date of birth">{student.date_of_birth ?? "—"}</DetailRow>
             {student.sponsorship_type && <DetailRow label="Sponsorship">{student.sponsorship_type}</DetailRow>}
+            <DetailRow label="Residence / Fee Category">{student.residence_category ?? "Financial status incomplete"}</DetailRow>
             {student.email && <DetailRow label="Email">{student.email}</DetailRow>}
             {student.phone && <DetailRow label="Phone">{student.phone}</DetailRow>}
             {extensionFields.map((f) => (
