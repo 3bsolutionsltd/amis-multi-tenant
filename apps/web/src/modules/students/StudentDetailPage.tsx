@@ -38,6 +38,7 @@ import {
   C,
 } from "../../lib/ui";
 import { formatStudentName } from "../../lib/formatStudentName";
+import { ApiError } from "../../lib/apiFetch";
 
 const UGANDA_DISTRICTS = [
   "Abim", "Adjumani", "Agago", "Alebtong", "Amolatar", "Amudat", "Amuria",
@@ -85,6 +86,7 @@ export function StudentDetailPage() {
     sponsorship_type: "",
     residence_category: "",
     programme: "",
+    programme_id: "",
     district_of_origin: "",
     intake_year: "",
     entry_qualification: "",
@@ -200,6 +202,7 @@ export function StudentDetailPage() {
       sponsorship_type: student!.sponsorship_type ?? "",
       residence_category: student!.residence_category ?? "",
       programme: student!.programme_code ?? student!.programme ?? "",
+      programme_id: student!.programme_id ?? "",
       district_of_origin: String(student!.extension?.district_of_origin ?? ""),
       intake_year: String(student!.extension?.intake_year ?? ""),
       entry_qualification: String(student!.extension?.entry_qualification ?? ""),
@@ -230,6 +233,7 @@ export function StudentDetailPage() {
       sponsorship_type: form.sponsorship_type || undefined,
       residence_category: (form.residence_category as "day" | "boarding") || undefined,
       programme: form.programme || undefined,
+      programme_id: form.programme_id || undefined,
       programme_code: form.programme_code || undefined,
       email: form.email || undefined,
       phone: form.phone || undefined,
@@ -855,12 +859,20 @@ export function StudentDetailPage() {
               <Field label="Programme (required for fees)" required>
                 <select
                   style={selectCss}
-                  value={form.programme}
-                  onChange={(e) => setForm({ ...form, programme: e.target.value, programme_code: e.target.value })}
+                  value={form.programme_id}
+                  onChange={(e) => {
+                    const selected = (programmes ?? []).find((p) => p.id === e.target.value);
+                    setForm({
+                      ...form,
+                      programme_id: e.target.value,
+                      programme: selected?.title ?? "",
+                      programme_code: selected?.code ?? "",
+                    });
+                  }}
                 >
                   <option value="">— Select Programme —</option>
                   {(programmes ?? []).map((p) => (
-                    <option key={p.id} value={p.code}>
+                    <option key={p.id} value={p.id}>
                       {p.code} — {p.title}
                     </option>
                   ))}
@@ -1023,7 +1035,9 @@ export function StudentDetailPage() {
               />
             </Field>
             {mutation.isError && (
-              <ErrorBanner message="Save failed. Please try again." />
+              <ErrorBanner
+                message={mutation.error instanceof ApiError ? mutation.error.message : "Save failed. Please try again."}
+              />
             )}
             <div style={{ display: "flex", gap: 8 }}>
               <PrimaryBtn type="submit" disabled={mutation.isPending}>
