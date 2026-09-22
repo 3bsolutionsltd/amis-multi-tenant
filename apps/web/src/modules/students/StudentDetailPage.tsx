@@ -789,9 +789,20 @@ export function StudentDetailPage() {
                   onChange={(e) => setForm({ ...form, sponsorship_type: e.target.value })}
                 >
                   <option value="">— Select —</option>
-                  {["Government", "Private", "Self-Sponsored", "Scholarship", "Other"].map((s) => (
+                  {["Government", "Private"].map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
+                </select>
+              </Field>
+              <Field label="Residence / Fee Category">
+                <select
+                  style={selectCss}
+                  value={form.residence_category}
+                  onChange={(e) => setForm({ ...form, residence_category: e.target.value })}
+                >
+                  <option value="">— Select Day or Boarding —</option>
+                  <option value="day">Day</option>
+                  <option value="boarding">Boarding</option>
                 </select>
               </Field>
             </div>
@@ -800,7 +811,7 @@ export function StudentDetailPage() {
                 <select
                   style={selectCss}
                   value={form.programme}
-                  onChange={(e) => setForm({ ...form, programme: e.target.value })}
+                  onChange={(e) => setForm({ ...form, programme: e.target.value, programme_code: e.target.value })}
                 >
                   <option value="">— Select Programme —</option>
                   {(programmes ?? []).map((p) => (
