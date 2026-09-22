@@ -193,7 +193,7 @@ export function StudentsListPage() {
       </FilterBar>
 
       <DataTable
-        headers={["Adm No.", "Student", "Programme", "Year", "Section", "Active", "Current Term"]}
+        headers={["Adm No.", "Student", "Programme", "Year", "Section", "Funding / Residence", "Active", "Current Term"]}
         isLoading={isLoading || periodLoading}
         isEmpty={isEmpty}
         emptyIcon="👨‍🎓"
@@ -205,7 +205,7 @@ export function StudentsListPage() {
             ? "Try a different search term."
             : 'Click "+ New Student" to add the first one.'
         }
-        colCount={7}
+        colCount={8}
       >
         {students?.map((s) => (
           <TR key={s.id} onClick={() => navigate(`/students/${s.id}`)}>
@@ -218,6 +218,18 @@ export function StudentsListPage() {
             <TD muted>{s.programme ?? "—"}</TD>
             <TD muted>{s.year_of_study != null ? `Year ${s.year_of_study}` : "—"}</TD>
             <TD muted>{s.class_section ?? "—"}</TD>
+            <TD>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                <Badge
+                  label={s.sponsorship_type ?? "Funding missing"}
+                  color={s.sponsorship_type === "Government" ? "blue" : s.sponsorship_type === "Private" ? "purple" : "gray"}
+                />
+                <Badge
+                  label={s.residence_category === "boarding" ? "Boarding" : s.residence_category === "day" ? "Day" : "Residence missing"}
+                  color={s.residence_category === "boarding" ? "green" : s.residence_category === "day" ? "cyan" : "gray"}
+                />
+              </div>
+            </TD>
             <TD>
               <Badge
                 label={s.is_active ? "Active" : "Inactive"}
