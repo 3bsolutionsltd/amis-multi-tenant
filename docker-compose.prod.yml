@@ -31,9 +31,9 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:?required}
       # Frontend URL used to build email links (reset password, welcome)
       APP_URL: ${APP_URL:?required}
-    # Published on 3001 so native Nginx can proxy_pass to localhost:3001
+    # Published on 3005 so native Nginx can proxy_pass to localhost:3005
     ports:
-      - "127.0.0.1:3001:3000"
+      - "127.0.0.1:3005:3000"
     volumes:
       - uploads:/app/apps/api/uploads
     depends_on:

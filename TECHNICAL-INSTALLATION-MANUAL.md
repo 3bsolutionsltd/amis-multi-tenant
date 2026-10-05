@@ -71,7 +71,7 @@ AMIS is a multi-tenant SaaS-style platform packaged as **four Docker containers*
 | Environment | Web port | API port | DB port |
 |-------------|---------|---------|---------|
 | Offline / LAN | `:80` (HTTP, exposed on LAN) | `:3001` (exposed on LAN) | not exposed (internal Docker network only) |
-| Cloud / VPS | `127.0.0.1:8095` (proxied by Nginx with TLS) | `127.0.0.1:3001` (proxied by Nginx) | not exposed |
+| Cloud / VPS | `127.0.0.1:8095` (proxied by Nginx with TLS) | `127.0.0.1:3005` (proxied by Nginx) | not exposed |
 
 ---
 
@@ -638,7 +638,7 @@ When raising a ticket, include:
 | Port | Bound on | Purpose | Open to LAN? | Open to Internet? |
 |------|----------|---------|---------------|-------------------|
 | 80 | host (offline) / 127.0.0.1 (cloud) | Web UI | Yes (offline) | Only via Nginx + TLS (cloud) |
-| 3001 | host (offline) / 127.0.0.1 (cloud) | REST API | Yes (offline) | Only via Nginx (cloud) |
+| 3001 / 3005 | host (offline) / 127.0.0.1 (cloud) | REST API | Yes (offline) | Only via Nginx (cloud) |
 | 5432 | docker network only | PostgreSQL | **No** | **No** |
 | 443 | host (cloud only) | Nginx HTTPS | — | Yes (cloud only) |
 

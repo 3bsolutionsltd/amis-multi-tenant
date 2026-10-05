@@ -37,7 +37,7 @@ certbot --nginx -d amis.<domain> -d api.amis.<domain>
 ```
 
 Cloud-mode bind addresses:
-- API → `127.0.0.1:3001`  (proxied by Nginx)
+- API → `127.0.0.1:3005`  (proxied by Nginx)
 - Web → `127.0.0.1:8095`  (proxied by Nginx)
 - DB  → internal docker network only
 
