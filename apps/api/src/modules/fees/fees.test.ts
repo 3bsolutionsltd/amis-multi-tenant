@@ -7,12 +7,14 @@ vi.mock("../../db/tenant.js", () => ({
 
 vi.mock("../../db/pool.js", () => ({
   pool: { query: vi.fn() },
+  superPool: { query: vi.fn() },
 }));
 
 import { withTenant } from "../../db/tenant.js";
-import { pool } from "../../db/pool.js";
+import { pool, superPool } from "../../db/pool.js";
 const mockWithTenant = vi.mocked(withTenant);
 const mockPoolQuery = vi.mocked(pool.query);
+const mockSuperPoolQuery = vi.mocked(superPool.query);
 
 const TID = "00000000-0000-0000-0000-000000000030";
 const STUDENT_ID = "ab000000-0000-0000-0000-000000000001";
@@ -23,7 +25,10 @@ const adminHeaders = { "x-tenant-id": TID, "x-dev-role": "admin" };
 const hodHeaders = { "x-tenant-id": TID, "x-dev-role": "hod" };
 const instructorHeaders = { "x-tenant-id": TID, "x-dev-role": "instructor" };
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  mockSuperPoolQuery.mockResolvedValue({ rows: [] } as never);
+});
 
 // ------------------------------------------------------------------ stub data
 

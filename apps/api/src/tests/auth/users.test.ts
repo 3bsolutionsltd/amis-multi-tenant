@@ -408,6 +408,7 @@ describeIf("Prompt 19 — password reset + user management (integration)", () =>
           email: "p19new-created@test.local",
           password: "NewUser1!",
           role: "hod",
+          department: "Engineering",
         },
       });
       expect(res.statusCode).toBe(201);
@@ -429,6 +430,7 @@ describeIf("Prompt 19 — password reset + user management (integration)", () =>
           email: "p19new-created@test.local",
           password: "NewUser1!",
           role: "hod",
+          department: "Engineering",
         },
       });
       expect(res.statusCode).toBe(409);
@@ -472,16 +474,18 @@ describeIf("Prompt 19 — password reset + user management (integration)", () =>
         method: "PUT",
         url: `/users/${targetUserId}`,
         headers: { "x-dev-role": "admin", "x-tenant-id": TENANT_A },
-        payload: { role: "hod" },
+        payload: { role: "hod", department: "Engineering" },
       });
       expect(res.statusCode).toBe(200);
       expect(res.json().role).toBe("hod");
 
-      // Restore role
-      await adminPool.query(
-        `UPDATE platform.users SET role = 'registrar' WHERE id = $1`,
-        [targetUserId],
-      );
+      const restoreRes = await app.inject({
+        method: "PUT",
+        url: `/users/${targetUserId}`,
+        headers: { "x-dev-role": "admin", "x-tenant-id": TENANT_A },
+        payload: { role: "registrar", roles: ["registrar"], department: null },
+      });
+      expect(restoreRes.statusCode).toBe(200);
     });
 
     it("admin deactivates user → 200 and all refresh tokens revoked", async () => {

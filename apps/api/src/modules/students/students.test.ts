@@ -44,13 +44,13 @@ describe("GET /students", () => {
     const res = await app.inject({
       method: "GET",
       url: "/students",
-      headers: { "x-tenant-id": "tenant-uuid-1" },
+      headers: { "x-tenant-id": TID },
     });
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual(fakeStudents);
     expect(mockWithTenant).toHaveBeenCalledWith(
-      "tenant-uuid-1",
+      TID,
       expect.any(Function),
     );
   });
@@ -62,7 +62,7 @@ describe("GET /students", () => {
     const res = await app.inject({
       method: "GET",
       url: "/students",
-      headers: { "x-tenant-id": "tenant-uuid-1", "x-dev-role": "finance" },
+      headers: { "x-tenant-id": TID, "x-dev-role": "finance" },
     });
 
     expect(res.statusCode).toBe(200);
@@ -87,7 +87,7 @@ describe("GET /students", () => {
     const res = await app.inject({
       method: "GET",
       url: "/students?search=Alice",
-      headers: { "x-tenant-id": "tenant-uuid-1" },
+      headers: { "x-tenant-id": TID },
     });
 
     expect(res.statusCode).toBe(200);
@@ -112,7 +112,7 @@ describe("GET /students", () => {
     const res = await app.inject({
       method: "GET",
       url: "/students?search=Carol%20Nkosi&registration_academic_year=2026%2F2027&registration_term=Term%201",
-      headers: { "x-tenant-id": "tenant-uuid-1" },
+      headers: { "x-tenant-id": TID },
     });
 
     expect(res.statusCode).toBe(200);
@@ -141,7 +141,7 @@ describe("GET /students", () => {
     const res = await app.inject({
       method: "GET",
       url: "/students?programme=DICT",
-      headers: { "x-tenant-id": "tenant-uuid-1" },
+      headers: { "x-tenant-id": TID },
     });
 
     expect(res.statusCode).toBe(200);
@@ -169,7 +169,7 @@ describe("GET /students", () => {
       method: "GET",
       url: "/students",
       headers: {
-        "x-tenant-id": "tenant-uuid-1",
+        "x-tenant-id": TID,
         "x-dev-role": "instructor",
         "x-dev-user-id": instructorId,
       },
@@ -201,7 +201,7 @@ describe("GET /students", () => {
       method: "GET",
       url: "/students",
       headers: {
-        "x-tenant-id": "tenant-uuid-1",
+        "x-tenant-id": TID,
         "x-dev-role": "hod",
         "x-dev-user-id": hodId,
       },
@@ -233,7 +233,7 @@ describe("GET /students", () => {
       method: "GET",
       url: "/students",
       headers: {
-        "x-tenant-id": "tenant-uuid-1",
+        "x-tenant-id": TID,
         "x-dev-role": "hod",
         "x-dev-roles": "hod,instructor",
         "x-dev-user-id": userId,
@@ -285,8 +285,15 @@ describe("POST /students", () => {
     const res = await app.inject({
       method: "POST",
       url: "/students",
-      headers: { "x-tenant-id": "tenant-uuid-1" },
-      payload: { first_name: "Bob", last_name: "Jones" },
+      headers: { "x-tenant-id": TID },
+      payload: {
+        first_name: "Bob",
+        last_name: "Jones",
+        sponsorship_type: "Private",
+        residence_category: "day",
+        programme: "General Studies",
+        year_of_study: 1,
+      },
     });
 
     expect(res.statusCode).toBe(201);
@@ -303,10 +310,14 @@ describe("POST /students", () => {
     const res = await app.inject({
       method: "POST",
       url: "/students",
-      headers: { "x-tenant-id": "tenant-uuid-1" },
+      headers: { "x-tenant-id": TID },
       payload: {
         first_name: "Bob",
         last_name: "Jones",
+        sponsorship_type: "Private",
+        residence_category: "day",
+        programme: "General Studies",
+        year_of_study: 1,
         programme_code: "DCIT",
       },
     });
@@ -320,7 +331,7 @@ describe("POST /students", () => {
     const res = await app.inject({
       method: "POST",
       url: "/students",
-      headers: { "x-tenant-id": "tenant-uuid-1", "x-dev-role": "instructor" },
+      headers: { "x-tenant-id": TID, "x-dev-role": "instructor" },
       payload: { first_name: "Bob", last_name: "Jones" },
     });
     expect(res.statusCode).toBe(403);

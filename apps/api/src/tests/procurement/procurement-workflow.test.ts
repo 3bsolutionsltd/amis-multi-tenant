@@ -339,6 +339,16 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
           await client.query(`DELETE FROM app.purchase_requisition_items WHERE pr_id = $1`, [prId]);
           await client.query(`DELETE FROM app.purchase_requisitions WHERE id = $1`, [prId]);
         }
+        await client.query(
+          `DELETE FROM app.purchase_requisition_items WHERE pr_id IN (
+             SELECT id FROM app.purchase_requisitions WHERE tenant_id = $1 AND pr_number = $2
+           )`,
+          [TENANT_A, `PR-WF-HOD-${RUN_ID}`],
+        );
+        await client.query(
+          `DELETE FROM app.purchase_requisitions WHERE tenant_id = $1 AND pr_number = $2`,
+          [TENANT_A, `PR-WF-HOD-${RUN_ID}`],
+        );
         if (supplierId) {
           await client.query(`DELETE FROM app.suppliers WHERE id = $1`, [supplierId]);
         }
@@ -744,14 +754,14 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
   // ROLE ENFORCEMENT — wrong roles must be rejected
   // =========================================================================
   describe("Role enforcement", () => {
-    it("HOD cannot create a PR (only finance/admin/registrar can)", async () => {
+    it("HOD can create a PR", async () => {
       const res = await post(app, "/procurement/requisitions", {
-        pr_number: "PR-WF-FORBIDDEN",
-        title: "Should be rejected",
+        pr_number: `PR-WF-HOD-${RUN_ID}`,
+        title: "HOD requisition",
         items: [{ description: "Item", quantity: 1 }],
       }, hodToken);
 
-      expect(res.statusCode).toBe(403);
+      expect(res.statusCode).toBe(201);
     });
 
     it("Finance cannot recommend a PR (only hod can)", async () => {

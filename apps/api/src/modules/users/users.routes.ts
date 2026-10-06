@@ -23,6 +23,18 @@ import { sendMail, buildWelcomeEmail, buildPasswordChangedByAdminEmail, buildAcc
 
 const ROLE_NAME = z.string().trim().min(1).max(80).regex(/^[a-zA-Z0-9 _-]+$/);
 const RolesSchema = z.array(ROLE_NAME).min(1).max(50);
+const PRIMARY_USER_ROLE = z.enum([
+  "admin",
+  "registrar",
+  "hod",
+  "instructor",
+  "finance",
+  "principal",
+  "dean",
+  "platform_admin",
+  "procurement_officer",
+  "inventory_manager",
+]);
 
 // ------------------------------------------------------------------ schemas
 
@@ -54,7 +66,7 @@ const CreateUserSchema = z.object({
   // password is optional — when omitted the API auto-generates a random
   // temporary password; the user sets their own via the welcome-email link
   password: z.string().min(1).optional(),
-  role: ROLE_NAME,
+  role: PRIMARY_USER_ROLE,
   roles: RolesSchema.optional(),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
@@ -71,7 +83,7 @@ const CreateUserSchema = z.object({
 
 const UpdateUserSchema = z
   .object({
-    role: ROLE_NAME.optional(),
+    role: PRIMARY_USER_ROLE.optional(),
     roles: RolesSchema.optional(),
     isActive: z.boolean().optional(),
     firstName: z.string().min(1).optional(),
