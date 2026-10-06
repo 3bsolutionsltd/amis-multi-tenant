@@ -292,6 +292,52 @@ describe("GET /marks/submissions", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toHaveLength(1);
   });
+
+  it("limits instructor listings to submissions they created", async () => {
+    let capturedSql = "";
+    let capturedParams: unknown[] = [];
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) => callback({
+      query: vi.fn((sql: string, params: unknown[]) => {
+        capturedSql = sql;
+        capturedParams = params;
+        return Promise.resolve({ rows: [] });
+      }),
+    } as never));
+
+    const instructorId = "00000000-0000-0000-0000-000000000009";
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/marks/submissions",
+      headers: { ...instructorHeaders, "x-dev-user-id": instructorId },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(capturedSql).toContain("s.created_by = $2");
+    expect(capturedParams[1]).toBe(instructorId);
+  });
+
+  it("limits HOD listings to their department programmes", async () => {
+    let capturedSql = "";
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) => callback({
+      query: vi.fn((sql: string) => {
+        capturedSql = sql;
+        return Promise.resolve({ rows: [] });
+      }),
+    } as never));
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/marks/submissions",
+      headers: { ...hodHeaders, "x-dev-user-id": "00000000-0000-0000-0000-000000000010" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(capturedSql).toContain("hod_programme.department");
+    expect(capturedSql).toContain("lower(trim(hod_programme.code)) = lower(trim(s.programme))");
+    expect(capturedSql).toContain("hod_programme.id = c.programme_id");
+  });
 });
 
 // ------------------------------------------------------------------ GET /marks/submissions/:id

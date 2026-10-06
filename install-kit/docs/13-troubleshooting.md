@@ -11,7 +11,7 @@
 | Disk full | DB growth + Docker build cache. | `docker system prune -af`. Move the `pgdata_offline` volume to a larger disk. |
 | Forgotten platform-admin password | Reset CLI. | `docker compose ... exec api node dist/scripts/reset-password.js <email>` |
 | `install.sh` exits "Missing images/postgres.tar" | The bundle wasn't fully transferred. | Re-copy the kit from the USB and verify SHA-256 against the supplied checksum. |
-| Containers running but UI shows "504 Gateway Timeout" (cloud) | Nginx can't reach the API on `127.0.0.1:3001`. | `curl http://127.0.0.1:3001/health` on the VPS; check Nginx vhost. |
+| Containers running but UI shows "504 Gateway Timeout" (cloud) | Nginx can't reach the API on `127.0.0.1:3005`. | `curl http://127.0.0.1:3005/health` on the VPS; check Nginx vhost. |
 
 ## Capture diagnostics for a support ticket
 

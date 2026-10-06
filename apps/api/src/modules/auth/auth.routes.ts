@@ -125,6 +125,8 @@ interface UserRow {
   id: string;
   tenant_id: string;
   email: string;
+  first_name: string | null;
+  last_name: string | null;
   role: string;
   password_hash: string;
   is_active: boolean;
@@ -196,7 +198,7 @@ export async function authRoutes(app: FastifyInstance) {
     }
 
     const { rows } = await pool.query<UserRow>(
-      `SELECT id, tenant_id, email, role, password_hash, is_active
+      `SELECT id, tenant_id, email, first_name, last_name, role, password_hash, is_active
        FROM platform.users
        WHERE tenant_id = $1 AND email = $2`,
       [tenantId, email],
@@ -253,6 +255,8 @@ export async function authRoutes(app: FastifyInstance) {
       user: {
         id: user.id,
         email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
         role: user.role,
         tenantId: user.tenant_id,
       },
@@ -296,7 +300,7 @@ export async function authRoutes(app: FastifyInstance) {
     await pool.query(`UPDATE platform.otp_sessions SET used = true WHERE id = $1`, [session.id]);
 
     const { rows: userRows } = await pool.query<UserRow>(
-      `SELECT id, tenant_id, email, role, password_hash, is_active
+      `SELECT id, tenant_id, email, first_name, last_name, role, password_hash, is_active
        FROM platform.users WHERE id = $1`,
       [session.user_id],
     );
@@ -315,7 +319,14 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.status(200).send({
       accessToken,
       refreshToken,
-      user: { id: user.id, email: user.email, role: user.role, tenantId: user.tenant_id },
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: user.role,
+        tenantId: user.tenant_id,
+      },
     });
   });
 
@@ -351,7 +362,7 @@ export async function authRoutes(app: FastifyInstance) {
     const { id: tokenId, user_id: userId } = tokenRows[0];
 
     const { rows: userRows } = await pool.query<Omit<UserRow, "password_hash">>(
-      `SELECT id, tenant_id, email, role, is_active
+      `SELECT id, tenant_id, email, first_name, last_name, role, is_active
        FROM platform.users WHERE id = $1`,
       [userId],
     );
@@ -383,6 +394,8 @@ export async function authRoutes(app: FastifyInstance) {
       user: {
         id: user.id,
         email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
         role: user.role,
         tenantId: user.tenant_id,
       },
@@ -411,7 +424,7 @@ export async function authRoutes(app: FastifyInstance) {
     const { email, password } = parsed.data;
 
     const { rows } = await pool.query<UserRow>(
-      `SELECT id, tenant_id, email, role, password_hash, is_active
+      `SELECT id, tenant_id, email, first_name, last_name, role, password_hash, is_active
        FROM platform.users
        WHERE email = $1 AND role = 'platform_admin'`,
       [email],
@@ -453,6 +466,8 @@ export async function authRoutes(app: FastifyInstance) {
       user: {
         id: user.id,
         email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
         role: user.role,
         tenantId: user.tenant_id,
       },
@@ -501,7 +516,7 @@ export async function authRoutes(app: FastifyInstance) {
     }
 
     const { rows } = await pool.query<Omit<UserRow, "password_hash"> & { last_login_at: string | null }>(
-      `SELECT id, tenant_id, email, role, is_active, last_login_at
+      `SELECT id, tenant_id, email, first_name, last_name, role, is_active, last_login_at
        FROM platform.users WHERE id = $1`,
       [payload.sub],
     );
@@ -516,6 +531,8 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.status(200).send({
       id: user.id,
       email: user.email,
+      firstName: user.first_name,
+      lastName: user.last_name,
       role: user.role,
       tenantId: user.tenant_id,
       isActive: user.is_active,

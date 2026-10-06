@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -11,11 +12,13 @@ import {
   selectCss,
   Card,
 } from "../../lib/ui";
-import { createGRN, type GRNCondition } from "./procurement.api";
+import { createGRN, listOrders, type GRNCondition } from "./procurement.api";
+import { listInventoryItems } from "../inventory/inventory.api";
 
 ensureGlobalCss();
 
 interface GRNItemRow {
+  inventory_item_id: string;
   description: string;
   quantity_received: string;
   quantity_ordered: string;
@@ -24,7 +27,7 @@ interface GRNItemRow {
 }
 
 const emptyItem = (): GRNItemRow => ({
-  description: "", quantity_received: "1", quantity_ordered: "", condition: "good", notes: "",
+  inventory_item_id: "", description: "", quantity_received: "1", quantity_ordered: "", condition: "good", notes: "",
 });
 
 export default function GRNCreatePage() {
@@ -33,9 +36,17 @@ export default function GRNCreatePage() {
   const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
-    grn_number: "", received_by: "", received_date: "", notes: "",
+    grn_number: "", po_id: "", received_by: "", received_date: "", notes: "",
   });
   const [items, setItems] = useState<GRNItemRow[]>([emptyItem()]);
+  const { data: orders = [] } = useQuery({
+    queryKey: ["procurement.orders"],
+    queryFn: () => listOrders({ limit: 200 }),
+  });
+  const { data: inventoryItems = [] } = useQuery({
+    queryKey: ["inventory.items"],
+    queryFn: () => listInventoryItems({ include_inactive: false, limit: 200 }),
+  });
 
   function setF(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })); }
   function setItem(idx: number, k: keyof GRNItemRow, v: string) {
@@ -51,10 +62,12 @@ export default function GRNCreatePage() {
     try {
       const created = await createGRN({
         grn_number: form.grn_number,
+        po_id: form.po_id || undefined,
         received_by: form.received_by || undefined,
         received_date: form.received_date || undefined,
         notes: form.notes || undefined,
         items: items.map((item) => ({
+          inventory_item_id: item.inventory_item_id || undefined,
           description: item.description,
           quantity_received: Number(item.quantity_received) || 1,
           quantity_ordered: item.quantity_ordered ? Number(item.quantity_ordered) : undefined,
@@ -85,6 +98,12 @@ export default function GRNCreatePage() {
             <Field label="Received By">
               <input value={form.received_by} onChange={(e) => setF("received_by", e.target.value)} style={inputCss} />
             </Field>
+            <Field label="LPO Number">
+              <select value={form.po_id} onChange={(e) => setF("po_id", e.target.value)} style={selectCss}>
+                <option value="">— No linked LPO —</option>
+                {orders.map((order) => <option key={order.id} value={order.id}>{order.po_number} — {order.title}</option>)}
+              </select>
+            </Field>
             <Field label="Received Date">
               <input type="date" value={form.received_date} onChange={(e) => setF("received_date", e.target.value)} style={inputCss} />
             </Field>
@@ -102,7 +121,23 @@ export default function GRNCreatePage() {
 
           {items.map((item, idx) => (
             <div key={idx} style={{ border: "1px solid #dee2e6", borderRadius: 6, padding: 12, marginBottom: 10 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "3fr 1fr 1fr 1fr", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr 1fr", gap: 8 }}>
+                <Field label="Inventory Item (optional)">
+                  <select
+                    value={item.inventory_item_id}
+                    onChange={(e) => {
+                      const selected = inventoryItems.find((i) => i.id === e.target.value);
+                      setItem(idx, "inventory_item_id", e.target.value);
+                      if (selected) {
+                        setItem(idx, "description", selected.name);
+                      }
+                    }}
+                    style={selectCss}
+                  >
+                    <option value="">— Non-stock item —</option>
+                    {inventoryItems.map((i) => <option key={i.id} value={i.id}>{i.item_code ? `${i.item_code} — ` : ""}{i.name}</option>)}
+                  </select>
+                </Field>
                 <Field label="Description *">
                   <input value={item.description} onChange={(e) => setItem(idx, "description", e.target.value)} required style={inputCss} />
                 </Field>

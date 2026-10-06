@@ -120,7 +120,7 @@ export function fireTransition(
 export interface ImportPreviewResult {
   batchId: string;
   valid: Record<string, unknown>[];
-  invalid: { row: unknown; errors: unknown }[];
+  invalid: { rowNumber: number; row: unknown; errors: unknown }[];
   total: number;
 }
 

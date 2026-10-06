@@ -185,25 +185,15 @@ export function StaffCreatePage() {
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
           >
             <Field label="Department" error={fieldErrors.department}>
-              {departments.length > 0 ? (
-                <select
-                  style={selectCss}
-                  value={form.department ?? ""}
-                  onChange={(e) => set("department", e.target.value)}
-                >
-                  <option value="">— Select department —</option>
-                  {departments.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  style={inputCss}
-                  value={form.department ?? ""}
-                  onChange={(e) => set("department", e.target.value)}
-                  placeholder="e.g. ICT"
-                />
-              )}
+              <select
+                required
+                style={selectCss}
+                value={form.department ?? ""}
+                onChange={(e) => set("department", e.target.value)}
+              >
+                <option value="">— Select department —</option>
+                {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
             </Field>
             <Field label="Designation" error={fieldErrors.designation}>
               {designations.length > 0 ? (

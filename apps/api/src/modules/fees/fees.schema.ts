@@ -12,6 +12,14 @@ export const FeeEntrySchema = z.object({
   term_id:           z.string().uuid().optional(),
 });
 
+export const FeeUpdateSchema = z.object({
+  amount:         z.number().positive().optional(),
+  currency:       z.string().min(1).optional(),
+  payment_method: z.string().min(1).nullable().optional(),
+  reference:      z.string().min(1).optional(),
+  paid_at:        z.string().min(1).optional(),
+});
+
 // One row in a bulk import
 export const FeeImportRowSchema = z.object({
   studentId: z.string().uuid(),

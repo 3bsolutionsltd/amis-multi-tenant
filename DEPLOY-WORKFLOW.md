@@ -495,22 +495,32 @@ Fix the TypeScript error locally, commit, push, then redeploy.
 
 ### Nginx 502 Bad Gateway
 
-The Nginx reverse proxy cannot reach the upstream container.
+The public Nginx reverse proxy cannot reach the configured upstream. First identify
+whether the failure is the frontend (`amis.institute`) or API
+(`api.amis.institute`), then run these checks on the VPS from `/opt/amis`:
 
 ```bash
-# 1. Check the container is actually running
-docker ps | grep api
+# 1. Check the production services and health status
+docker compose -f docker-compose.prod.yml ps
 
-# 2. Check the port is bound
-ss -tlnp | grep 3001   # production
-ss -tlnp | grep 3002   # staging
+# 2. Check each upstream directly from the VPS
+curl -i http://127.0.0.1:8095/          # Frontend; expect HTTP 200
+curl -i http://127.0.0.1:3005/health   # API; expect HTTP 200 and JSON
 
-# 3. Check Nginx upstream config matches the port
-cat /etc/nginx/sites-available/amis.conf | grep proxy_pass
+# 3. If either local check fails, inspect the corresponding container logs
+docker compose -f docker-compose.prod.yml logs --tail=100 web
+docker compose -f docker-compose.prod.yml logs --tail=100 api
 
-# 4. Check Nginx error log
+# 4. Confirm Nginx points to the matching loopback ports (web 8095, API 3005)
+grep -R "proxy_pass" /etc/nginx/sites-enabled/
+
+# 5. Inspect the reverse-proxy error
 tail -50 /var/log/nginx/error.log
 ```
+
+If `docker compose ... ps` reports that Compose cannot resolve a required
+variable, check `/opt/amis/.env` against `.env.prod.example` (especially
+`APP_URL`). Do not paste `.env` contents into logs or support messages.
 
 ---
 

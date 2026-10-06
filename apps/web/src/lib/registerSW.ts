@@ -11,6 +11,7 @@
 const SW_URL = "/sw.js";
 
 export function registerSW(): void {
+  if (import.meta.env.DEV) return;
   if (!("serviceWorker" in navigator)) return;
 
   window.addEventListener("load", async () => {

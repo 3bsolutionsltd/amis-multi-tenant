@@ -16,6 +16,9 @@ let _connection: Redis | null = null;
 let _queue: Queue | null = null;
 let _worker: Worker | null = null;
 let _pollTimer: ReturnType<typeof setInterval> | null = null;
+let _pollInFlight = false;
+let _pollFailureCount = 0;
+let _nextPollAt = 0;
 
 // -----------------------------------------------------------------------
 // Connection
@@ -87,6 +90,10 @@ export async function startOutboxWorker(pollIntervalMs = 5_000): Promise<void> {
   // Poller: reads unprocessed rows from DB and enqueues them.
   // Using the event UUID as job ID makes re-enqueueing idempotent.
   _pollTimer = setInterval(async () => {
+    // A failed connection can take up to the pool connection timeout to
+    // resolve. Never start another poll while the previous one is pending.
+    if (_pollInFlight || Date.now() < _nextPollAt) return;
+    _pollInFlight = true;
     try {
       const { rows } = await superPool.query<{ id: string }>(
         `SELECT id
@@ -95,12 +102,22 @@ export async function startOutboxWorker(pollIntervalMs = 5_000): Promise<void> {
           ORDER BY created_at
           LIMIT 100`
       );
+      _pollFailureCount = 0;
+      _nextPollAt = 0;
       if (rows.length === 0) return;
       for (const { id } of rows) {
         await _queue!.add("process", { eventId: id }, { jobId: id });
       }
     } catch (err) {
-      console.error("[outbox] poll error:", (err as Error).message);
+      _pollFailureCount = Math.min(_pollFailureCount + 1, 6);
+      const backoffSeconds = Math.min(60, 2 ** _pollFailureCount);
+      _nextPollAt = Date.now() + backoffSeconds * 1000;
+      console.error(
+        `[outbox] poll error (retry backoff ${backoffSeconds}s):`,
+        (err as Error).message,
+      );
+    } finally {
+      _pollInFlight = false;
     }
   }, pollIntervalMs);
 }
@@ -114,6 +131,9 @@ export async function stopOutboxWorker(): Promise<void> {
     clearInterval(_pollTimer);
     _pollTimer = null;
   }
+  _pollInFlight = false;
+  _pollFailureCount = 0;
+  _nextPollAt = 0;
   if (_worker) {
     await _worker.close();
     _worker = null;

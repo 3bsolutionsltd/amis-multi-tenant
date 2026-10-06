@@ -59,18 +59,20 @@ function mkRow(student_id = "", student_name = "", score = ""): DraftRow {
 function StudentSearchInput({
   studentId,
   studentName,
+  programme,
   onChange,
 }: {
   studentId: string;
   studentName: string;
+  programme: string;
   onChange: (id: string, name: string) => void;
 }) {
   const [query, setQuery] = useState(studentName || studentId);
   const [open, setOpen] = useState(false);
 
   const { data: suggestions } = useQuery({
-    queryKey: ["students-autocomplete", query],
-    queryFn: () => listStudents({ search: query }),
+    queryKey: ["students-autocomplete", query, programme],
+    queryFn: () => listStudents({ search: query, programme }),
     enabled: open && query.length >= 2,
     staleTime: 10_000,
   });
@@ -770,6 +772,7 @@ export function MarkDetailPage() {
               <StudentSearchInput
                 studentId={row.student_id}
                 studentName={row.student_name}
+                programme={sub.programme}
                 onChange={(id, name) => {
                   setDraftRows((rows) =>
                     rows.map((r) =>

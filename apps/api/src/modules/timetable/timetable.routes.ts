@@ -20,10 +20,10 @@ const READ_ROLES = [
 ] as const;
 
 const SLOT_COLS = `
-  id, programme, academic_year, term_number,
-  day_of_week, start_time, end_time,
-  course_id, room, instructor_name, notes,
-  created_at, updated_at
+  s.id, s.programme, s.academic_year, s.term_number,
+  s.day_of_week, s.start_time, s.end_time,
+  s.course_id, s.room, s.instructor_name, s.notes,
+  s.created_at, s.updated_at
 `;
 
 export async function timetableRoutes(app: FastifyInstance) {
@@ -49,30 +49,33 @@ export async function timetableRoutes(app: FastifyInstance) {
 
         if (programme) {
           params.push(programme);
-          conditions.push(`programme = $${params.length}`);
+          conditions.push(`s.programme = $${params.length}`);
         }
         if (academic_year) {
           params.push(academic_year);
-          conditions.push(`academic_year = $${params.length}`);
+          conditions.push(`s.academic_year = $${params.length}`);
         }
         if (term_number != null) {
           params.push(term_number);
-          conditions.push(`term_number = $${params.length}`);
+          conditions.push(`s.term_number = $${params.length}`);
         }
         if (day_of_week) {
           params.push(day_of_week);
-          conditions.push(`day_of_week = $${params.length}`);
+          conditions.push(`s.day_of_week = $${params.length}`);
         }
 
         const where =
           conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
         const { rows } = await client.query(
-          `SELECT ${SLOT_COLS}
-           FROM app.timetable_slots
+            `SELECT ${SLOT_COLS},
+                  c.code AS course_code,
+                  c.title AS course_title
+           FROM app.timetable_slots s
+             LEFT JOIN app.courses c ON c.id::text = s.course_id
            ${where}
            ORDER BY
-             CASE day_of_week
+             CASE s.day_of_week
                WHEN 'Monday'    THEN 1
                WHEN 'Tuesday'   THEN 2
                WHEN 'Wednesday' THEN 3
@@ -80,7 +83,7 @@ export async function timetableRoutes(app: FastifyInstance) {
                WHEN 'Friday'    THEN 5
                WHEN 'Saturday'  THEN 6
              END,
-             start_time ASC`,
+             s.start_time ASC`,
           params,
         );
         return rows;

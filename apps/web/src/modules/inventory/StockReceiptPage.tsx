@@ -26,6 +26,10 @@ export default function StockReceiptPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const transactionType = searchParams.get("type") === "adjustment"
+    ? "adjustment"
+    : searchParams.get("type") === "return" ? "return" : "receipt";
+  const isAdjustment = transactionType === "adjustment";
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,13 +58,16 @@ export default function StockReceiptPage() {
 
     const qty = Number(form.quantity);
     if (!form.item_id) { setError("Please select an item."); return; }
-    if (!qty || qty <= 0) { setError("Quantity must be a positive number."); return; }
+    if (!qty || (!isAdjustment && qty <= 0)) {
+      setError(isAdjustment ? "Adjustment quantity must not be zero." : "Quantity must be a positive number.");
+      return;
+    }
 
     setSaving(true);
     try {
       await createTransaction({
         item_id: form.item_id,
-        transaction_type: "receipt",
+        transaction_type: transactionType,
         quantity: qty,
         reference: form.reference || undefined,
         performed_by: form.performed_by || undefined,
@@ -82,8 +89,8 @@ export default function StockReceiptPage() {
   return (
     <div style={{ padding: 24, maxWidth: 640, margin: "0 auto" }}>
       <PageHeader
-        title="Record Stock Receipt"
-        description="Record incoming stock (manual receipt or GRN receipt)"
+        title={isAdjustment ? "Adjust Stock" : transactionType === "return" ? "Record Stock Return" : "Record Stock Receipt"}
+        description={isAdjustment ? "Correct the stock balance with a documented increase or decrease" : transactionType === "return" ? "Record items returned to stores" : "Record incoming stock (manual receipt or GRN receipt)"}
       />
 
       <Card style={{ padding: 28 }}>
@@ -119,13 +126,13 @@ export default function StockReceiptPage() {
             )}
           </Field>
 
-          <Field label="Quantity Received *">
+          <Field label={isAdjustment ? "Adjustment Quantity *" : transactionType === "return" ? "Quantity Returned *" : "Quantity Received *"}>
             <input
               style={inputCss}
               type="number"
-              min={1}
+              min={isAdjustment ? undefined : 1}
               step={1}
-              placeholder="e.g. 50"
+              placeholder={isAdjustment ? "e.g. 10 or -2" : "e.g. 50"}
               value={form.quantity}
               onChange={(e) => setF("quantity", e.target.value)}
               required

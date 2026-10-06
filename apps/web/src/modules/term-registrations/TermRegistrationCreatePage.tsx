@@ -67,11 +67,19 @@ export function TermRegistrationCreatePage() {
     mutationFn: createTermRegistration,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["term-registrations"] });
+      queryClient.invalidateQueries({ queryKey: ["students"] });
       navigate(`/term-registrations/${data.registration.id}`);
     },
     onError: (err) => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      queryClient.invalidateQueries({ queryKey: ["term-registrations"] });
+      const message = err instanceof Error ? err.message : "";
+      const alreadyRegistered =
+        message.includes("already registered") || message.includes("duplicate key");
       setError(
-        err instanceof Error ? err.message : "Failed to create registration",
+        alreadyRegistered
+          ? "This student is already registered for the selected academic year and term. The Students list will refresh with the current status."
+          : message || "Failed to create registration",
       );
     },
   });

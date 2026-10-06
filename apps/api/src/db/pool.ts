@@ -117,14 +117,40 @@ function getSuperPool(): pg.Pool {
     }
     const p = new Pool({
       connectionString,
-      max: 5, // small — only used for auth
+      // Auth, requireAuth, user administration, tenant administration, sync,
+      // onboarding, and the outbox worker all share this pool.
+      max: parseInt(process.env.PG_SUPER_POOL_MAX ?? "10", 10),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
       keepAlive: true,
       keepAliveInitialDelayMillis: 10_000,
     });
+    const RECOVERY_THRESHOLD = 3;
+    let consecutiveErrors = 0;
+
     p.on("error", (err) => {
-      console.error("[super-pool] idle client error:", err.message);
+      console.error(
+        "[super-pool] idle client error — will be discarded:",
+        err.message,
+      );
+      consecutiveErrors++;
+      if (consecutiveErrors >= RECOVERY_THRESHOLD && _superPool === p) {
+        consecutiveErrors = 0;
+        _superPool = null;
+        console.error(
+          "[super-pool] pool replaced after consecutive idle-client errors",
+        );
+        p.end().catch((endError: Error) =>
+          console.error(
+            "[super-pool] error ending stale pool:",
+            endError.message,
+          ),
+        );
+      }
+    });
+
+    p.on("connect", () => {
+      consecutiveErrors = 0;
     });
     _superPool = p;
   }
@@ -153,6 +179,11 @@ setInterval(
       .query("SELECT 1")
       .catch((err: Error) =>
         console.error("[pg-pool] keepalive ping failed:", err.message),
+      );
+    getSuperPool()
+      .query("SELECT 1")
+      .catch((err: Error) =>
+        console.error("[super-pool] keepalive ping failed:", err.message),
       );
   },
   5 * 60 * 1000,

@@ -12,12 +12,12 @@ import {
   ReconciliationMatchSchema,
 } from "./fees.schema.js";
 import { pool } from "../../db/pool.js";
+import { FeeUpdateSchema } from "./fees.schema.js";
 
 // ------------------------------------------------------------------ constants
 
 const SUMMARY_ROLES = [
   "registrar",
-  "hod",
   "admin",
   "finance",
   "principal",
@@ -32,6 +32,7 @@ type StudentFeeContext = {
   programme: string | null;
   programme_code: string | null;
   sponsorship_type: string | null;
+  residence_category: string | null;
 };
 
 type FeeStructureLine = {
@@ -57,6 +58,7 @@ type FeeBalanceResult =
 
 type PaymentRow = {
   id: string;
+  student_id: string;
   amount: string | number;
   currency: string | null;
   reference: string | null;
@@ -74,7 +76,9 @@ type ManualFeeEntryResult =
   | { overpayment: true; totalDue: number; totalPaid: number; balance: number }
   | { payment: PaymentRow; student: StudentSmsContact | null };
 
-function studentCategory(sponsorshipType: string | null) {
+function studentCategory(residenceCategory: string | null, sponsorshipType: string | null) {
+  const explicitCategory = residenceCategory?.toLowerCase();
+  if (explicitCategory === "day" || explicitCategory === "boarding") return explicitCategory;
   const normalized = sponsorshipType?.toLowerCase() ?? "";
   if (normalized.includes("boarding") || normalized.includes("boarder")) return "boarding";
   if (normalized.includes("day")) return "day";
@@ -91,12 +95,13 @@ async function getDefaultTotalDue(client: Queryable, tid: string) {
      LIMIT 1`,
     [tid],
   );
+
   return cfgRows[0]?.payload?.fees?.defaultTotalDue ?? 0;
 }
 
 async function loadStudentFeeContext(client: Queryable, studentId: string) {
   const { rows } = await client.query<StudentFeeContext>(
-    `SELECT id, programme_id, programme, programme_code, sponsorship_type
+    `SELECT id, programme_id, programme, programme_code, sponsorship_type, residence_category
      FROM app.students
      WHERE id = $1`,
     [studentId],
@@ -108,7 +113,7 @@ async function listApplicableFeeStructures(
   client: Queryable,
   student: StudentFeeContext,
 ) {
-  const category = studentCategory(student.sponsorship_type);
+  const category = studentCategory(student.residence_category, student.sponsorship_type);
   const categoryFilter = category === "all" ? ["all"] : ["all", category];
 
   const { rows } = await client.query<FeeStructureLine>(
@@ -276,6 +281,71 @@ export async function feesRoutes(app: FastifyInstance) {
       });
 
       return reply.status(200).send(result);
+    },
+  );
+
+  // ---------- PATCH /fees/transactions/:id
+  app.patch<{ Params: { id: string } }>(
+    "/fees/transactions/:id",
+    { preHandler: requireRole(...FINANCE_ROLES) },
+    async (req, reply) => {
+      const tid = getTenantId(req);
+      if (!tid)
+        return reply.status(400).send({ error: "x-tenant-id header required" });
+
+      const parsed = FeeUpdateSchema.safeParse(req.body);
+      if (!parsed.success)
+        return reply.status(422).send({ error: parsed.error.flatten() });
+
+      const updates = parsed.data;
+      if (Object.keys(updates).length === 0)
+        return reply.status(422).send({ error: "no fields to update" });
+
+      const result = await withTenant(tid, async (client) => {
+        const { rows: existingRows } = await client.query<PaymentRow>(
+          `SELECT * FROM app.payments WHERE id = $1`,
+          [req.params.id],
+        );
+        const existing = existingRows[0];
+        if (!existing) return { notFound: true as const };
+
+        if (updates.amount !== undefined) {
+          const due = await calculateStudentTotalDue(client, tid, existing.student_id);
+          if ("notFound" in due) return { notFound: true as const };
+          const { rows: paidRows } = await client.query<{ total_paid: string }>(
+            `SELECT COALESCE(SUM(amount), 0) AS total_paid
+             FROM app.payments WHERE student_id = $1 AND id <> $2`,
+            [existing.student_id, req.params.id],
+          );
+          const balance = due.totalDue - Number(paidRows[0].total_paid);
+          if (updates.amount > Math.max(balance, 0))
+            return { overpayment: true as const, balance };
+        }
+
+        const fields = Object.keys(updates) as (keyof typeof updates)[];
+        const setClauses = fields.map((field, index) => `${field} = $${index + 2}`).join(", ");
+        const values = fields.map((field) => updates[field] as string | number | null);
+        const { rows } = await client.query<PaymentRow>(
+          `UPDATE app.payments SET ${setClauses} WHERE id = $1 RETURNING *`,
+          [req.params.id, ...values],
+        );
+        await client.query(
+          `INSERT INTO app.fee_audit_log (tenant_id, payment_id, action, actor_user_id)
+           VALUES ($1, $2, 'update', $3)`,
+          [tid, req.params.id, req.user?.userId ?? null],
+        );
+        return { payment: rows[0] };
+      });
+
+      if ("notFound" in result)
+        return reply.status(404).send({ error: "payment not found" });
+      if ("overpayment" in result)
+        return reply.status(409).send({
+          error: "Payment amount exceeds the outstanding balance",
+          code: "PAYMENT_EXCEEDS_BALANCE",
+          balance: result.balance,
+        });
+      return reply.status(200).send({ payment: result.payment });
     },
   );
 

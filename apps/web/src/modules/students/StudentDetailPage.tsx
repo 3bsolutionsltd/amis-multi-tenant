@@ -38,6 +38,34 @@ import {
   C,
 } from "../../lib/ui";
 import { formatStudentName } from "../../lib/formatStudentName";
+import { ApiError } from "../../lib/apiFetch";
+
+const UGANDA_DISTRICTS = [
+  "Abim", "Adjumani", "Agago", "Alebtong", "Amolatar", "Amudat", "Amuria",
+  "Amuru", "Apac", "Arua", "Budaka", "Bududa", "Bugiri", "Buhweju", "Buikwe",
+  "Bukedea", "Bukomansimbi", "Bukwo", "Bulambuli", "Buliisa", "Bundibugyo",
+  "Bunyangabu", "Bushenyi", "Busia", "Butaleja", "Butebo", "Buvuma", "Buyende",
+  "Dokolo", "Gomba", "Gulu", "Hoima", "Ibanda", "Iganga", "Isingiro", "Jinja",
+  "Kaabong", "Kabale", "Kabarole", "Kaberamaido", "Kagadi", "Kakumiro",
+  "Kalangala", "Kaliro", "Kalungu", "Kampala", "Kamuli", "Kamwenge", "Kanungu",
+  "Kapchorwa", "Kapelebyong", "Kasanda", "Kasese", "Katakwi", "Kayunga", "Kazo",
+  "Kibale", "Kiboga", "Kibuku", "Kikuube", "Kiruhura", "Kiryandongo", "Kisoro",
+  "Kitagwenda", "Kitgum", "Koboko", "Kole", "Kotido", "Kumi", "Kwania",
+  "Kyankwanzi", "Kyegegwa", "Kyenjojo", "Kyotera", "Lamwo", "Lira", "Luuka",
+  "Luwero", "Lwengo", "Lyantonde", "Madi-Okollo", "Manafwa", "Maracha", "Masaka",
+  "Masindi", "Mayuge", "Mbale", "Mbarara", "Mitooma", "Mityana", "Moroto", "Moyo",
+  "Mpigi", "Mubende", "Mukono", "Nabilatuk", "Nakapiripirit", "Nakaseke",
+  "Nakasongola", "Namayingo", "Namisindwa", "Namutumba", "Napak", "Nebbi",
+  "Ngora", "Ntoroko", "Ntungamo", "Nwoya", "Obongi", "Omoro", "Otuke", "Oyam",
+  "Pader", "Pakwach", "Pallisa", "Rakai", "Rubanda", "Rubirizi", "Rukiga",
+  "Rukungiri", "Rwampara", "Sembabule", "Serere", "Sheema", "Sironko", "Soroti",
+  "Tororo", "Wakiso", "Yumbe", "Zombo",
+];
+
+const GUARDIAN_RELATIONSHIPS = [
+  "Mother", "Father", "Brother", "Sister", "Uncle", "Aunt",
+  "Grandparent", "Guardian", "Other",
+];
 
 export function StudentDetailPage() {
   ensureGlobalCss();
@@ -56,7 +84,12 @@ export function StudentDetailPage() {
     nin: "",
     admission_number: "",
     sponsorship_type: "",
+    residence_category: "",
     programme: "",
+    programme_id: "",
+    district_of_origin: "",
+    intake_year: "",
+    entry_qualification: "",
     programme_code: "",
     email: "",
     phone: "",
@@ -162,12 +195,17 @@ export function StudentDetailPage() {
       first_name: student!.first_name,
       last_name: student!.last_name,
       other_names: student!.other_names ?? "",
-      date_of_birth: student!.date_of_birth ?? "",
+      date_of_birth: student!.date_of_birth?.slice(0, 10) ?? "",
       gender: student!.gender ?? "",
       nin: student!.nin ?? "",
       admission_number: student!.admission_number ?? "",
       sponsorship_type: student!.sponsorship_type ?? "",
-      programme: student!.programme ?? "",
+      residence_category: student!.residence_category ?? "",
+      programme: student!.programme_code ?? student!.programme ?? "",
+      programme_id: student!.programme_id ?? "",
+      district_of_origin: String(student!.extension?.district_of_origin ?? ""),
+      intake_year: String(student!.extension?.intake_year ?? ""),
+      entry_qualification: String(student!.extension?.entry_qualification ?? ""),
       programme_code: student!.programme_code ?? "",
       email: student!.email ?? "",
       phone: student!.phone ?? "",
@@ -193,7 +231,9 @@ export function StudentDetailPage() {
       nin: form.nin || undefined,
       admission_number: form.admission_number || undefined,
       sponsorship_type: form.sponsorship_type || undefined,
+      residence_category: (form.residence_category as "day" | "boarding") || undefined,
       programme: form.programme || undefined,
+      programme_id: form.programme_id || undefined,
       programme_code: form.programme_code || undefined,
       email: form.email || undefined,
       phone: form.phone || undefined,
@@ -207,6 +247,14 @@ export function StudentDetailPage() {
       previous_index: form.previous_index || undefined,
     };
     if (form.date_of_birth) body.date_of_birth = form.date_of_birth;
+    const extension = { ...student!.extension };
+    if (form.district_of_origin) extension.district_of_origin = form.district_of_origin;
+    else delete extension.district_of_origin;
+    if (form.intake_year) extension.intake_year = form.intake_year;
+    else delete extension.intake_year;
+    if (form.entry_qualification) extension.entry_qualification = form.entry_qualification;
+    else delete extension.entry_qualification;
+    body.extension = extension;
     mutation.mutate(body);
   }
 
@@ -300,6 +348,7 @@ export function StudentDetailPage() {
             <DetailRow label="Admission No.">{student.admission_number ?? "—"}</DetailRow>
             <DetailRow label="Date of birth">{student.date_of_birth ?? "—"}</DetailRow>
             {student.sponsorship_type && <DetailRow label="Sponsorship">{student.sponsorship_type}</DetailRow>}
+            <DetailRow label="Residence / Fee Category">{student.residence_category ?? "Financial status incomplete"}</DetailRow>
             {student.email && <DetailRow label="Email">{student.email}</DetailRow>}
             {student.phone && <DetailRow label="Phone">{student.phone}</DetailRow>}
             {extensionFields.map((f) => (
@@ -445,7 +494,9 @@ export function StudentDetailPage() {
             ) : (
               <Card padding="16px 20px">
                 <span style={{ fontSize: 13, color: C.gray400 }}>
-                  Fee data unavailable — ensure a published config exists.
+                  {feeQ.isError
+                    ? `Fee data unavailable: ${feeQ.error instanceof Error ? feeQ.error.message : "the fee summary request failed."}`
+                    : "No fee summary was returned for this student."}
                 </span>
               </Card>
             )}
@@ -776,29 +827,52 @@ export function StudentDetailPage() {
                   onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
                 />
               </Field>
-              <Field label="Sponsorship / Fee Category">
+              <Field label="Sponsorship / Funding" required>
                 <select
                   style={selectCss}
                   value={form.sponsorship_type}
                   onChange={(e) => setForm({ ...form, sponsorship_type: e.target.value })}
                 >
                   <option value="">— Select —</option>
-                  {["Government", "Private", "Self-Sponsored", "Scholarship", "Other"].map((s) => (
+                  {["Government", "Private"].map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </Field>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Programme">
+              <Field label="Residence / Fee Category" required>
                 <select
                   style={selectCss}
-                  value={form.programme}
-                  onChange={(e) => setForm({ ...form, programme: e.target.value })}
+                  value={form.residence_category}
+                  onChange={(e) => setForm({ ...form, residence_category: e.target.value })}
+                >
+                  <option value="">— Select Day or Boarding —</option>
+                  <option value="day">Day</option>
+                  <option value="boarding">Boarding</option>
+                </select>
+              </Field>
+            </div>
+            <div style={{ marginTop: 4, padding: "12px 14px", background: "#f0f7ff", border: "1px solid #c9e1f7", borderRadius: 6 }}>
+              <strong style={{ display: "block", fontSize: 14, color: C.gray700 }}>Financial Status</strong>
+              <span style={{ fontSize: 13, color: C.gray600 }}>Programme and year of study determine the fee schedule. Sponsorship and residence determine the matching fee category.</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Field label="Programme (required for fees)" required>
+                <select
+                  style={selectCss}
+                  value={form.programme_id}
+                  onChange={(e) => {
+                    const selected = (programmes ?? []).find((p) => p.id === e.target.value);
+                    setForm({
+                      ...form,
+                      programme_id: e.target.value,
+                      programme: selected?.title ?? "",
+                      programme_code: selected?.code ?? "",
+                    });
+                  }}
                 >
                   <option value="">— Select Programme —</option>
                   {(programmes ?? []).map((p) => (
-                    <option key={p.id} value={p.code}>
+                    <option key={p.id} value={p.id}>
                       {p.code} — {p.title}
                     </option>
                   ))}
@@ -814,7 +888,22 @@ export function StudentDetailPage() {
               </Field>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Year of Study">
+              <Field label="Intake Year">
+                <input style={inputCss} placeholder={String(new Date().getFullYear())} maxLength={4}
+                  value={form.intake_year} onChange={(e) => setForm({ ...form, intake_year: e.target.value })} />
+              </Field>
+              <Field label="District of Origin">
+                <select style={selectCss} value={form.district_of_origin}
+                  onChange={(e) => setForm({ ...form, district_of_origin: e.target.value })}>
+                  <option value="">— Select District —</option>
+                  {UGANDA_DISTRICTS.map((district) => (
+                    <option key={district} value={district}>{district}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Field label="Year of Study (required for fees)" required>
                 <select
                   style={selectCss}
                   value={form.year_of_study}
@@ -833,6 +922,10 @@ export function StudentDetailPage() {
                   value={form.class_section}
                   onChange={(e) => setForm({ ...form, class_section: e.target.value })}
                 />
+              </Field>
+              <Field label="Entry Qualification">
+                <input style={inputCss} placeholder="e.g. UCE, PLE, UACE" value={form.entry_qualification}
+                  onChange={(e) => setForm({ ...form, entry_qualification: e.target.value })} />
               </Field>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -918,12 +1011,11 @@ export function StudentDetailPage() {
               />
             </Field>
             <Field label="Relationship">
-              <input
-                style={inputCss}
-                value={form.guardian_relationship}
-                onChange={(e) => setForm({ ...form, guardian_relationship: e.target.value })}
-                placeholder="e.g. Mother, Father, Sibling"
-              />
+              <select style={selectCss} value={form.guardian_relationship}
+                onChange={(e) => setForm({ ...form, guardian_relationship: e.target.value })}>
+                <option value="">— Select —</option>
+                {GUARDIAN_RELATIONSHIPS.map((relationship) => <option key={relationship} value={relationship}>{relationship}</option>)}
+              </select>
             </Field>
             <Field label="Guardian phone">
               <input
@@ -943,7 +1035,9 @@ export function StudentDetailPage() {
               />
             </Field>
             {mutation.isError && (
-              <ErrorBanner message="Save failed. Please try again." />
+              <ErrorBanner
+                message={mutation.error instanceof ApiError ? mutation.error.message : "Save failed. Please try again."}
+              />
             )}
             <div style={{ display: "flex", gap: 8 }}>
               <PrimaryBtn type="submit" disabled={mutation.isPending}>

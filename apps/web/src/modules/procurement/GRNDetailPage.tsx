@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ensureGlobalCss,
@@ -25,6 +26,7 @@ export default function GRNDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [postingSummary, setPostingSummary] = useState<{ posted: number; unmapped: number } | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["procurement.grn", id],
@@ -33,7 +35,10 @@ export default function GRNDetailPage() {
 
   const confirmMut = useMutation({
     mutationFn: () => confirmGRN(id!),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["procurement.grn", id] }),
+    onSuccess: (result) => {
+      setPostingSummary({ posted: result.inventory_posted ?? 0, unmapped: result.inventory_unmapped ?? 0 });
+      qc.invalidateQueries({ queryKey: ["procurement.grn", id] });
+    },
   });
 
   if (isLoading) return <div style={{ padding: 24 }}>Loading…</div>;
@@ -65,15 +70,27 @@ export default function GRNDetailPage() {
         </Card>
       )}
 
+      {postingSummary && (
+        <Card padding="14px 18px" style={{ marginBottom: 16, borderLeft: `4px solid ${postingSummary.unmapped ? "#f59f00" : "#198754"}` }}>
+          <strong>Inventory posting:</strong> {postingSummary.posted} line(s) posted.
+          {postingSummary.unmapped > 0 && (
+            <span style={{ marginLeft: 8, color: "#9a6700" }}>
+              {postingSummary.unmapped} line(s) were not linked to inventory and need follow-up.
+            </span>
+          )}
+        </Card>
+      )}
+
       <Card padding="20px 24px 0">
         <h3 style={{ marginTop: 0 }}>Items Received</h3>
         <DataTable
           isLoading={false}
-          headers={["Description", "Qty Ordered", "Qty Received", "Condition", "Notes"]}
+          headers={["Description", "Inventory Item", "Qty Ordered", "Qty Received", "Condition", "Notes"]}
         >
           {(data.items ?? []).map((item) => (
             <TR key={item.id}>
               <TD>{item.description}</TD>
+              <TD>{item.inventory_item_id ? "Linked" : "Not linked"}</TD>
               <TD>{item.quantity_ordered ?? "—"}</TD>
               <TD>{item.quantity_received}</TD>
               <TD><Badge label={item.condition} color={CONDITION_COLOR[item.condition] as BadgeColor} /></TD>

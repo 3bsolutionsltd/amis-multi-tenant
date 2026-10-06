@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getAttendance,
@@ -180,6 +180,12 @@ export function AttendancePage() {
     }
     setSheet(map);
   }
+
+  useEffect(() => {
+    if (attendanceQuery.data && attendanceQuery.data.length > 0) {
+      seedSheet();
+    }
+  }, [attendanceQuery.data]);
 
   const records = attendanceQuery.data ?? [];
   const summary = summaryQuery.data ?? [];
@@ -419,11 +425,14 @@ export function AttendancePage() {
                     }}
                   >
                     <span style={{ fontSize: 13, color: C.gray500 }}>
-                      {records.length} student{records.length !== 1 ? "s" : ""}{" "}
-                      found for{" "}
+                      {students.length} student{students.length !== 1 ? "s" : ""}{" "}
+                      in the roster for{" "}
                       <strong>
                         {appliedCourseLabel} on {applied.date}
                       </strong>
+                      {records.length > 0 && (
+                        <> ({records.length} attendance record{records.length !== 1 ? "s" : ""} already saved)</>
+                      )}
                     </span>
                     <SecondaryBtn onClick={seedSheet}>
                       Load existing

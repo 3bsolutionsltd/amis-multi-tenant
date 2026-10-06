@@ -43,7 +43,8 @@ export async function termRegistrationsRoutes(app: FastifyInstance) {
       const { student_id, academic_year, term, extension } = parsed.data;
       const actorUserId = req.user?.userId ?? null;
 
-      const result = await withTenant(tid, async (client) => {
+      try {
+        const result = await withTenant(tid, async (client) => {
         const wf = await loadWorkflowDef(tid, WORKFLOW_KEY, client);
         if (!wf) {
           return {
@@ -113,15 +114,30 @@ export async function termRegistrationsRoutes(app: FastifyInstance) {
           ],
         );
 
-        return { registration, workflowState: wf.initial_state };
-      });
+          return { registration, workflowState: wf.initial_state };
+        });
 
-      if ("configError" in result)
-        return reply.status(422).send({ error: result.message });
-      if ("notFound" in result)
-        return reply.status(404).send({ error: result.message });
+        if ("configError" in result)
+          return reply.status(422).send({ error: result.message });
+        if ("notFound" in result)
+          return reply.status(404).send({ error: result.message });
 
-      return reply.status(201).send(result);
+        return reply.status(201).send(result);
+      } catch (err: unknown) {
+        const pgError = err as { code?: string; constraint?: string };
+        if (
+          pgError.code === "23505" &&
+          pgError.constraint ===
+            "term_registrations_tenant_id_student_id_academic_year_term"
+        ) {
+          return reply.status(409).send({
+            error: "already_registered",
+            message:
+              "Student is already registered for this academic year and term.",
+          });
+        }
+        throw err;
+      }
     },
   );
 

@@ -77,6 +77,7 @@ export interface PurchaseRequisition {
 export interface POItem {
   id: string;
   po_id: string;
+  inventory_item_id: string | null;
   description: string;
   quantity: number;
   unit: string | null;
@@ -107,6 +108,7 @@ export interface GRNItem {
   id: string;
   grn_id: string;
   po_item_id: string | null;
+  inventory_item_id: string | null;
   description: string;
   quantity_ordered: number | null;
   quantity_received: number;
@@ -126,6 +128,8 @@ export interface GoodsReceivedNote {
   created_at: string;
   updated_at: string;
   items?: GRNItem[];
+  inventory_posted?: number;
+  inventory_unmapped?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -216,7 +220,7 @@ export function getOrder(id: string): Promise<PurchaseOrder & { items: POItem[] 
 export function createOrder(body: {
   po_number: string; title: string; pr_id?: string; supplier_id?: string;
   order_date?: string; expected_delivery_date?: string; notes?: string;
-  items: Array<{ description: string; quantity: number; unit?: string; unit_price: number; notes?: string }>;
+  items: Array<{ description: string; inventory_item_id?: string; quantity: number; unit?: string; unit_price: number; notes?: string }>;
 }): Promise<PurchaseOrder> {
   return apiFetch<PurchaseOrder>("/procurement/orders", { method: "POST", body: JSON.stringify(body) });
 }
@@ -250,7 +254,7 @@ export function createGRN(body: {
   grn_number: string; po_id?: string; received_by?: string; received_date?: string; notes?: string;
   items: Array<{
     description: string; quantity_received: number; quantity_ordered?: number;
-    condition?: GRNCondition; po_item_id?: string; notes?: string;
+    condition?: GRNCondition; po_item_id?: string; inventory_item_id?: string; notes?: string;
   }>;
 }): Promise<GoodsReceivedNote> {
   return apiFetch<GoodsReceivedNote>("/procurement/grns", { method: "POST", body: JSON.stringify(body) });

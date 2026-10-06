@@ -86,8 +86,11 @@ function SlotCard({
       onClick={onEdit}
     >
       <div style={{ fontWeight: 700, fontSize: 13, color: col.text }}>
-        {slot.course_id}
+        {slot.course_title ?? slot.course_code ?? slot.course_id}
       </div>
+      {slot.course_title && slot.course_code && (
+        <div style={{ fontSize: 11, color: C.gray500 }}>{slot.course_code}</div>
+      )}
       <div style={{ fontSize: 12, color: C.gray700 }}>
         {slot.start_time}–{slot.end_time}
       </div>

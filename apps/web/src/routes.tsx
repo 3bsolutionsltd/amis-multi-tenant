@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, useParams } from "react-router-dom";
 import { AppShell } from "./app/AppShell";
 import { StudentsListPage } from "./modules/students/StudentsListPage";
 import { StudentCreatePage } from "./modules/students/StudentCreatePage";
@@ -104,7 +104,14 @@ import InventoryItemDetailPage from "./modules/inventory/InventoryItemDetailPage
 import IssuanceCreatePage from "./modules/inventory/IssuanceCreatePage";
 import StockTakeCreatePage from "./modules/inventory/StockTakeCreatePage";
 import StockTakeDetailPage from "./modules/inventory/StockTakeDetailPage";
+
+function LegacyGRNRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/inventory/grns/${id ?? ""}`} replace />;
+}
 import StockReceiptPage from "./modules/inventory/StockReceiptPage";
+import { GRNsTab } from "./modules/procurement/ProcurementPage";
+import AssetRegistryPage from "./modules/assets/AssetRegistryPage";
 import { StudentProjectsListPage } from "./modules/student-projects/StudentProjectsListPage";
 import { StudentProjectDetailPage } from "./modules/student-projects/StudentProjectDetailPage";
 import { SRQListPage } from "./modules/stores/SRQListPage";
@@ -171,7 +178,7 @@ export const router = createBrowserRouter([
       { path: "admissions/new", element: <ApplicationCreatePage /> },
       { path: "admissions/import", element: <AdmissionsImportPage /> },
       { path: "admissions/:id", element: <ApplicationDetailPage /> },
-      { path: "users", element: <RequireRole roles={["admin"]}><UsersListPage /></RequireRole> },
+      { path: "users", element: <Navigate to="/admin-studio/users" replace /> },
       { path: "users/new", element: <RequireRole roles={["admin"]}><UserCreatePage /></RequireRole> },
       { path: "users/:id", element: <RequireRole roles={["admin"]}><UserDetailPage /></RequireRole> },
       { path: "my-profile", element: <ProfilePage /> },
@@ -219,17 +226,22 @@ export const router = createBrowserRouter([
       { path: "results/transcript", element: <TranscriptPage /> },
       { path: "clearance", element: <ClearancePage /> },
       { path: "procurement", element: <RequireRole roles={["admin", "procurement_officer", "principal"]}><ProcurementPage /></RequireRole> },
-      { path: "procurement/requisitions/new", element: <RequireRole roles={["admin", "procurement_officer", "principal"]}><RequisitionCreatePage /></RequireRole> },
+      { path: "procurement/requisitions/new", element: <RequisitionCreatePage /> },
       { path: "procurement/requisitions/:id", element: <RequireRole roles={["admin", "procurement_officer", "principal"]}><RequisitionDetailPage /></RequireRole> },
       { path: "procurement/orders/new", element: <RequireRole roles={["admin", "procurement_officer", "principal"]}><PurchaseOrderCreatePage /></RequireRole> },
       { path: "procurement/orders/:id", element: <RequireRole roles={["admin", "procurement_officer", "principal"]}><PurchaseOrderDetailPage /></RequireRole> },
-      { path: "procurement/grns/new", element: <RequireRole roles={["admin", "procurement_officer", "principal"]}><GRNCreatePage /></RequireRole> },
-      { path: "procurement/grns/:id", element: <RequireRole roles={["admin", "procurement_officer", "principal"]}><GRNDetailPage /></RequireRole> },
-      { path: "inventory", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><InventoryPage /></RequireRole> },
-      { path: "inventory/items/new", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><InventoryItemCreatePage /></RequireRole> },
+      { path: "procurement/grns/new", element: <Navigate to="/inventory/grns/new" replace /> },
+      { path: "procurement/grns/:id", element: <LegacyGRNRedirect /> },
+      { path: "inventory", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal", "hod"]}><InventoryPage /></RequireRole> },
+      { path: "inventory/items/new", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal", "hod"]}><InventoryItemCreatePage /></RequireRole> },
       { path: "inventory/items/:id", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><InventoryItemDetailPage /></RequireRole> },
       { path: "inventory/issuances/new", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><IssuanceCreatePage /></RequireRole> },
       { path: "inventory/receipts/new", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><StockReceiptPage /></RequireRole> },
+      { path: "inventory/grns", element: <RequireRole roles={["admin", "inventory_manager", "principal", "hod"]}><GRNsTab /></RequireRole> },
+      { path: "inventory/grns/new", element: <RequireRole roles={["admin", "inventory_manager", "principal"]}><GRNCreatePage /></RequireRole> },
+      { path: "inventory/grns/:id", element: <RequireRole roles={["admin", "inventory_manager", "principal", "hod"]}><GRNDetailPage /></RequireRole> },
+      { path: "inventory/adjustments/new", element: <RequireRole roles={["admin", "inventory_manager", "principal"]}><StockReceiptPage /></RequireRole> },
+      { path: "inventory/returns/new", element: <RequireRole roles={["admin", "inventory_manager", "principal"]}><StockReceiptPage /></RequireRole> },
       { path: "inventory/stock-takes/new", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><StockTakeCreatePage /></RequireRole> },
       { path: "inventory/stock-takes/:id", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><StockTakeDetailPage /></RequireRole> },
       { path: "student-projects", element: <StudentProjectsListPage /> },
@@ -238,6 +250,7 @@ export const router = createBrowserRouter([
       { path: "stores/requisitions/:id", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><SRQDetailPage /></RequireRole> },
       { path: "stores/pcv", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><PCVListPage /></RequireRole> },
       { path: "stores/pcv/:id", element: <RequireRole roles={["admin", "procurement_officer", "inventory_manager", "principal"]}><PCVDetailPage /></RequireRole> },
+      { path: "assets", element: <RequireRole roles={["admin", "registrar", "finance", "principal", "hod", "dean", "instructor", "procurement_officer", "inventory_manager"]}><AssetRegistryPage /></RequireRole> },
     ],
   },
   {
@@ -267,7 +280,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <ConfigDashboard /> },
       { path: "profile", element: <InstituteProfilePage /> },
-      { path: "users", element: <StudioUsersPage /> },
+      { path: "users", element: <RequireRole roles={["admin"]}><StudioUsersPage /></RequireRole> },
       { path: "editor", element: <ConfigEditor /> },
       { path: "branding", element: <BrandingEditor /> },
       { path: "modules", element: <ModuleToggles /> },

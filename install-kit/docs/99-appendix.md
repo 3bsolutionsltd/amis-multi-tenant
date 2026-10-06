@@ -29,7 +29,7 @@
 | Port | Where it binds | Purpose | Open to LAN? | Open to Internet? |
 |------|----------------|---------|---------------|--------------------|
 | 80 | host (offline) / 127.0.0.1 (cloud) | Web UI | Yes (offline) | Only via Nginx + TLS (cloud) |
-| 3001 | host (offline) / 127.0.0.1 (cloud) | REST API | Yes (offline) | Only via Nginx (cloud) |
+| 3001 / 3005 | host (offline) / 127.0.0.1 (cloud) | REST API | Yes (offline) | Only via Nginx (cloud) |
 | 4001 | host (when docs server running) | Documentation site | Yes | No |
 | 5432 | docker internal network | PostgreSQL | **No** | **No** |
 | 443 | host (cloud only) | Nginx HTTPS | — | Yes (cloud only) |

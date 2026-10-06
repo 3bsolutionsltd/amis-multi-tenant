@@ -175,16 +175,22 @@ export function MarksListPage() {
 
       <DataTable
         headers={viewMode === "consolidated"
-          ? ["Course", "Programme", "Intake / Term", "Type", "Assessment Date", "State", "Created"]
-          : ["Course", "Programme", "Intake / Term", "Type", "Assessment Date", "State", "Created"]}
+          ? ["Course", "Programme", "Intake / Term", "Type", "Assessment Date", "State", "Created by", "Created"]
+          : ["Course", "Programme", "Intake / Term", "Type", "Assessment Date", "State", "Created by", "Created"]}
         isLoading={isLoading}
         isEmpty={isEmpty}
         emptyIcon="📊"
         emptyTitle={viewMode === "consolidated" ? "No approved/published submissions" : "No submissions found"}
         emptyDescription={viewMode === "consolidated" ? "Approved and published marks will appear here." : 'Adjust filters or click "+ New Submission" to add one.'}
-        colCount={7}
+        colCount={8}
       >
         {displayData.map((sub) => (
+          (() => {
+            const creatorName = [sub.created_by_first_name, sub.created_by_last_name]
+              .filter(Boolean)
+              .join(" ");
+            const createdBy = creatorName || sub.created_by_email || sub.created_by || "Unknown";
+            return (
           <TR key={sub.id} onClick={() => navigate(`/marks/${sub.id}`)}>
             <TD>
               <span style={{ fontWeight: 600, color: "#111827" }}>
@@ -216,8 +222,11 @@ export function MarksListPage() {
                 color={STATE_BADGE[sub.current_state ?? ""] ?? "gray"}
               />
             </TD>
+            <TD muted>{createdBy}</TD>
             <TD muted>{new Date(sub.created_at).toLocaleDateString()}</TD>
           </TR>
+            );
+          })()
         ))}
       </DataTable>
 

@@ -44,15 +44,29 @@ describe("GET /students", () => {
     const res = await app.inject({
       method: "GET",
       url: "/students",
-      headers: { "x-tenant-id": "tenant-uuid-1" },
+      headers: { "x-tenant-id": TID },
     });
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual(fakeStudents);
     expect(mockWithTenant).toHaveBeenCalledWith(
-      "tenant-uuid-1",
+      TID,
       expect.any(Function),
     );
+  });
+
+  it("allows finance to read the student list", async () => {
+    mockWithTenant.mockResolvedValueOnce({ rows: [] } as never);
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/students",
+      headers: { "x-tenant-id": TID, "x-dev-role": "finance" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([]);
   });
 
   it("filters by search query when provided", async () => {
@@ -73,11 +87,40 @@ describe("GET /students", () => {
     const res = await app.inject({
       method: "GET",
       url: "/students?search=Alice",
-      headers: { "x-tenant-id": "tenant-uuid-1" },
+      headers: { "x-tenant-id": TID },
     });
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual(fakeStudents);
+  });
+
+  it("supports full-name search and current-term registration status", async () => {
+    let capturedSql = "";
+    let capturedParams: unknown[] = [];
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
+      const fakeClient = {
+        query: vi.fn((sql: string, params: unknown[]) => {
+          capturedSql = sql;
+          capturedParams = params;
+          return Promise.resolve({ rows: [] });
+        }),
+      };
+      return cb(fakeClient as never);
+    });
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/students?search=Carol%20Nkosi&registration_academic_year=2026%2F2027&registration_term=Term%201",
+      headers: { "x-tenant-id": TID },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(capturedSql).toContain("concat_ws(' ', first_name, other_names, last_name)");
+    expect(capturedSql).toContain("registration_status");
+    expect(capturedParams).toContain("%Carol Nkosi%");
+    expect(capturedParams).toContain("2026/2027");
+    expect(capturedParams).toContain("Term 1");
   });
 
   it("matches students by either programme_code or programme title (attendance/class-list roster fix)", async () => {
@@ -98,12 +141,109 @@ describe("GET /students", () => {
     const res = await app.inject({
       method: "GET",
       url: "/students?programme=DICT",
-      headers: { "x-tenant-id": "tenant-uuid-1" },
+      headers: { "x-tenant-id": TID },
     });
 
     expect(res.statusCode).toBe(200);
     expect(capturedSql).toMatch(/programme_code = \$\d+ OR programme = \$\d+/);
     expect(capturedParams).toContain("DICT");
+  });
+
+  it("scopes instructors to assigned course offerings", async () => {
+    let capturedSql = "";
+    let capturedParams: unknown[] = [];
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
+      const fakeClient = {
+        query: vi.fn((sql: string, params: unknown[]) => {
+          capturedSql = sql;
+          capturedParams = params;
+          return Promise.resolve({ rows: [] });
+        }),
+      };
+      return cb(fakeClient as never);
+    });
+
+    const instructorId = "22222222-2222-2222-2222-222222222222";
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/students",
+      headers: {
+        "x-tenant-id": TID,
+        "x-dev-role": "instructor",
+        "x-dev-user-id": instructorId,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(capturedSql).toContain("course_offerings");
+    expect(capturedSql).not.toContain("platform.users");
+    expect(capturedParams).toEqual([instructorId, 20, 0]);
+  });
+
+  it("scopes HODs to department programmes", async () => {
+    let capturedSql = "";
+    let capturedParams: unknown[] = [];
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
+      const fakeClient = {
+        query: vi.fn((sql: string, params: unknown[]) => {
+          capturedSql = sql;
+          capturedParams = params;
+          return Promise.resolve({ rows: [] });
+        }),
+      };
+      return cb(fakeClient as never);
+    });
+
+    const hodId = "33333333-3333-3333-3333-333333333333";
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/students",
+      headers: {
+        "x-tenant-id": TID,
+        "x-dev-role": "hod",
+        "x-dev-user-id": hodId,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(capturedSql).toContain("platform.users");
+    expect(capturedSql).not.toContain("course_offerings");
+    expect(capturedParams).toEqual([hodId, 20, 0]);
+  });
+
+  it("unions HOD and instructor scopes for dual-role users", async () => {
+    let capturedSql = "";
+    let capturedParams: unknown[] = [];
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => {
+      const fakeClient = {
+        query: vi.fn((sql: string, params: unknown[]) => {
+          capturedSql = sql;
+          capturedParams = params;
+          return Promise.resolve({ rows: [] });
+        }),
+      };
+      return cb(fakeClient as never);
+    });
+
+    const userId = "44444444-4444-4444-4444-444444444444";
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/students",
+      headers: {
+        "x-tenant-id": TID,
+        "x-dev-role": "hod",
+        "x-dev-roles": "hod,instructor",
+        "x-dev-user-id": userId,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(capturedSql).toContain("course_offerings");
+    expect(capturedSql).toContain("platform.users");
+    expect(capturedParams).toEqual([userId, 20, 0]);
   });
 });
 
@@ -145,8 +285,15 @@ describe("POST /students", () => {
     const res = await app.inject({
       method: "POST",
       url: "/students",
-      headers: { "x-tenant-id": "tenant-uuid-1" },
-      payload: { first_name: "Bob", last_name: "Jones" },
+      headers: { "x-tenant-id": TID },
+      payload: {
+        first_name: "Bob",
+        last_name: "Jones",
+        sponsorship_type: "Private",
+        residence_category: "day",
+        programme: "General Studies",
+        year_of_study: 1,
+      },
     });
 
     expect(res.statusCode).toBe(201);
@@ -163,10 +310,14 @@ describe("POST /students", () => {
     const res = await app.inject({
       method: "POST",
       url: "/students",
-      headers: { "x-tenant-id": "tenant-uuid-1" },
+      headers: { "x-tenant-id": TID },
       payload: {
         first_name: "Bob",
         last_name: "Jones",
+        sponsorship_type: "Private",
+        residence_category: "day",
+        programme: "General Studies",
+        year_of_study: 1,
         programme_code: "DCIT",
       },
     });
@@ -180,7 +331,7 @@ describe("POST /students", () => {
     const res = await app.inject({
       method: "POST",
       url: "/students",
-      headers: { "x-tenant-id": "tenant-uuid-1", "x-dev-role": "instructor" },
+      headers: { "x-tenant-id": TID, "x-dev-role": "instructor" },
       payload: { first_name: "Bob", last_name: "Jones" },
     });
     expect(res.statusCode).toBe(403);
@@ -244,6 +395,60 @@ describe("GET /students/:id", () => {
     expect(body).toHaveProperty("industrial_training");
     expect(body).toHaveProperty("field_placements");
     expect(body).toHaveProperty("fees");
+  });
+
+  it("applies instructor visibility when viewing a student", async () => {
+    let capturedSql = "";
+    const mockClient = {
+      query: vi.fn((sql: string) => {
+        capturedSql = sql;
+        return Promise.resolve({ rows: [] });
+      }),
+    };
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => cb(mockClient as never));
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/students/${SOME_ID}`,
+      headers: { "x-tenant-id": TID, "x-dev-role": "instructor" },
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(capturedSql).toContain("course_offerings");
+    expect(capturedSql).not.toContain("platform.users");
+  });
+
+  it("applies the union of HOD and instructor visibility", async () => {
+    let capturedSql = "";
+    let capturedParams: unknown[] = [];
+    const mockClient = {
+      query: vi.fn((sql: string, params: unknown[]) => {
+        capturedSql = sql;
+        capturedParams = params;
+        return Promise.resolve({ rows: [] });
+      }),
+    };
+    mockWithTenant.mockImplementationOnce(async (_tid, cb) => cb(mockClient as never));
+
+    const userId = "55555555-5555-5555-5555-555555555555";
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/students/${SOME_ID}`,
+      headers: {
+        "x-tenant-id": TID,
+        "x-dev-role": "hod",
+        "x-dev-roles": "hod,instructor",
+        "x-dev-user-id": userId,
+      },
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(capturedSql).toContain("course_offerings");
+    expect(capturedSql).toContain("platform.users");
+    expect(capturedSql).toContain("$2");
+    expect(capturedParams).toEqual([SOME_ID, userId]);
   });
 });
 
@@ -415,14 +620,15 @@ describe("GET /students/export/csv", () => {
     expect(res.statusCode).toBe(400);
   });
 
-  it("returns 403 for an instructor role", async () => {
+  it("allows an instructor to export within their visibility scope", async () => {
+    mockWithTenant.mockResolvedValueOnce({ rows: [] } as never);
     const app = buildApp();
     const res = await app.inject({
       method: "GET",
       url: "/students/export/csv",
       headers: { "x-tenant-id": TID, "x-dev-role": "instructor" },
     });
-    expect(res.statusCode).toBe(403);
+    expect(res.statusCode).toBe(200);
   });
 
   it("returns CSV with correct content-type", async () => {

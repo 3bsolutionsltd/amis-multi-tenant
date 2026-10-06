@@ -4,7 +4,7 @@ import { apiFetch } from "../../lib/apiFetch";
 // Types
 // ---------------------------------------------------------------------------
 export type SRQStatus =
-  | "draft" | "submitted" | "hod_approved" | "fulfilled" | "rejected" | "escalated_to_pr";
+  | "draft" | "submitted" | "hod_approved" | "ready_for_issue" | "fulfilled" | "rejected" | "escalated_to_pr";
 
 export type PCVStatus =
   | "draft" | "submitted" | "hod_approved" | "bursar_approved" | "paid" | "retired" | "rejected";

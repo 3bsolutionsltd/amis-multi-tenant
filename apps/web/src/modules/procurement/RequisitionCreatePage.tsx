@@ -36,6 +36,7 @@ export default function RequisitionCreatePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { departments } = useConfig();
+  const requesterName = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || user?.email || "";
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +47,7 @@ export default function RequisitionCreatePage() {
 
   const [form, setForm] = useState({
     pr_number: "", title: "", department: "",
-    requested_by: user?.email ?? "",
+    requested_by: requesterName,
     priority: "normal" as PRPriority, academic_year: "", required_by: "", notes: "",
   });
   const [items, setItems] = useState<PRItemRow[]>([emptyItem()]);
@@ -121,7 +122,7 @@ export default function RequisitionCreatePage() {
               )}
             </Field>
             <Field label="Requested By">
-              <input value={form.requested_by} onChange={(e) => setF("requested_by", e.target.value)} style={inputCss} />
+              <input value={form.requested_by} readOnly style={{ ...inputCss, background: "#f8fafc", color: "#475569" }} />
             </Field>
             <Field label="Priority">
               <select value={form.priority} onChange={(e) => setF("priority", e.target.value)} style={selectCss}>

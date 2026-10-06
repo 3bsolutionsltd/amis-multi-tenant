@@ -43,6 +43,7 @@ import { notificationsRoutes } from "./modules/notifications/notifications.route
 import { uploadsRoutes } from "./modules/uploads/uploads.routes.js";
 import { studentProjectsRoutes } from "./modules/student-projects/student-projects.routes.js";
 import { storesRoutes } from "./modules/stores/stores.routes.js";
+import { assetsRoutes } from "./modules/assets/assets.routes.js";
 import { syncRoutes } from "./modules/sync/sync.routes.js";
 import { feedbackRoutes } from "./modules/feedback/feedback.routes.js";
 import { registerDevIdentity } from "./middleware/devIdentity.js";
@@ -171,6 +172,7 @@ export function buildApp() {
   app.register(uploadsRoutes);
   app.register(studentProjectsRoutes);
   app.register(storesRoutes);
+  app.register(assetsRoutes);
   app.register(syncRoutes);
   app.register(feedbackRoutes);
 

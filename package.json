@@ -11,6 +11,9 @@
     "seed": "pnpm --filter @amis/api exec tsx ../../db/seeds/seed.ts"
   },
   "pnpm": {
+    "overrides": {
+      "proxy-addr": "2.0.8"
+    },
     "onlyBuiltDependencies": [
       "esbuild"
     ]

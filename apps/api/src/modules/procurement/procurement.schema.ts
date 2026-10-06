@@ -105,6 +105,7 @@ export const TransitionPRSchema = z.object({
 // ---------------------------------------------------------------------------
 export const POItemSchema = z.object({
   description: z.string().min(1),
+  inventory_item_id: z.string().uuid().optional(),
   quantity: z.number().positive(),
   unit: z.string().default("units"),
   unit_price: z.number().nonnegative(),
@@ -148,6 +149,7 @@ export const TransitionPOSchema = z.object({
 // ---------------------------------------------------------------------------
 export const GRNItemSchema = z.object({
   po_item_id: z.string().uuid().optional(),
+  inventory_item_id: z.string().uuid().optional(),
   description: z.string().min(1),
   quantity_ordered: z.number().nonnegative().optional(),
   quantity_received: z.number().nonnegative(),

@@ -1,9 +1,11 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ensureGlobalCss,
   PageHeader,
   Badge,
+  PrimaryBtn,
   SecondaryBtn,
   ErrorBanner,
   Card,
@@ -11,18 +13,53 @@ import {
   TR,
   TD,
 } from "../../lib/ui";
-import { getInventoryItem } from "./inventory.api";
+import { getInventoryItem, updateInventoryItem, type InventoryCategory } from "./inventory.api";
 
 ensureGlobalCss();
+
+const CATEGORIES: InventoryCategory[] = [
+  "stationery", "furniture", "equipment", "laboratory", "cleaning",
+  "food", "uniform", "medical", "other",
+];
 
 export default function InventoryItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<Record<string, string>>({});
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["inventory.item", id],
     queryFn: () => getInventoryItem(id!),
   });
+
+  const updateMut = useMutation({
+    mutationFn: () => updateInventoryItem(id!, {
+      item_code: form.item_code,
+      name: form.name,
+      description: form.description,
+      category: form.category as InventoryCategory,
+      unit_of_measure: form.unit_of_measure,
+      reorder_level: Number(form.reorder_level),
+      unit_cost: form.unit_cost ? Number(form.unit_cost) : undefined,
+      notes: form.notes,
+    }),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["inventory.item", id], (current: typeof data) => current ? { ...current, ...updated } : updated);
+      setEditing(false);
+    },
+  });
+
+  function beginEdit() {
+    if (!data) return;
+    setForm({
+      item_code: data.item_code ?? "", name: data.name, description: data.description ?? "",
+      category: data.category, unit_of_measure: data.unit_of_measure,
+      reorder_level: String(data.reorder_level), unit_cost: data.unit_cost == null ? "" : String(data.unit_cost), notes: data.notes ?? "",
+    });
+    setEditing(true);
+  }
 
   if (isLoading) return <div style={{ padding: 24 }}>Loading…</div>;
   if (error || !data) return <div style={{ padding: 24 }}><ErrorBanner message="Item not found" /></div>;
@@ -32,7 +69,34 @@ export default function InventoryItemDetailPage() {
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
         <SecondaryBtn onClick={() => navigate("/inventory")}>← Back</SecondaryBtn>
         <PageHeader title={data.name} description={`Code: ${data.item_code}`} />
+        <SecondaryBtn onClick={editing ? () => setEditing(false) : beginEdit}>{editing ? "Cancel" : "Edit Item"}</SecondaryBtn>
       </div>
+
+      {editing && (
+        <Card padding="20px 24px" style={{ marginBottom: 16 }}>
+          {updateMut.isError && <ErrorBanner message={updateMut.error instanceof Error ? updateMut.error.message : "Failed to update item"} />}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {(["item_code", "name", "unit_of_measure", "reorder_level", "unit_cost"] as const).map((key) => (
+              <label key={key} style={{ display: "grid", gap: 4, fontSize: 12, fontWeight: 600 }}>
+                {key.replace(/_/g, " ").toUpperCase()}
+                <input value={form[key] ?? ""} type={key === "reorder_level" || key === "unit_cost" ? "number" : "text"} onChange={(e) => setForm((current) => ({ ...current, [key]: e.target.value }))} style={{ padding: "8px 10px", border: "1px solid #ced4da", borderRadius: 4, fontWeight: 400 }} />
+              </label>
+            ))}
+            <label style={{ display: "grid", gap: 4, fontSize: 12, fontWeight: 600 }}>CATEGORY
+              <select value={form.category} onChange={(e) => setForm((current) => ({ ...current, category: e.target.value }))} style={{ padding: "8px 10px", border: "1px solid #ced4da", borderRadius: 4 }}>
+                {CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+              </select>
+            </label>
+          </div>
+          <label style={{ display: "grid", gap: 4, marginTop: 12, fontSize: 12, fontWeight: 600 }}>DESCRIPTION
+            <textarea value={form.description ?? ""} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} rows={2} style={{ padding: "8px 10px", border: "1px solid #ced4da", borderRadius: 4 }} />
+          </label>
+          <label style={{ display: "grid", gap: 4, marginTop: 12, fontSize: 12, fontWeight: 600 }}>NOTES
+            <textarea value={form.notes ?? ""} onChange={(e) => setForm((current) => ({ ...current, notes: e.target.value }))} rows={2} style={{ padding: "8px 10px", border: "1px solid #ced4da", borderRadius: 4 }} />
+          </label>
+          <PrimaryBtn onClick={() => updateMut.mutate()} disabled={updateMut.isPending} style={{ marginTop: 12 }}>{updateMut.isPending ? "Saving…" : "Save Changes"}</PrimaryBtn>
+        </Card>
+      )}
 
       <Card padding="20px 24px" style={{ marginBottom: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>

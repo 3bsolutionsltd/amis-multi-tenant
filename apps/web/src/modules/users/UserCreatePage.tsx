@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { createUser, VALID_ROLES, type UserRole } from "./users.api";
+import { createUser, listRoles } from "./users.api";
+import { useConfig } from "../../app/ConfigProvider";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -15,12 +17,15 @@ import {
 export function UserCreatePage() {
   ensureGlobalCss();
   const navigate = useNavigate();
+  const { departments } = useConfig();
+  const { data: roleData } = useQuery({ queryKey: ["user-roles"], queryFn: listRoles });
 
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
     email: "",
     role: "registrar",
+    department: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +39,11 @@ export function UserCreatePage() {
     setSaving(true);
     setError(null);
     try {
-      await createUser({ ...form, role: form.role as UserRole });
+      await createUser({
+        ...form,
+        role: form.role,
+        department: form.role === "hod" ? form.department || undefined : undefined,
+      });
       navigate("/users");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create user");
@@ -45,7 +54,7 @@ export function UserCreatePage() {
 
   return (
     <div>
-      <PageHeader title="New User" back={{ label: "Users", to: "/users" }} />
+      <PageHeader title="New User" back={{ label: "Users", to: "/admin-studio/users" }} />
       <Card padding="24px" style={{ maxWidth: 480 }}>
         <form
           onSubmit={handleSubmit}
@@ -96,19 +105,33 @@ export function UserCreatePage() {
           </div>
 
           <Field label="Role" required>
-            <select
+            <input
               required
-              style={selectCss}
+              list="tenant-roles"
+              style={inputCss}
               value={form.role}
               onChange={(e) => set("role", e.target.value)}
-            >
-              {VALID_ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
+            />
+            <datalist id="tenant-roles">
+              {(roleData?.data ?? []).map((role) => <option key={role} value={role} />)}
+            </datalist>
           </Field>
+
+          {form.role === "hod" && (
+            <Field label="Department" required>
+              <select
+                required
+                style={selectCss}
+                value={form.department}
+                onChange={(e) => set("department", e.target.value)}
+              >
+                <option value="">— Select department —</option>
+                {departments.map((department) => (
+                  <option key={department} value={department}>{department}</option>
+                ))}
+              </select>
+            </Field>
+          )}
 
           {error && <ErrorBanner message={error} />}
 

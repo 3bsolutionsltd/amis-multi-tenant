@@ -71,6 +71,49 @@ export function updateCourse(id: string, body: UpdateCourseBody): Promise<Course
   });
 }
 
+export interface CourseOffering {
+  id: string;
+  course_id: string;
+  term_id: string;
+  instructor_id: string | null;
+  max_enrollment: number | null;
+  course_code?: string;
+  course_title?: string;
+  term_name?: string;
+}
+
+export function listCourseOfferings(params?: { course_id?: string; term_id?: string }): Promise<CourseOffering[]> {
+  const q = new URLSearchParams();
+  if (params?.course_id) q.set("course_id", params.course_id);
+  if (params?.term_id) q.set("term_id", params.term_id);
+  const qs = q.toString();
+  return apiFetch<CourseOffering[]>(`/course-offerings${qs ? `?${qs}` : ""}`);
+}
+
+export interface CreateCourseOfferingBody {
+  course_id: string;
+  term_id: string;
+  instructor_id?: string;
+  max_enrollment?: number;
+}
+
+export function createCourseOffering(body: CreateCourseOfferingBody): Promise<CourseOffering> {
+  return apiFetch<CourseOffering>("/course-offerings", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateCourseOffering(
+  id: string,
+  body: { instructor_id?: string | null; max_enrollment?: number | null },
+): Promise<CourseOffering> {
+  return apiFetch<CourseOffering>(`/course-offerings/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export interface CourseImportResult {
   imported: number;
   skipped: number;

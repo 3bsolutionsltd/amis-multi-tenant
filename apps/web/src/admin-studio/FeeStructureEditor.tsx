@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "../lib/apiFetch";
 import { useConfig } from "../app/ConfigProvider";
@@ -78,6 +78,12 @@ export function FeeStructureEditor() {
     currency: "UGX",
     is_active: true,
   });
+
+  useEffect(() => {
+    if (!editItem && feeTypes.length > 0 && !feeTypes.includes(form.fee_type)) {
+      setForm((current) => ({ ...current, fee_type: feeTypes[0] }));
+    }
+  }, [editItem, feeTypes, form.fee_type]);
 
   /* ---- queries ---- */
 

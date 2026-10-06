@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "../../auth/AuthContext";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -21,6 +22,12 @@ import {
   listIssuances,
   listStockTakes,
   issueIssuance,
+  getInventoryDashboard,
+  listReplenishments,
+  approveReplenishment,
+  listInventoryAudit,
+  createReplenishment,
+  exportInventoryCsv,
   type InventoryCategory,
   type IssuanceStatus,
   type StockTakeStatus,
@@ -45,18 +52,24 @@ const STOCK_TAKE_STATUS_LABEL: Record<StockTakeStatus, string> = {
   in_progress: "In Progress", completed: "Completed", approved: "Approved",
 };
 
-type Tab = "items" | "issuances" | "transactions" | "lowstock" | "stocktakes";
+type Tab = "dashboard" | "items" | "issuances" | "transactions" | "lowstock" | "stocktakes";
 
 export default function InventoryPage() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>("items");
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab");
+  const [tab, setTab] = useState<Tab>(
+    initialTab === "dashboard" || initialTab === "transactions" || initialTab === "issuances" || initialTab === "lowstock"
+      ? initialTab
+      : "dashboard",
+  );
 
   return (
     <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
       <PageHeader title="Inventory & Stores" description="Manage stock, issuances and transactions" />
 
       <div style={{ display: "flex", gap: 0, marginBottom: 20, borderBottom: "2px solid #dee2e6" }}>
-        {(["items", "issuances", "transactions", "lowstock"] as Tab[]).map((t) => (
+        {(["dashboard", "items", "issuances", "transactions", "lowstock"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -67,15 +80,78 @@ export default function InventoryPage() {
               color: tab === t ? "#0d6efd" : "#495057", marginBottom: -2,
             }}
           >
-            {t === "items" ? "Items" : t === "issuances" ? "Issuances" : t === "transactions" ? "Transactions" : "Low Stock ⚠️"}
+            {t === "dashboard" ? "Dashboard" : t === "items" ? "Items" : t === "issuances" ? "Issuances" : t === "transactions" ? "Transactions" : "Low Stock ⚠️"}
           </button>
         ))}
       </div>
 
+      {tab === "dashboard" && <DashboardTab navigate={navigate} />}
       {tab === "items" && <ItemsTab navigate={navigate} />}
       {tab === "issuances" && <IssuancesTab navigate={navigate} />}
       {tab === "transactions" && <TransactionsTab navigate={navigate} />}
       {tab === "lowstock" && <LowStockTab navigate={navigate} />}
+    </div>
+  );
+}
+
+function DashboardTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+  const { user } = useAuth();
+  const canApprove = user ? ["admin", "finance", "inventory_manager"].includes(user.role) : false;
+  const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ["inventory.dashboard"], queryFn: getInventoryDashboard });
+  const qc = useQueryClient();
+  const replenishments = useQuery({ queryKey: ["inventory.replenishments", "draft"], queryFn: () => listReplenishments("draft") });
+  const audit = useQuery({ queryKey: ["inventory.audit"], queryFn: listInventoryAudit, enabled: canApprove });
+  const approvalMut = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "approved" | "rejected" }) => approveReplenishment(id, status),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inventory.dashboard"] }); qc.invalidateQueries({ queryKey: ["inventory.replenishments"] }); qc.invalidateQueries({ queryKey: ["inventory.audit"] }); },
+  });
+  if (isLoading) return <Card style={{ padding: 32 }}>Loading dashboard...</Card>;
+  if (isError || !data) return (
+    <Card style={{ padding: 32 }}>
+      <h3 style={{ marginTop: 0 }}>Dashboard unavailable</h3>
+      <p style={{ color: "#6c757d" }}>{error instanceof Error ? error.message : "The inventory dashboard could not be loaded."}</p>
+      <SecondaryBtn onClick={() => refetch()}>Retry</SecondaryBtn>
+    </Card>
+  );
+  return (
+    <div>
+      <FilterBar>
+        <PrimaryBtn onClick={() => navigate("/inventory?tab=lowstock")}>Review Low Stock</PrimaryBtn>
+        <SecondaryBtn onClick={() => window.open(exportInventoryCsv(), "_blank")}>Export Inventory CSV</SecondaryBtn>
+      </FilterBar>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 20 }}>
+        {[
+          ["Active Items", data.total_items],
+          ["Stock Value", `UGX ${Number(data.stock_value).toLocaleString()}`],
+          ["Low Stock", data.low_stock_items],
+          ["Pending Issues", data.pending_issuances],
+          ["Replenishments", data.pending_replenishments],
+        ].map(([label, value]) => (
+          <Card key={String(label)} style={{ padding: 16 }}><div style={{ color: "#6c757d", fontSize: 12 }}>{label}</div><strong style={{ fontSize: 22 }}>{value}</strong></Card>
+        ))}
+      </div>
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Recent Stock Activity</h3>
+        <DataTable headers={["Item", "Type", "Quantity", "Balance", "Date"]}>
+          {data.recent_transactions.map((tx) => <TR key={tx.id}><TD>{tx.item_name ?? tx.item_id}</TD><TD>{tx.transaction_type}</TD><TD>{tx.quantity}</TD><TD>{tx.balance_after}</TD><TD>{tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "—"}</TD></TR>)}
+        </DataTable>
+      </Card>
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Pending Replenishments</h3>
+        <DataTable isLoading={replenishments.isLoading} headers={["Item", "Quantity", "Reason", "Requested By", "Actions"]}>
+          {(replenishments.data ?? []).map((request) => <TR key={request.id}>
+            <TD>{request.item_name ?? request.item_id}</TD><TD>{request.quantity_requested} {request.unit_of_measure ?? ""}</TD><TD>{request.reason}</TD><TD>{request.requested_by}</TD>
+            <TD>{canApprove && <><PrimaryBtn onClick={() => approvalMut.mutate({ id: request.id, status: "approved" })} disabled={approvalMut.isPending} style={{ padding: "3px 10px", fontSize: 12 }}>Approve</PrimaryBtn>{" "}<SecondaryBtn onClick={() => approvalMut.mutate({ id: request.id, status: "rejected" })} disabled={approvalMut.isPending} style={{ padding: "3px 10px", fontSize: 12 }}>Reject</SecondaryBtn></>}</TD>
+          </TR>)}
+        </DataTable>
+        {approvalMut.isError && <ErrorBanner message={String(approvalMut.error)} />}
+      </Card>
+      {canApprove && <Card style={{ padding: 20 }}>
+        <h3 style={{ marginTop: 0 }}>Inventory Audit Trail</h3>
+        <DataTable isLoading={audit.isLoading} headers={["Action", "Entity", "Details", "Date"]}>
+          {(audit.data ?? []).map((entry) => <TR key={entry.id}><TD>{entry.action}</TD><TD>{entry.entity_type}</TD><TD>{JSON.stringify(entry.details)}</TD><TD>{new Date(entry.created_at).toLocaleString()}</TD></TR>)}
+        </DataTable>
+      </Card>}
     </div>
   );
 }
@@ -97,6 +173,7 @@ function ItemsTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
           <option value="">All Categories</option>
           {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
+        <PrimaryBtn onClick={() => navigate("/inventory/receipts/new")}>+ Receive Stock</PrimaryBtn>
         <PrimaryBtn onClick={() => navigate("/inventory/items/new")}>+ New Item</PrimaryBtn>
       </FilterBar>
 
@@ -187,6 +264,8 @@ function TransactionsTab({ navigate }: { navigate: ReturnType<typeof useNavigate
     <div>
       <FilterBar>
         <PrimaryBtn onClick={() => navigate("/inventory/receipts/new")}>+ Record Receipt</PrimaryBtn>
+        <SecondaryBtn onClick={() => navigate("/inventory/adjustments/new?type=adjustment")}>Adjust Stock</SecondaryBtn>
+        <SecondaryBtn onClick={() => navigate("/inventory/returns/new?type=return")}>Record Return</SecondaryBtn>
       </FilterBar>
       <DataTable isLoading={isLoading} headers={["Item", "Type", "Quantity", "Balance After", "Reference", "Notes", "Date"]}>
         {data.map((tx) => (
@@ -213,19 +292,31 @@ function TransactionsTab({ navigate }: { navigate: ReturnType<typeof useNavigate
 }
 
 function LowStockTab({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+  const [requested, setRequested] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const { data = [], isLoading } = useQuery({
     queryKey: ["inventory.items.lowstock"],
     queryFn: () => listInventoryItems({ low_stock_only: true }),
   });
+  const requestMut = useMutation({
+    mutationFn: (item: { id: string; name: string; reorder_level: number; current_stock: number }) => createReplenishment(item.id, {
+      quantity_requested: Math.max(item.reorder_level - item.current_stock, item.reorder_level || 1),
+      reason: `Below reorder level (${item.reorder_level})`,
+    }),
+    onSuccess: (_, item) => { setRequested(item.id); setError(null); },
+    onError: (e: Error) => setError(e.message),
+  });
 
   return (
     <div>
+      {error && <ErrorBanner message={error} />}
+      {requested && <Card style={{ padding: 12, marginBottom: 12, color: "#198754" }}>Replenishment request submitted.</Card>}
       {data.length === 0 && !isLoading && (
         <Card style={{ textAlign: "center", padding: 40, color: "#198754" }}>
           ✅ No items below reorder level.
         </Card>
       )}
-      <DataTable isLoading={isLoading} headers={["Item Code", "Name", "Category", "Current Stock", "Reorder Level", "Deficit"]}>
+      <DataTable isLoading={isLoading} headers={["Item Code", "Name", "Category", "Current Stock", "Reorder Level", "Deficit", "Action"]}>
         {data.map((item) => (
           <TR key={item.id} onClick={() => navigate(`/inventory/items/${item.id}`)} style={{ cursor: "pointer", background: "#fff3f3" }}>
             <TD>{item.item_code}</TD>
@@ -234,6 +325,7 @@ function LowStockTab({ navigate }: { navigate: ReturnType<typeof useNavigate> })
             <TD style={{ color: "#dc3545", fontWeight: 700 }}>{item.current_stock}</TD>
             <TD>{item.reorder_level}</TD>
             <TD style={{ color: "#dc3545" }}>{item.reorder_level - item.current_stock}</TD>
+            <TD><SecondaryBtn onClick={(event) => { event.stopPropagation(); requestMut.mutate(item); }} disabled={requestMut.isPending} style={{ padding: "3px 10px", fontSize: 12 }}>Request Replenishment</SecondaryBtn></TD>
           </TR>
         ))}
       </DataTable>

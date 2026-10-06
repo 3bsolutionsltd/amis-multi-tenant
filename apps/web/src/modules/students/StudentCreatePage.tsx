@@ -47,9 +47,8 @@ const GUARDIAN_RELATIONSHIPS = [
   "Grandparent","Guardian","Other",
 ];
 
-const SPONSORSHIP_TYPES = [
-  "Government","Private","Self-Sponsored","Scholarship","Other",
-];
+const SPONSORSHIP_TYPES = ["Government", "Private"];
+const RESIDENCE_CATEGORIES = ["day", "boarding"] as const;
 
 type Tab = "bio" | "placement" | "guardian" | "uvtab";
 
@@ -75,8 +74,8 @@ const INITIAL_FORM = {
   first_name: "", last_name: "", other_names: "", date_of_birth: "",
   gender: "", nin: "", phone: "", email: "", district_of_origin: "",
   // Academic Placement
-  admission_number: "", programme: "", year_of_study: "", class_section: "",
-  sponsorship_type: "", intake_year: "", entry_qualification: "",
+  admission_number: "", programme: "", programme_id: "", year_of_study: "", class_section: "",
+  sponsorship_type: "", residence_category: "", intake_year: "", entry_qualification: "",
   // Guardian / NOK
   guardian_name: "", guardian_relationship: "", guardian_phone: "", guardian_email: "",
   // UVTAB / Exams
@@ -87,7 +86,7 @@ type FormState = typeof INITIAL_FORM;
 
 const TAB_FIELDS: Record<Tab, (keyof FormState)[]> = {
   bio:       ["first_name","last_name","other_names","date_of_birth","gender","nin","phone","email","district_of_origin"],
-  placement: ["admission_number","programme","year_of_study","class_section","sponsorship_type","intake_year","entry_qualification"],
+  placement: ["admission_number","programme","year_of_study","class_section","sponsorship_type","residence_category","intake_year","entry_qualification"],
   guardian:  ["guardian_name","guardian_relationship","guardian_phone","guardian_email"],
   uvtab:     ["programme_code","assessment_level","previous_index"],
 };
@@ -120,10 +119,14 @@ export function StudentCreatePage() {
     },
     onError: (err) => {
       if (err instanceof ApiError && err.status === 422) {
-        const body = err.body as { error?: { fieldErrors?: Record<string, string[]> } };
+        const body = err.body as { error?: string | { fieldErrors?: Record<string, string[]> } };
         const fe: Record<string, string> = {};
-        for (const [k, v] of Object.entries(body?.error?.fieldErrors ?? {})) {
-          fe[k] = Array.isArray(v) ? v[0] : String(v);
+        if (typeof body?.error === "object") {
+          for (const [k, v] of Object.entries(body.error.fieldErrors ?? {})) {
+            fe[k] = Array.isArray(v) ? v[0] : String(v);
+          }
+        } else if (body?.error) {
+          fe.form = body.error;
         }
         setFieldErrors(fe);
       }
@@ -145,8 +148,19 @@ export function StudentCreatePage() {
     return Object.keys(errs).length === 0;
   }
 
+  function validatePlacement(): boolean {
+    const errs: Record<string, string> = {};
+    if (!form.programme_id) errs.programme = "Programme is required for fee matching";
+    if (!form.year_of_study) errs.year_of_study = "Year of study is required for fee matching";
+    if (!form.sponsorship_type) errs.sponsorship_type = "Select Government or Private";
+    if (!form.residence_category) errs.residence_category = "Select Day or Boarding";
+    setFieldErrors((p) => ({ ...p, ...errs }));
+    return Object.keys(errs).length === 0;
+  }
+
   function goNext() {
     if (activeTab === "bio" && !validateBio()) return;
+    if (activeTab === "placement" && !validatePlacement()) return;
     const idx = TABS.findIndex((t) => t.key === activeTab);
     if (idx < TABS.length - 1) setActiveTab(TABS[idx + 1].key);
   }
@@ -155,10 +169,15 @@ export function StudentCreatePage() {
     e.preventDefault();
     setFieldErrors({});
     if (!validateBio()) { setActiveTab("bio"); return; }
+    if (!validatePlacement()) { setActiveTab("placement"); return; }
 
     const payload: CreateStudentBody = {
       first_name: form.first_name.trim(),
       last_name:  form.last_name.trim(),
+      sponsorship_type: form.sponsorship_type as "Government" | "Private",
+      residence_category: form.residence_category as "day" | "boarding",
+      programme: form.programme,
+      year_of_study: Number(form.year_of_study),
     };
     if (form.other_names)     payload.other_names      = form.other_names;
     if (form.date_of_birth)   payload.date_of_birth    = form.date_of_birth;
@@ -168,10 +187,12 @@ export function StudentCreatePage() {
     if (form.email)           payload.email            = form.email;
     if (form.admission_number) payload.admission_number = form.admission_number;
     if (form.programme)       payload.programme        = form.programme;
+    if (form.programme_id)    payload.programme_id     = form.programme_id;
     if (form.programme_code)  payload.programme_code   = form.programme_code;
     if (form.year_of_study)   payload.year_of_study    = Number(form.year_of_study);
     if (form.class_section)   payload.class_section    = form.class_section;
-    if (form.sponsorship_type) payload.sponsorship_type = form.sponsorship_type;
+    if (form.sponsorship_type) payload.sponsorship_type = form.sponsorship_type as "Government" | "Private";
+    if (form.residence_category) payload.residence_category = form.residence_category as "day" | "boarding";
     if (form.assessment_level) payload.assessment_level = Number(form.assessment_level);
     if (form.previous_index)  payload.previous_index   = form.previous_index;
     if (form.guardian_name)   payload.guardian_name    = form.guardian_name;
@@ -309,6 +330,11 @@ export function StudentCreatePage() {
 
           {/* ── Tab 2: Academic Placement ── */}
           {activeTab === "placement" && (
+            <>
+            <div style={{ ...full, marginBottom: 4, padding: "12px 14px", background: "#f0f7ff", border: "1px solid #c9e1f7", borderRadius: 6 }}>
+              <strong style={{ display: "block", fontSize: 14, color: C.gray700 }}>Financial Status</strong>
+              <span style={{ fontSize: 13, color: C.gray600 }}>Select all four fields below. Fees are set by programme, then matched using year of study, sponsorship, and residence.</span>
+            </div>
             <div style={grid2}>
               <Field label="Admission Number">
                 <input style={inputCss} placeholder="e.g. GV/2025/001" value={form.admission_number}
@@ -319,16 +345,20 @@ export function StudentCreatePage() {
                   value={form.intake_year} onChange={setField("intake_year")} />
               </Field>
               <div style={full}>
-                <Field label="Programme">
-                  <select style={selectCss} value={form.programme} onChange={setField("programme")}>
+                <Field label="Programme (required for fees)" required error={fieldErrors.programme}>
+                  <select style={selectCss} value={form.programme_id} onChange={(e) => {
+                    const selected = (programmes ?? []).find((p) => p.id === e.target.value);
+                    setForm((p) => ({ ...p, programme_id: e.target.value, programme: selected?.code ?? "" }));
+                    setFieldErrors((p) => { const n = { ...p }; delete n.programme; delete n.form; return n; });
+                  }}>
                     <option value="">— Select Programme —</option>
                     {(programmes ?? []).map((p) => (
-                      <option key={p.id} value={p.code}>{p.code} — {p.title}</option>
+                      <option key={p.id} value={p.id}>{p.code} — {p.title}</option>
                     ))}
                   </select>
                 </Field>
               </div>
-              <Field label="Year of Study">
+              <Field label="Year of Study (required for fees)" required error={fieldErrors.year_of_study}>
                 <select style={selectCss} value={form.year_of_study} onChange={setField("year_of_study")}>
                   <option value="">— Select Year —</option>
                   {[1, 2, 3, 4, 5, 6].map((y) => <option key={y} value={y}>Year {y}</option>)}
@@ -338,10 +368,16 @@ export function StudentCreatePage() {
                 <input style={inputCss} placeholder="e.g. A, B, Morning" value={form.class_section}
                   onChange={setField("class_section")} />
               </Field>
-              <Field label="Sponsorship Type">
+              <Field label="Sponsorship / Funding" required error={fieldErrors.sponsorship_type}>
                 <select style={selectCss} value={form.sponsorship_type} onChange={setField("sponsorship_type")}>
-                  <option value="">— Select —</option>
+                  <option value="">— Select Government or Private —</option>
                   {SPONSORSHIP_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </Field>
+              <Field label="Residence / Fee Category" required error={fieldErrors.residence_category}>
+                <select style={selectCss} value={form.residence_category} onChange={setField("residence_category")}>
+                  <option value="">— Select Day or Boarding —</option>
+                  {RESIDENCE_CATEGORIES.map((category) => <option key={category} value={category}>{category === "day" ? "Day" : "Boarding"}</option>)}
                 </select>
               </Field>
               <Field label="Entry Qualification">
@@ -349,6 +385,7 @@ export function StudentCreatePage() {
                   onChange={setField("entry_qualification")} />
               </Field>
             </div>
+            </>
           )}
 
           {/* ── Tab 3: Guardian / Next of Kin ── */}
@@ -416,6 +453,7 @@ export function StudentCreatePage() {
             </>
           )}
 
+          {fieldErrors.form && <ErrorBanner message={fieldErrors.form} />}
           {apiError && <ErrorBanner message={apiError} />}
 
           {/* ── Navigation buttons ── */}

@@ -26,6 +26,7 @@ import {
   selectCss,
   C,
 } from "../../lib/ui";
+import { useConfig } from "../../app/ConfigProvider";
 
 const EMPLOYMENT_LABELS: Record<string, string> = {
   full_time: "Full-time",
@@ -41,6 +42,7 @@ function StaffModal({
   onClose: () => void;
   onSaved: (id: string) => void;
 }) {
+  const { departments } = useConfig();
   const [form, setForm] = useState<CreateStaffBody>({
     first_name: "",
     last_name: "",
@@ -176,12 +178,15 @@ function StaffModal({
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
           >
             <Field label="Department">
-              <input
-                style={inputCss}
+              <select
+                required
+                style={selectCss}
                 value={form.department ?? ""}
                 onChange={(e) => set("department", e.target.value)}
-                placeholder="e.g. ICT"
-              />
+              >
+                <option value="">— Select department —</option>
+                {departments.map((department) => <option key={department} value={department}>{department}</option>)}
+              </select>
             </Field>
             <Field label="Designation">
               <input

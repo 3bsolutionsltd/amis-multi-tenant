@@ -198,6 +198,19 @@ describe("POST /grading-scales/:id/boundaries (bulk)", () => {
     });
     expect(res.statusCode).toBe(201);
   });
+
+  it("returns 201 when clearing all boundaries", async () => {
+    mockWithTenant.mockResolvedValueOnce([] as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: `/grading-scales/${fakeScale.id}/boundaries`,
+      headers: registrarHeaders,
+      payload: [],
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toEqual([]);
+  });
 });
 
 describe("PATCH /grading-scales/:scaleId/boundaries/:boundaryId", () => {

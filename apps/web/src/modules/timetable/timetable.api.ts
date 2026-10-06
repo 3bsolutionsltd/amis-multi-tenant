@@ -25,6 +25,8 @@ export interface TimetableSlot {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  course_code?: string;
+  course_title?: string;
 }
 
 export interface TimetableFilters {

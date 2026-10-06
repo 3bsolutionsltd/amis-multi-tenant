@@ -128,6 +128,13 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
   const app = buildApp();
   const pool = new pg.Pool({ connectionString: DATABASE_URL });
 
+  // Unique run suffix to prevent conflicts between concurrent / repeated test runs
+  const RUN_ID = Date.now().toString(36).slice(-6).toUpperCase();
+  const PR_NUMBER = `PR-WF-${RUN_ID}`;
+  const GRN_NUMBER = `GRN-WF-${RUN_ID}`;
+  const SI_NUMBER = `SI-WF-${RUN_ID}`;
+  const ITEM_CODE = `WF-ITEM-${RUN_ID}`;
+
   // User IDs (set in beforeAll)
   let financeId: string;
   let hodId: string;
@@ -163,33 +170,33 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
         // Issuances
         await client.query(
           `DELETE FROM app.store_issuance_items WHERE issuance_id IN (
-             SELECT id FROM app.store_issuances WHERE tenant_id = $1 AND issuance_number = 'SI-WF-2025-001'
+             SELECT id FROM app.store_issuances WHERE tenant_id = $1 AND issuance_number = $2
            )`,
-          [TENANT_A],
+          [TENANT_A, SI_NUMBER],
         );
         await client.query(
-          `DELETE FROM app.store_issuances WHERE tenant_id = $1 AND issuance_number = 'SI-WF-2025-001'`,
-          [TENANT_A],
+          `DELETE FROM app.store_issuances WHERE tenant_id = $1 AND issuance_number = $2`,
+          [TENANT_A, SI_NUMBER],
         );
 
         // Stock transactions for our test item
         await client.query(
           `DELETE FROM app.stock_transactions WHERE tenant_id = $1 AND item_id IN (
-             SELECT id FROM app.inventory_items WHERE tenant_id = $1 AND item_code = 'WF-ITEM-001'
+             SELECT id FROM app.inventory_items WHERE tenant_id = $1 AND item_code = $2
            )`,
-          [TENANT_A],
+          [TENANT_A, ITEM_CODE],
         );
 
         // GRNs
         await client.query(
           `DELETE FROM app.grn_items WHERE grn_id IN (
-             SELECT id FROM app.goods_received_notes WHERE tenant_id = $1 AND grn_number = 'GRN-WF-2025-001'
+             SELECT id FROM app.goods_received_notes WHERE tenant_id = $1 AND grn_number = $2
            )`,
-          [TENANT_A],
+          [TENANT_A, GRN_NUMBER],
         );
         await client.query(
-          `DELETE FROM app.goods_received_notes WHERE tenant_id = $1 AND grn_number = 'GRN-WF-2025-001'`,
-          [TENANT_A],
+          `DELETE FROM app.goods_received_notes WHERE tenant_id = $1 AND grn_number = $2`,
+          [TENANT_A, GRN_NUMBER],
         );
 
         // POs linked to our PR
@@ -197,27 +204,27 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
           `DELETE FROM app.purchase_order_items WHERE po_id IN (
              SELECT po.id FROM app.purchase_orders po
              JOIN app.purchase_requisitions pr ON po.pr_id = pr.id
-             WHERE pr.tenant_id = $1 AND pr.pr_number = 'PR-WF-2025-001'
+             WHERE pr.tenant_id = $1 AND pr.pr_number = $2
            )`,
-          [TENANT_A],
+          [TENANT_A, PR_NUMBER],
         );
         await client.query(
           `DELETE FROM app.purchase_orders WHERE pr_id IN (
-             SELECT id FROM app.purchase_requisitions WHERE tenant_id = $1 AND pr_number = 'PR-WF-2025-001'
+             SELECT id FROM app.purchase_requisitions WHERE tenant_id = $1 AND pr_number = $2
            )`,
-          [TENANT_A],
+          [TENANT_A, PR_NUMBER],
         );
 
         // PR
         await client.query(
           `DELETE FROM app.purchase_requisition_items WHERE pr_id IN (
-             SELECT id FROM app.purchase_requisitions WHERE tenant_id = $1 AND pr_number = 'PR-WF-2025-001'
+             SELECT id FROM app.purchase_requisitions WHERE tenant_id = $1 AND pr_number = $2
            )`,
-          [TENANT_A],
+          [TENANT_A, PR_NUMBER],
         );
         await client.query(
-          `DELETE FROM app.purchase_requisitions WHERE tenant_id = $1 AND pr_number = 'PR-WF-2025-001'`,
-          [TENANT_A],
+          `DELETE FROM app.purchase_requisitions WHERE tenant_id = $1 AND pr_number = $2`,
+          [TENANT_A, PR_NUMBER],
         );
 
         await client.query("COMMIT");
@@ -286,10 +293,10 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
         const iRes = await client.query<{ id: string }>(
           `INSERT INTO app.inventory_items
              (tenant_id, item_code, name, category, unit_of_measure, reorder_level, current_stock)
-           VALUES ($1, 'WF-ITEM-001', 'Workflow Test Item', 'stationery', 'units', 5, 0)
+           VALUES ($1, $2, 'Workflow Test Item', 'stationery', 'units', 5, 0)
            ON CONFLICT (tenant_id, item_code) DO UPDATE SET current_stock = 0
            RETURNING id`,
-          [TENANT_A],
+          [TENANT_A, ITEM_CODE],
         );
         inventoryItemId = iRes.rows[0].id;
 
@@ -332,6 +339,16 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
           await client.query(`DELETE FROM app.purchase_requisition_items WHERE pr_id = $1`, [prId]);
           await client.query(`DELETE FROM app.purchase_requisitions WHERE id = $1`, [prId]);
         }
+        await client.query(
+          `DELETE FROM app.purchase_requisition_items WHERE pr_id IN (
+             SELECT id FROM app.purchase_requisitions WHERE tenant_id = $1 AND pr_number = $2
+           )`,
+          [TENANT_A, `PR-WF-HOD-${RUN_ID}`],
+        );
+        await client.query(
+          `DELETE FROM app.purchase_requisitions WHERE tenant_id = $1 AND pr_number = $2`,
+          [TENANT_A, `PR-WF-HOD-${RUN_ID}`],
+        );
         if (supplierId) {
           await client.query(`DELETE FROM app.suppliers WHERE id = $1`, [supplierId]);
         }
@@ -369,7 +386,7 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
   // =========================================================================
   it("Step 1: Finance creates a Purchase Requisition in draft state", async () => {
     const res = await post(app, "/procurement/requisitions", {
-      pr_number: "PR-WF-2025-001",
+      pr_number: PR_NUMBER,
       title: "Office Supplies for ICT Department",
       department: "ICT",
       requested_by: FINANCE_EMAIL,
@@ -585,11 +602,11 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
   });
 
   // =========================================================================
-  // STEP 7 — Finance creates a GRN (supplier has delivered goods)
+  // STEP 7 — Stores creates a GRN (supplier has delivered goods)
   // =========================================================================
-  it("Step 7: Finance creates a GRN linked to the LPO → GRN status: 'draft'", async () => {
+  it("Step 7: Stores creates a GRN linked to the LPO → GRN status: 'draft'", async () => {
     const res = await post(app, "/procurement/grns", {
-      grn_number: "GRN-WF-2025-001",
+      grn_number: GRN_NUMBER,
       po_id: poId,
       received_by: "Stores Dept",
       received_date: new Date().toISOString().slice(0, 10),
@@ -608,7 +625,7 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
           condition: "good",
         },
       ],
-    }, financeToken);
+    }, adminToken);
 
     expect(res.statusCode, `Create GRN failed: ${res.body}`).toBe(201);
     const grn = res.json();
@@ -655,7 +672,7 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
       item_id: inventoryItemId,
       transaction_type: "receipt",
       quantity: 15,
-      notes: "Received via GRN-WF-2025-001",
+      notes: `Received via ${GRN_NUMBER}`,
       transaction_date: new Date().toISOString().slice(0, 10),
     }, adminToken);
 
@@ -676,7 +693,7 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
   // =========================================================================
   it("Step 10: Admin creates a Store Issuance → status: 'draft'", async () => {
     const res = await post(app, "/inventory/issuances", {
-      issuance_number: "SI-WF-2025-001",
+      issuance_number: SI_NUMBER,
       issued_to: "ICT Department",
       issued_by: "Stores",
       department: "ICT",
@@ -737,14 +754,14 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
   // ROLE ENFORCEMENT — wrong roles must be rejected
   // =========================================================================
   describe("Role enforcement", () => {
-    it("HOD cannot create a PR (only finance/admin/registrar can)", async () => {
+    it("HOD can create a PR", async () => {
       const res = await post(app, "/procurement/requisitions", {
-        pr_number: "PR-WF-FORBIDDEN",
-        title: "Should be rejected",
+        pr_number: `PR-WF-HOD-${RUN_ID}`,
+        title: "HOD requisition",
         items: [{ description: "Item", quantity: 1 }],
       }, hodToken);
 
-      expect(res.statusCode).toBe(403);
+      expect(res.statusCode).toBe(201);
     });
 
     it("Finance cannot recommend a PR (only hod can)", async () => {
@@ -787,7 +804,7 @@ describeIf("Procurement E2E Workflow (Tenant A — Greenfield VTI)", () => {
       const res = await get(app, `/procurement/orders/${poId}`, financeToken);
       expect(res.statusCode).toBe(200);
       const po = res.json();
-      expect(po.status).toBe("issued");
+      expect(po.status).toBe("partial_received");
       expect(po.pr_id).toBe(prId);
       expect(po.supplier_id).toBe(supplierId);
     });

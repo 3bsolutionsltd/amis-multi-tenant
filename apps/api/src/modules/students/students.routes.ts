@@ -14,28 +14,71 @@ import {
 } from "./students.schema.js";
 
 const SELECT_COLS =
-  "id, first_name, last_name, other_names, date_of_birth, gender, nin, " +
-  "admission_number, sponsorship_type, programme, programme_id, programme_code, email, phone, " +
+  "id, first_name, last_name, other_names, date_of_birth::text AS date_of_birth, gender, nin, " +
+  "admission_number, sponsorship_type, residence_category, programme, programme_id, programme_code, email, phone, " +
   "year_of_study, class_section, assessment_level, previous_index, extension, " +
   "guardian_name, guardian_phone, guardian_email, guardian_relationship, " +
   "dropout_reason, dropout_date, dropout_notes, " +
   "is_active, created_at, updated_at";
 
-export async function studentsRoutes(app: FastifyInstance) {
-  const WIDE_ROLES = [
-    "admin",
-    "registrar",
-    "hod",
-    "instructor",
-    "finance",
-    "principal",
-    "dean",
-  ] as const;
+const STUDENT_READ_ROLES = [
+  "admin",
+  "registrar",
+  "hod",
+  "instructor",
+  "finance",
+  "principal",
+  "dean",
+  "director",
+  "deputy_principal",
+  "procurement_officer",
+  "inventory_manager",
+] as const;
 
-  // GET /students — search + paginated list
+function buildStudentVisibilityScope(
+  assignedRoles: string[],
+  userId: string,
+  userParamIndex: number,
+): string | null {
+  if (assignedRoles.includes("admin") || assignedRoles.includes("registrar")) {
+    return null;
+  }
+
+  const scopes: string[] = [];
+  if (assignedRoles.includes("instructor")) {
+    scopes.push(`EXISTS (
+      SELECT 1
+      FROM app.course_offerings co
+      JOIN app.courses c ON c.id = co.course_id
+      JOIN app.programmes p ON p.id = c.programme_id
+      WHERE co.instructor_id = $${userParamIndex}
+        AND c.year_of_study = app.students.year_of_study
+        AND (p.id = app.students.programme_id
+          OR lower(trim(p.code)) = lower(trim(app.students.programme_code))
+          OR lower(trim(p.title)) = lower(trim(app.students.programme)))
+    )`);
+  }
+  if (assignedRoles.includes("hod")) {
+    scopes.push(`EXISTS (
+      SELECT 1
+      FROM platform.users u
+      JOIN app.programmes p
+        ON lower(trim(p.department)) = lower(trim(u.department))
+      WHERE u.id = $${userParamIndex}
+        AND (p.id = app.students.programme_id
+          OR lower(trim(p.code)) = lower(trim(app.students.programme_code))
+          OR lower(trim(p.title)) = lower(trim(app.students.programme)))
+    )`);
+  }
+
+  return scopes.length > 0 ? `(${scopes.join(" OR ")})` : null;
+}
+
+export async function studentsRoutes(app: FastifyInstance) {
+  // GET /students — search + paginated list.
   app.get(
     "/students",
-    { preHandler: requireRole(...WIDE_ROLES) },
+    { preHandler: requireRole(...STUDENT_READ_ROLES) },
     async (req, reply) => {
       const { tenantId } = req.user;
       if (!tenantId) {
@@ -47,12 +90,33 @@ export async function studentsRoutes(app: FastifyInstance) {
         return reply.status(422).send({ error: parsed.error.flatten() });
       }
 
-      const { search, include_inactive, year_of_study, class_section, programme, page, limit } = parsed.data;
+      const {
+        search,
+        include_inactive,
+        year_of_study,
+        class_section,
+        programme,
+        registration_academic_year,
+        registration_term,
+        page,
+        limit,
+      } = parsed.data;
       const offset = (page - 1) * limit;
+      const assignedRoles = req.user.roles?.length ? req.user.roles : [req.user.role];
 
       const rows = await withTenant(tenantId, (client) => {
         const conditions: string[] = [];
         const params: unknown[] = [];
+
+        const visibilityScope = buildStudentVisibilityScope(
+          assignedRoles,
+          req.user.userId,
+          1,
+        );
+        if (visibilityScope) {
+          params.push(req.user.userId);
+          conditions.push(visibilityScope);
+        }
 
         if (!include_inactive) {
           conditions.push(`is_active = true`);
@@ -61,7 +125,8 @@ export async function studentsRoutes(app: FastifyInstance) {
         if (search) {
           params.push(`%${search}%`);
           conditions.push(
-            `(first_name ILIKE $${params.length} OR last_name ILIKE $${params.length} OR admission_number ILIKE $${params.length})`,
+            `(first_name ILIKE $${params.length} OR last_name ILIKE $${params.length} OR admission_number ILIKE $${params.length}
+              OR concat_ws(' ', first_name, other_names, last_name) ILIKE $${params.length})`,
           );
         }
 
@@ -84,12 +149,25 @@ export async function studentsRoutes(app: FastifyInstance) {
           conditions.push(`(programme_code = $${params.length} OR programme = $${params.length})`);
         }
 
+        let registrationSelect = "NULL::text AS registration_status";
+        if (registration_academic_year && registration_term) {
+          params.push(registration_academic_year, registration_term);
+          const yearParam = params.length - 1;
+          const termParam = params.length;
+          registrationSelect = `CASE WHEN EXISTS (
+            SELECT 1 FROM app.term_registrations tr
+            WHERE tr.student_id = app.students.id
+              AND tr.academic_year = $${yearParam}
+              AND tr.term = $${termParam}
+          ) THEN 'registered' ELSE 'not_registered' END AS registration_status`;
+        }
+
         const where =
           conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
         params.push(limit, offset);
         return client.query(
-          `SELECT ${SELECT_COLS} FROM app.students
+          `SELECT ${SELECT_COLS}, ${registrationSelect} FROM app.students
            ${where}
            ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
           params,
@@ -100,10 +178,10 @@ export async function studentsRoutes(app: FastifyInstance) {
     },
   );
 
-  // GET /students/:id — 360° student view (SR-F-008)
+  // GET /students/:id — 360° student view (SR-F-008).
   app.get<{ Params: { id: string } }>(
     "/students/:id",
-    { preHandler: requireRole(...WIDE_ROLES) },
+    { preHandler: requireRole(...STUDENT_READ_ROLES) },
     async (req, reply) => {
       const { tenantId } = req.user;
       if (!tenantId) {
@@ -112,9 +190,19 @@ export async function studentsRoutes(app: FastifyInstance) {
 
       const result = await withTenant(tenantId, async (client) => {
         // Core student record
+        const studentParams: unknown[] = [req.params.id];
+        const assignedRoles = req.user.roles?.length ? req.user.roles : [req.user.role];
+        const visibilityScope = buildStudentVisibilityScope(
+          assignedRoles,
+          req.user.userId,
+          2,
+        );
+        const visibilitySql = visibilityScope ? ` AND ${visibilityScope}` : "";
+        if (visibilityScope) studentParams.push(req.user.userId);
         const { rows: stuRows } = await client.query(
-          `SELECT ${SELECT_COLS} FROM app.students WHERE id = $1`,
-          [req.params.id],
+          `SELECT ${SELECT_COLS} FROM app.students
+           WHERE id = $1${visibilitySql}`,
+          studentParams,
         );
         if (stuRows.length === 0) return null;
 
@@ -230,6 +318,7 @@ export async function studentsRoutes(app: FastifyInstance) {
         nin,
         admission_number,
         sponsorship_type,
+        residence_category,
         programme,
         programme_id,
         programme_code,
@@ -259,10 +348,10 @@ export async function studentsRoutes(app: FastifyInstance) {
         return client.query(
           `INSERT INTO app.students
              (tenant_id, first_name, last_name, other_names, date_of_birth, gender, nin,
-              admission_number, sponsorship_type, programme, programme_id, programme_code, email, phone,
+              admission_number, sponsorship_type, residence_category, programme, programme_id, programme_code, email, phone,
               year_of_study, class_section, assessment_level, previous_index, extension,
               guardian_name, guardian_phone, guardian_email, guardian_relationship)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
            RETURNING ${SELECT_COLS}`,
           [
             tenantId,
@@ -274,6 +363,7 @@ export async function studentsRoutes(app: FastifyInstance) {
             nin ?? null,
             admission_number ?? null,
             sponsorship_type ?? null,
+            residence_category,
             programmeRef?.title ?? programme ?? null,
             programmeRef?.id ?? programme_id ?? null,
             programmeRef?.code ?? programme_code ?? null,
@@ -324,6 +414,7 @@ export async function studentsRoutes(app: FastifyInstance) {
         nin,
         admission_number,
         sponsorship_type,
+        residence_category,
         programme,
         programme_id,
         programme_code,
@@ -361,20 +452,21 @@ export async function studentsRoutes(app: FastifyInstance) {
              nin                   = COALESCE($7, nin),
              admission_number      = COALESCE($8, admission_number),
              sponsorship_type      = COALESCE($9, sponsorship_type),
-             programme             = COALESCE($10, programme),
-             programme_id          = COALESCE($11::uuid, programme_id),
-             programme_code        = COALESCE($12, programme_code),
-             email                 = COALESCE($13, email),
-             phone                 = COALESCE($14, phone),
-             year_of_study         = COALESCE($15::smallint, year_of_study),
-             class_section         = COALESCE($16, class_section),
-             assessment_level      = COALESCE($17::smallint, assessment_level),
-             previous_index        = COALESCE($18, previous_index),
-             extension             = COALESCE($19::jsonb, extension),
-             guardian_name         = COALESCE($20, guardian_name),
-             guardian_phone        = COALESCE($21, guardian_phone),
-             guardian_email        = COALESCE($22, guardian_email),
-             guardian_relationship = COALESCE($23, guardian_relationship),
+             residence_category    = COALESCE($10, residence_category),
+             programme             = COALESCE($11, programme),
+             programme_id          = COALESCE($12::uuid, programme_id),
+             programme_code        = COALESCE($13, programme_code),
+             email                 = COALESCE($14, email),
+             phone                 = COALESCE($15, phone),
+             year_of_study         = COALESCE($16::smallint, year_of_study),
+             class_section         = COALESCE($17, class_section),
+             assessment_level      = COALESCE($18::smallint, assessment_level),
+             previous_index        = COALESCE($19, previous_index),
+             extension             = COALESCE($20::jsonb, extension),
+             guardian_name         = COALESCE($21, guardian_name),
+             guardian_phone        = COALESCE($22, guardian_phone),
+             guardian_email        = COALESCE($23, guardian_email),
+             guardian_relationship = COALESCE($24, guardian_relationship),
              updated_at            = now()
            WHERE id = $1
            RETURNING ${SELECT_COLS}`,
@@ -388,6 +480,7 @@ export async function studentsRoutes(app: FastifyInstance) {
             nin ?? null,
             admission_number ?? null,
             sponsorship_type ?? null,
+            residence_category ?? null,
             programmeRef?.title ?? programme ?? null,
             programmeRef?.id ?? programme_id ?? null,
             programmeRef?.code ?? programme_code ?? null,
@@ -495,19 +588,29 @@ export async function studentsRoutes(app: FastifyInstance) {
   // ─────────────────────────────────────────────────────────────────────────────
   app.get(
     "/students/export/csv",
-    { preHandler: requireRole("admin", "registrar") },
+    { preHandler: requireRole(...STUDENT_READ_ROLES) },
     async (req, reply) => {
       const { tenantId } = req.user;
       if (!tenantId) {
         return reply.status(400).send({ error: "x-tenant-id header required" });
       }
 
+      const assignedRoles = req.user.roles?.length ? req.user.roles : [req.user.role];
+      const visibilityScope = buildStudentVisibilityScope(
+        assignedRoles,
+        req.user.userId,
+        2,
+      );
+      const params: unknown[] = [tenantId];
+      const visibilitySql = visibilityScope ? ` AND ${visibilityScope}` : "";
+      if (visibilityScope) params.push(req.user.userId);
+
       const rows = await withTenant(tenantId, (client) =>
         client.query(
           `SELECT ${SELECT_COLS} FROM app.students
-           WHERE tenant_id = $1 AND is_active = true
+           WHERE tenant_id = $1 AND is_active = true${visibilitySql}
            ORDER BY last_name, first_name`,
-          [tenantId],
+          params,
         ),
       );
 
@@ -590,7 +693,9 @@ export async function studentsRoutes(app: FastifyInstance) {
 
       if (body.programme) {
         params.push(body.programme);
-        conditions.push(`programme = $${params.length}`);
+        conditions.push(
+          `(lower(trim(programme_code)) = lower(trim($${params.length})) OR lower(trim(programme)) = lower(trim($${params.length})))`,
+        );
       }
       if (body.from_year != null) {
         params.push(Number(body.from_year));
@@ -635,7 +740,9 @@ export async function studentsRoutes(app: FastifyInstance) {
 
       if (body.programme) {
         params.push(body.programme);
-        conditions.push(`programme = $${params.length}`);
+        conditions.push(
+          `(lower(trim(programme_code)) = lower(trim($${params.length})) OR lower(trim(programme)) = lower(trim($${params.length})))`,
+        );
       }
       if (body.from_year != null) {
         params.push(Number(body.from_year));
@@ -761,6 +868,8 @@ export async function studentsRoutes(app: FastifyInstance) {
           const intakeYear      = COL(row, "Intake Year", "intake_year", "Intake");
           const enrolledRaw     = COL(row, "Enrolled status", "Enrolled Status", "enrolled_status", "is_active");
           const sponsorship     = COL(row, "sponsorship", "Sponsorship", "sponsorship_type");
+          const residence       = COL(row, "Residence", "Residence Category", "residence_category").toLowerCase();
+          const residenceCategory = residence === "day" || residence === "boarding" ? residence : null;
 
           // Normalise date
           let dob: string | null = null;
@@ -797,15 +906,16 @@ export async function studentsRoutes(app: FastifyInstance) {
               queryText = `
                 INSERT INTO app.students
                   (tenant_id, first_name, last_name, date_of_birth, admission_number,
-                   sponsorship_type, programme, programme_id, email, phone,
+                   sponsorship_type, residence_category, programme, programme_id, email, phone,
                    guardian_name, guardian_phone, extension, is_active)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
                 ON CONFLICT (tenant_id, admission_number)
                 DO UPDATE SET
                   first_name       = EXCLUDED.first_name,
                   last_name        = EXCLUDED.last_name,
                   date_of_birth    = COALESCE(EXCLUDED.date_of_birth, app.students.date_of_birth),
                   sponsorship_type = COALESCE(EXCLUDED.sponsorship_type, app.students.sponsorship_type),
+                  residence_category = COALESCE(EXCLUDED.residence_category, app.students.residence_category),
                   programme        = COALESCE(EXCLUDED.programme, app.students.programme),
                   programme_id     = COALESCE(EXCLUDED.programme_id, app.students.programme_id),
                   email            = COALESCE(EXCLUDED.email, app.students.email),
@@ -816,7 +926,7 @@ export async function studentsRoutes(app: FastifyInstance) {
                 RETURNING id, (xmax = 0) AS was_inserted`;
               queryValues = [
                 tenantId, firstName, lastName, dob, admissionNumber || null,
-                sponsorship || null, resolvedProgrammeText, resolvedProgrammeId,
+                sponsorship || null, residenceCategory, resolvedProgrammeText, resolvedProgrammeId,
                 email || null, phone || null, nokName || null, nokPhone || null,
                 JSON.stringify(extension), isActive,
               ];
@@ -824,13 +934,13 @@ export async function studentsRoutes(app: FastifyInstance) {
               queryText = `
                 INSERT INTO app.students
                   (tenant_id, first_name, last_name, date_of_birth, admission_number,
-                   sponsorship_type, programme, programme_id, email, phone,
+                   sponsorship_type, residence_category, programme, programme_id, email, phone,
                    guardian_name, guardian_phone, extension, is_active)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
                 RETURNING id`;
               queryValues = [
                 tenantId, firstName, lastName, dob, admissionNumber || null,
-                sponsorship || null, resolvedProgrammeText, resolvedProgrammeId,
+                sponsorship || null, residenceCategory, resolvedProgrammeText, resolvedProgrammeId,
                 email || null, phone || null, nokName || null, nokPhone || null,
                 JSON.stringify(extension), isActive,
               ];

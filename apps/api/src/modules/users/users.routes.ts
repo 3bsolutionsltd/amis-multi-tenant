@@ -21,7 +21,9 @@ import { sendMail, buildWelcomeEmail, buildPasswordChangedByAdminEmail, buildAcc
 
 // ------------------------------------------------------------------ constants
 
-const VALID_ROLES = [
+const ROLE_NAME = z.string().trim().min(1).max(80).regex(/^[a-zA-Z0-9 _-]+$/);
+const RolesSchema = z.array(ROLE_NAME).min(1).max(50);
+const PRIMARY_USER_ROLE = z.enum([
   "admin",
   "registrar",
   "hod",
@@ -29,9 +31,10 @@ const VALID_ROLES = [
   "finance",
   "principal",
   "dean",
+  "platform_admin",
   "procurement_officer",
   "inventory_manager",
-] as const;
+]);
 
 // ------------------------------------------------------------------ schemas
 
@@ -63,20 +66,32 @@ const CreateUserSchema = z.object({
   // password is optional — when omitted the API auto-generates a random
   // temporary password; the user sets their own via the welcome-email link
   password: z.string().min(1).optional(),
-  role: z.enum(VALID_ROLES),
+  role: PRIMARY_USER_ROLE,
+  roles: RolesSchema.optional(),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
+  department: z.string().min(1).optional(),
+}).superRefine((data, ctx) => {
+  const assignedRoles = data.roles ?? [data.role];
+  if (!assignedRoles.includes(data.role)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["roles"], message: "Primary role must be included in roles" });
+  }
+  if (assignedRoles.includes("hod") && !data.department) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["department"], message: "HOD users must be assigned a department" });
+  }
 });
 
 const UpdateUserSchema = z
   .object({
-    role: z.enum(VALID_ROLES).optional(),
+    role: PRIMARY_USER_ROLE.optional(),
+    roles: RolesSchema.optional(),
     isActive: z.boolean().optional(),
     firstName: z.string().min(1).optional(),
     lastName: z.string().min(1).optional(),
+    department: z.string().min(1).nullable().optional(),
   })
-  .refine((d) => d.role !== undefined || d.isActive !== undefined, {
-    message: "At least one of role or isActive must be provided",
+  .refine((d) => d.role !== undefined || d.roles !== undefined || d.isActive !== undefined || d.department !== undefined, {
+    message: "At least one field must be provided",
   });
 
 const UpdatePasswordSchema = z.object({
@@ -91,6 +106,8 @@ interface UserPublic {
   firstName: string | null;
   lastName: string | null;
   role: string;
+  roles: string[];
+  department: string | null;
   isActive: boolean;
   createdAt: string;
   lastLoginAt: string | null;
@@ -104,6 +121,34 @@ async function revokeAllRefreshTokens(userId: string): Promise<void> {
     `UPDATE platform.refresh_tokens SET revoked = true WHERE user_id = $1`,
     [userId],
   );
+}
+
+async function syncUserRoles(userId: string, tenantId: string, roles: string[]): Promise<void> {
+  const uniqueRoles = Array.from(new Set(roles));
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("DELETE FROM platform.user_roles WHERE user_id = $1", [userId]);
+    for (const role of uniqueRoles) {
+      await client.query(
+        `INSERT INTO platform.roles (tenant_id, name) VALUES ($1, $2)
+         ON CONFLICT (tenant_id, name) DO NOTHING`,
+        [tenantId, role],
+      );
+      await client.query(
+        `INSERT INTO platform.user_roles (user_id, role_id)
+         SELECT $1, id FROM platform.roles WHERE tenant_id = $2 AND name = $3
+         ON CONFLICT (user_id, role_id) DO NOTHING`,
+        [userId, tenantId, role],
+      );
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /** Write a row to the IAM audit log (fire-and-forget; never throws). */
@@ -132,6 +177,8 @@ function toPublic(row: {
   first_name?: string | null;
   last_name?: string | null;
   role: string;
+  roles?: string[];
+  department?: string | null;
   is_active: boolean;
   created_at: string;
   last_login_at: string | null;
@@ -142,6 +189,8 @@ function toPublic(row: {
     firstName: row.first_name ?? null,
     lastName: row.last_name ?? null,
     role: row.role,
+    roles: row.roles ?? [row.role],
+    department: row.department ?? null,
     isActive: row.is_active,
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at,
@@ -151,6 +200,34 @@ function toPublic(row: {
 // ------------------------------------------------------------------ routes
 
 export async function usersRoutes(app: FastifyInstance) {
+  app.get(
+    "/users/roles",
+    { preHandler: requireRole("admin") },
+    async (req, reply) => {
+      const { rows } = await pool.query<{ name: string }>(
+        `SELECT DISTINCT name FROM platform.roles WHERE tenant_id = $1 ORDER BY name`,
+        [req.user.tenantId],
+      );
+      return reply.status(200).send({ data: rows.map((row) => row.name) });
+    },
+  );
+
+  app.post(
+    "/users/roles",
+    { preHandler: requireRole("admin") },
+    async (req, reply) => {
+      const parsed = z.object({ name: ROLE_NAME }).safeParse(req.body);
+      if (!parsed.success) return reply.status(400).send({ message: "Invalid role name" });
+      const { rows } = await pool.query<{ name: string }>(
+        `INSERT INTO platform.roles (tenant_id, name) VALUES ($1, $2)
+         ON CONFLICT (tenant_id, name) DO UPDATE SET name = EXCLUDED.name
+         RETURNING name`,
+        [req.user.tenantId, parsed.data.name],
+      );
+      return reply.status(201).send({ name: rows[0].name });
+    },
+  );
+
   /**
    * GET /users
    * Query: ?role=admin&isActive=true&page=1&limit=20
@@ -173,20 +250,30 @@ export async function usersRoutes(app: FastifyInstance) {
       const offset = (page - 1) * limit;
 
       // Build WHERE clauses dynamically
-      const conditions: string[] = ["tenant_id = $1"];
+      const conditions: string[] = ["u.tenant_id = $1"];
       const params: unknown[] = [tenantId];
 
       if (role !== undefined) {
         params.push(role);
-        conditions.push(`role = $${params.length}`);
+        conditions.push(`(u.role = $${params.length} OR EXISTS (
+          SELECT 1
+          FROM platform.user_roles filter_ur
+          JOIN platform.roles filter_r ON filter_r.id = filter_ur.role_id
+          WHERE filter_ur.user_id = u.id AND filter_r.name = $${params.length}
+        ))`);
       }
       if (search !== undefined && search.length > 0) {
         params.push(`%${search.toLowerCase()}%`);
-        conditions.push(`lower(email) LIKE $${params.length}`);
+        conditions.push(`(
+          lower(u.email) LIKE $${params.length}
+          OR lower(coalesce(u.first_name, '')) LIKE $${params.length}
+          OR lower(coalesce(u.last_name, '')) LIKE $${params.length}
+          OR lower(concat_ws(' ', u.first_name, u.last_name)) LIKE $${params.length}
+        )`);
       }
       if (isActive !== undefined) {
         params.push(isActive);
-        conditions.push(`is_active = $${params.length}`);
+        conditions.push(`u.is_active = $${params.length}`);
       }
 
       const where = conditions.join(" AND ");
@@ -200,15 +287,19 @@ export async function usersRoutes(app: FastifyInstance) {
           created_at: string;
           last_login_at: string | null;
         }>(
-          `SELECT id, email, first_name, last_name, role, is_active, created_at, last_login_at
-           FROM platform.users
+            `SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.department, u.is_active, u.created_at, u.last_login_at,
+              COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), ARRAY[u.role]) AS roles
+             FROM platform.users u
+             LEFT JOIN platform.user_roles ur ON ur.user_id = u.id
+             LEFT JOIN platform.roles r ON r.id = ur.role_id
            WHERE ${where}
+             GROUP BY u.id
            ORDER BY created_at DESC
            LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
           [...params, limit, offset],
         ),
         pool.query<{ count: string }>(
-          `SELECT count(*)::int AS count FROM platform.users WHERE ${where}`,
+          `SELECT count(*)::int AS count FROM platform.users u WHERE ${where}`,
           params,
         ),
       ]);
@@ -242,7 +333,7 @@ export async function usersRoutes(app: FastifyInstance) {
         });
       }
 
-      const { email, role, firstName, lastName } = parsed.data;
+      const { email, role, roles, firstName, lastName, department } = parsed.data;
       // Use caller-supplied password or auto-generate a secure random one
       // (admin invite flow: the user will set their own via the setup link)
       const password = parsed.data.password ?? randomBytes(24).toString("base64url");
@@ -273,17 +364,19 @@ export async function usersRoutes(app: FastifyInstance) {
         first_name: string | null;
         last_name: string | null;
         role: string;
+        roles: string[];
         is_active: boolean;
         created_at: string;
         last_login_at: string | null;
       }>(
-        `INSERT INTO platform.users (tenant_id, email, password_hash, role, first_name, last_name)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id, email, first_name, last_name, role, is_active, created_at, last_login_at`,
-        [tenantId, email, passwordHash, role, firstName ?? null, lastName ?? null],
+        `INSERT INTO platform.users (tenant_id, email, password_hash, role, first_name, last_name, department)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, email, first_name, last_name, role, department, is_active, created_at, last_login_at`,
+        [tenantId, email, passwordHash, role, firstName ?? null, lastName ?? null, department ?? null],
       );
 
       const created = rows[0];
+      await syncUserRoles(created.id, tenantId, roles ?? [role]);
       writeAuditLog(tenantId, req.user.userId, created.id, "created", null, role);
 
       // Issue a 48-hour account setup token and send welcome email
@@ -330,7 +423,7 @@ export async function usersRoutes(app: FastifyInstance) {
         });
       }
 
-      const { role, isActive, firstName, lastName } = parsed.data;
+      const { role, roles, isActive, firstName, lastName, department } = parsed.data;
 
       // Verify the user belongs to the same tenant
       const { rows: existing } = await pool.query<{
@@ -338,17 +431,33 @@ export async function usersRoutes(app: FastifyInstance) {
         email: string;
         first_name: string | null;
         role: string;
+        roles: string[];
+        department: string | null;
         is_active: boolean;
         created_at: string;
       }>(
-        `SELECT id, email, first_name, role, is_active, created_at
-         FROM platform.users
-         WHERE id = $1 AND tenant_id = $2`,
+        `SELECT u.id, u.email, u.first_name, u.role, u.department, u.is_active, u.created_at,
+          COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), ARRAY[u.role]) AS roles
+         FROM platform.users u
+         LEFT JOIN platform.user_roles ur ON ur.user_id = u.id
+         LEFT JOIN platform.roles r ON r.id = ur.role_id
+         WHERE u.id = $1 AND u.tenant_id = $2
+         GROUP BY u.id`,
         [id, tenantId],
       );
 
       if (existing.length === 0) {
         return reply.status(404).send({ message: "User not found" });
+      }
+
+      const effectiveRole = role ?? existing[0].role;
+      const effectiveRoles = roles ?? Array.from(new Set([...(existing[0].roles ?? []), ...(role ? [role] : [])]));
+      const effectiveDepartment = department !== undefined ? department : existing[0].department;
+      if (effectiveRoles.includes("hod") && !effectiveDepartment) {
+        return reply.status(400).send({ message: "HOD users must be assigned a department" });
+      }
+      if (!effectiveRoles.includes(effectiveRole)) {
+        return reply.status(400).send({ message: "Primary role must be included in roles" });
       }
 
       // Build SET clause
@@ -371,6 +480,10 @@ export async function usersRoutes(app: FastifyInstance) {
         params.push(lastName);
         setClauses.push(`last_name = $${params.length}`);
       }
+      if (department !== undefined) {
+        params.push(department);
+        setClauses.push(`department = $${params.length}`);
+      }
 
       params.push(id);
       const idParam = `$${params.length}`;
@@ -381,6 +494,7 @@ export async function usersRoutes(app: FastifyInstance) {
         first_name: string | null;
         last_name: string | null;
         role: string;
+        department: string | null;
         is_active: boolean;
         last_login_at: string | null;
         created_at: string;
@@ -388,7 +502,7 @@ export async function usersRoutes(app: FastifyInstance) {
         `UPDATE platform.users
          SET ${setClauses.join(", ")}
          WHERE id = ${idParam}
-         RETURNING id, email, first_name, last_name, role, is_active, created_at, last_login_at`,
+         RETURNING id, email, first_name, last_name, role, department, is_active, created_at, last_login_at`,
         params,
       );
 
@@ -398,6 +512,9 @@ export async function usersRoutes(app: FastifyInstance) {
       }
 
       const updated = rows[0];
+      if (roles !== undefined || role !== undefined) {
+        await syncUserRoles(id, tenantId, effectiveRoles);
+      }
       // Write audit entries for each changed field
       if (role !== undefined) {
         writeAuditLog(
@@ -500,14 +617,19 @@ export async function usersRoutes(app: FastifyInstance) {
       const { rows } = await pool.query<{
         id: string;
         email: string;
+        first_name: string | null;
+        last_name: string | null;
         role: string;
+        roles: string[];
+        department: string | null;
         is_active: boolean;
         created_at: string;
         last_login_at: string | null;
       }>(
-        `SELECT id, email, role, is_active, created_at, last_login_at
-         FROM platform.users
-         WHERE id = $1 AND tenant_id = $2`,
+         `SELECT id, email, first_name, last_name, role, department, is_active, created_at, last_login_at,
+            ARRAY[role]::text[] AS roles
+          FROM platform.users
+          WHERE id = $1 AND tenant_id = $2`,
         [id, tenantId],
       );
 

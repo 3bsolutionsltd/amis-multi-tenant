@@ -4,6 +4,7 @@ export const SRQ_STATUSES = [
   "draft",
   "submitted",
   "hod_approved",
+  "ready_for_issue",
   "fulfilled",
   "rejected",
   "escalated_to_pr",

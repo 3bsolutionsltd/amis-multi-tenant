@@ -50,6 +50,6 @@ AMIS ships as **four Docker containers** that run together on a single host.
 | Mode | Web | API | DB |
 |------|-----|-----|----|
 | Offline / LAN | `:80` exposed on LAN | `:3001` exposed on LAN | not exposed |
-| Cloud / VPS | `127.0.0.1:8095` (Nginx + TLS) | `127.0.0.1:3001` (Nginx) | not exposed |
+| Cloud / VPS | `127.0.0.1:8095` (Nginx + TLS) | `127.0.0.1:3005` (Nginx) | not exposed |
 
 > **Database port 5432 is never exposed** — it is only reachable on the internal Docker network.

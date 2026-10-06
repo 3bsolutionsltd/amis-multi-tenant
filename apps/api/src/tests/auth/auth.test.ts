@@ -133,6 +133,8 @@ describeIf("Auth endpoints (integration)", () => {
         role: "admin",
         tenantId: TENANT_A,
       });
+      expect(body.user).toHaveProperty("firstName");
+      expect(body.user).toHaveProperty("lastName");
       expect(typeof body.user.id).toBe("string");
     });
 
@@ -247,6 +249,8 @@ describeIf("Auth endpoints (integration)", () => {
       });
 
       expect(res.statusCode).toBe(200);
+      expect(res.json().user).toHaveProperty("firstName");
+      expect(res.json().user).toHaveProperty("lastName");
       const body = res.json();
       expect(typeof body.accessToken).toBe("string");
       expect(typeof body.refreshToken).toBe("string");

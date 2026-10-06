@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { promoteStudents, demoteStudents, type PromotionBody } from "./students.api";
+import { listProgrammes } from "../programmes/programmes.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -16,10 +18,16 @@ ensureGlobalCss();
 const YEAR_OPTIONS = [1, 2, 3, 4, 5, 6];
 
 export function StudentPromotionPage() {
+  const queryClient = useQueryClient();
   const [form, setForm] = useState<PromotionBody>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ type: "promote" | "demote"; count: number } | null>(null);
+  const { data: programmes, isLoading: programmesLoading } = useQuery({
+    queryKey: ["programmes", "student-promotion"],
+    queryFn: () => listProgrammes({ include_inactive: false, limit: 200 }),
+    staleTime: 60_000,
+  });
 
   function set<K extends keyof PromotionBody>(k: K, v: PromotionBody[K]) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -28,6 +36,15 @@ export function StudentPromotionPage() {
   }
 
   async function handleAction(action: "promote" | "demote") {
+    const actionLabel = action === "promote" ? "promote" : "demote";
+    const programmeLabel =
+      programmes?.find((p) => p.code === form.programme)?.title ?? "all programmes";
+    const yearLabel = form.from_year ? `Year ${form.from_year}` : "all years";
+    const confirmed = window.confirm(
+      `Are you sure you want to ${actionLabel} active students in ${programmeLabel} from ${yearLabel}?`,
+    );
+    if (!confirmed) return;
+
     setLoading(true);
     setError(null);
     setResult(null);
@@ -35,9 +52,11 @@ export function StudentPromotionPage() {
       if (action === "promote") {
         const r = await promoteStudents(form);
         setResult({ type: "promote", count: r.promoted });
+        await queryClient.invalidateQueries({ queryKey: ["students"] });
       } else {
         const r = await demoteStudents(form);
         setResult({ type: "demote", count: r.demoted });
+        await queryClient.invalidateQueries({ queryKey: ["students"] });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
@@ -58,12 +77,21 @@ export function StudentPromotionPage() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 480 }}>
           <Field label="Programme (optional)">
-            <input
-              style={inputCss}
-              placeholder="e.g. BSCS — leave blank for all programmes"
+            <select
+              style={selectCss}
               value={form.programme ?? ""}
               onChange={(e) => set("programme", e.target.value || undefined)}
-            />
+              disabled={programmesLoading}
+            >
+              <option value="">
+                {programmesLoading ? "Loading programmes…" : "All programmes"}
+              </option>
+              {(programmes ?? []).map((programme) => (
+                <option key={programme.id} value={programme.code}>
+                  {programme.code} — {programme.title}
+                </option>
+              ))}
+            </select>
           </Field>
 
           <Field label="Current Year of Study (optional)">
@@ -98,22 +126,24 @@ export function StudentPromotionPage() {
             <div
               style={{
                 padding: "12px 16px",
-                background: C.greenBg,
-                border: `1px solid ${C.green}`,
+                background: result.count > 0 ? C.greenBg : C.gray100,
+                border: `1px solid ${result.count > 0 ? C.green : C.gray300}`,
                 borderRadius: 6,
-                color: C.greenText,
+                color: result.count > 0 ? C.greenText : C.gray600,
                 fontSize: 14,
               }}
             >
-              ✓ {result.count} student{result.count !== 1 ? "s" : ""}{" "}
-              {result.type === "promote" ? "promoted" : "demoted"} successfully.
+              {result.count > 0 ? "✓ " : "ℹ "}
+              {result.count === 0
+                ? "No active students matched the selected filters."
+                : `${result.count} student${result.count !== 1 ? "s" : ""} ${result.type === "promote" ? "promoted" : "demoted"} successfully.`}
             </div>
           )}
 
           <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
             <button
               onClick={() => handleAction("promote")}
-              disabled={loading}
+              disabled={loading || programmesLoading}
               style={{
                 flex: 1,
                 padding: "10px 0",
@@ -131,7 +161,7 @@ export function StudentPromotionPage() {
 
             <button
               onClick={() => handleAction("demote")}
-              disabled={loading}
+              disabled={loading || programmesLoading}
               style={{
                 flex: 1,
                 padding: "10px 0",

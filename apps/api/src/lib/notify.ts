@@ -207,7 +207,7 @@ export async function notifyGRNConfirmed(
   tenantId: string,
   grn: GRNData,
 ): Promise<void> {
-  const link = `/procurement/grns/${grn.id}`;
+  const link = `/inventory/grns/${grn.id}`;
   await insertNotifications(
     tenantId,
     [

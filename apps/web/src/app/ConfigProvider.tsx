@@ -3,6 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
 import { useAuth } from "../auth/AuthContext";
 
+export const DEFAULT_DEPARTMENTS = [
+  "ICT", "Business", "Engineering", "Construction", "Electrical",
+  "Automotive", "Hospitality", "Agriculture", "Health Sciences", "Others",
+];
+
 export interface NavItem {
   label: string;
   route: string;
@@ -50,6 +55,7 @@ interface ConfigPayload {
   fee_types?: string[];
   student_categories?: string[];
   marksheet_default_template?: string;
+  permissions?: Record<string, Record<string, "full" | "read" | "none">>;
 }
 
 interface ConfigData {
@@ -97,7 +103,7 @@ const ConfigContext = createContext<ConfigContextValue>({
   dashboards: [],
   primaryColor: "#2563EB",
   studentFormConfig: null,
-  departments: [],
+  departments: DEFAULT_DEPARTMENTS,
   designations: [],
   receiptConfig: {
     template: "classic",
@@ -135,7 +141,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const navigation = config?.payload?.navigation?.[role] ?? [];
   const dashboards = config?.payload?.dashboards?.[role] ?? [];
   const studentFormConfig = config?.payload?.forms?.students ?? null;
-  const departments = config?.payload?.institution?.departments ?? [];
+  const configuredDepartments = config?.payload?.institution?.departments ?? [];
+  const departments = configuredDepartments.length > 0 ? configuredDepartments : DEFAULT_DEPARTMENTS;
   const designations = config?.payload?.institution?.designations ?? [];
   const enabledModules: Record<string, boolean> = config?.payload?.modules ?? {};
   const assessmentTypes: string[] = config?.payload?.assessment_types ?? [];
