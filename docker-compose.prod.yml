@@ -15,6 +15,18 @@ services:
       retries: 5
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    # No host port published — only reachable by other containers on this network
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -31,6 +43,15 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:?required}
       # Frontend URL used to build email links (reset password, welcome)
       APP_URL: ${APP_URL:?required}
+      # BullMQ outbox queue — Redis remains internal to the Compose network
+      REDIS_URL: redis://redis:6379
+      # Transactional email via SMTP
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-AMIS <noreply@amis.institute>}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
     # Published on 3005 so native Nginx can proxy_pass to localhost:3005
     ports:
       - "127.0.0.1:3005:3000"
@@ -38,6 +59,8 @@ services:
       - uploads:/app/apps/api/uploads
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
@@ -75,3 +98,4 @@ services:
 volumes:
   pgdata:
   uploads:
+  redisdata:

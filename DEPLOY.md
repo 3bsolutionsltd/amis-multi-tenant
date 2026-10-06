@@ -6,7 +6,118 @@
 
 > **VPS context**: The server already runs two other Docker Compose stacks.  
 > Native Nginx owns ports 80/443 and acts as the shared reverse proxy for all apps.  
-> AMIS containers bind only to loopback ports (3001, 8095) — Nginx proxies them.
+> AMIS containers bind only to loopback ports (3005, 8095) — Nginx proxies them.
+
+---
+
+## Staging-to-Production Release Checklist
+
+Use this checklist to promote the tested AMIS release through the GitHub PR into
+`main`, then deploy it to the production stack. Passing CI does **not** merge the
+PR or deploy production. Keep staging and production isolated throughout.
+
+### 1. Confirm and merge the release candidate
+
+- [ ] Confirm the PR targets `main` and contains the intended staging-tested changes.
+- [ ] Confirm the latest commit on the PR has passing required checks: API tests,
+  API build, Web build, and the critical-severity dependency audit.
+- [ ] Confirm review comments are resolved and migration changes have been reviewed.
+- [ ] Confirm the exact PR commit has passed the required staging/UAT acceptance checks.
+- [ ] Merge the PR using the repository's approved merge method.
+- [ ] Record the resulting `main` commit SHA as the production release candidate.
+
+### 2. Protect the separate staging environment
+
+- [ ] Confirm staging uses `.env.staging` and
+  `docker-compose.staging.yml --project-name amis-staging`; never copy production
+  secrets into it.
+- [ ] Confirm staging remains on its own database and ports (`3002` API, `8096`
+  Web); production uses `3005` API and `8095` Web.
+- [ ] Do not run `docker compose down -v`, production migrations, or production
+  deployment commands against the staging project.
+- [ ] Avoid changing staging during the production cutover unless a separate
+  staging deployment is explicitly intended.
+
+### 3. Production preflight — stop if any check is uncertain
+
+- [ ] Confirm the production VPS, public DNS, TLS certificates, and shared Nginx
+  configuration are healthy before deployment.
+- [ ] Check the currently running Compose projects and port ownership. Port `3001`
+  belongs to another service; leave it untouched. AMIS production must bind only
+  to `127.0.0.1:3005` (API) and `127.0.0.1:8095` (Web).
+- [ ] Confirm whether the AMIS production database contains data. If it does, or
+  you are unsure, stop and take a verified database and uploads backup before
+  proceeding; do not use `down -v`.
+- [ ] Confirm a tested rollback plan and identify the last known-good application
+  commit. Do not assume database migrations can safely be reversed.
+- [ ] On the VPS, confirm the repository has no unexpected tracked-file changes,
+  then update only the production checkout to the merged `main` commit:
+  ```bash
+  cd /opt/amis
+  git status --short
+  git fetch origin
+  git checkout main
+  git pull --ff-only origin main
+  git rev-parse --short HEAD
+  ```
+- [ ] Verify `/opt/amis/.env` exists, is private, and contains production values:
+  `APP_URL=https://amis.institute`, `CORS_ORIGIN=https://amis.institute`,
+  `VITE_API_URL=https://api.amis.institute`, and an `APP_DATABASE_URL` for the
+  `amis_app` role on the production `amis` database. Its password must match
+  `APP_DB_PASSWORD` (URL-encode special characters). Never print or share secrets.
+- [ ] Validate the production Compose configuration without starting services:
+  ```bash
+  docker compose --env-file .env -f docker-compose.prod.yml config --quiet
+  ```
+- [ ] Confirm the AMIS production Nginx virtual hosts proxy the Web to
+  `127.0.0.1:8095` and the API to `127.0.0.1:3005`. Preserve other applications'
+  virtual hosts and existing Certbot/TLS settings.
+
+### 4. Deploy the production release
+
+- [ ] Apply migrations to the production database and confirm the command exits
+  successfully:
+  ```bash
+  docker compose --env-file .env -f docker-compose.prod.yml up -d db
+  docker compose --env-file .env -f docker-compose.prod.yml run --rm migrate
+  ```
+- [ ] For a newly initialized database only, set the `amis_app` database role
+  password to the value used by `APP_DB_PASSWORD` before starting the API. For an
+  existing database, verify the role and connection settings instead of
+  resetting credentials unnecessarily.
+- [ ] Build and start the production API and Web:
+  ```bash
+  docker compose --env-file .env -f docker-compose.prod.yml up -d --build
+  ```
+- [ ] If Nginx needed a change, run `nginx -t` successfully before reloading it.
+  Do not replace the shared Nginx configuration wholesale.
+- [ ] Confirm `docker compose ... ps` shows the database healthy and API/Web
+  running; the one-shot migration container should have exited successfully.
+
+### 5. Verify service and business behavior
+
+- [ ] Check the API and Web from the VPS and through the public domains:
+  ```bash
+  curl -fsS http://127.0.0.1:3005/health
+  curl -fsSI http://127.0.0.1:8095/
+  curl -fsS https://api.amis.institute/health
+  curl -fsSI https://amis.institute/
+  ```
+- [ ] Inspect API, Web, and migration logs for startup errors, failed migrations,
+  database authentication errors, and repeated exceptions.
+- [ ] Complete a production smoke test: sign in, confirm tenant and role access,
+  open core pages, and verify a safe representative read/write workflow.
+- [ ] Verify email/reset links, file uploads, and any enabled integrations using
+  production configuration.
+- [ ] Verify tenant isolation and confirm a user in one tenant cannot access
+  another tenant's records.
+- [ ] Confirm HTTPS, certificate renewal, firewall exposure, and backup jobs are
+  healthy. Do not expose PostgreSQL or application ports publicly.
+- [ ] Monitor logs, health, and user reports after release; record the deployed
+  commit, migration result, verification evidence, and any follow-up issues.
+- [ ] If a critical check fails, stop further rollout and follow the rollback
+  plan. Restore a database backup only with a deliberate recovery decision and
+  an understood impact on data written after the backup.
 
 ---
 
@@ -67,24 +178,52 @@ Fill in every value — do **not** leave any placeholder as-is:
 | Variable | What to put |
 |---|---|
 | `POSTGRES_PASSWORD` | Strong random password |
-| `APP_DB_PASSWORD` | Different strong password |
+| `APP_DB_PASSWORD` | Strong password for the `amis_app` database role |
+| `APP_DATABASE_URL` | `postgres://amis_app:<URL-encoded APP_DB_PASSWORD>@db:5432/amis` |
 | `JWT_SECRET` | Run `openssl rand -hex 64` on the server |
 | `CORS_ORIGIN` | `https://amis.institute` |
 | `VITE_API_URL` | `https://api.amis.institute` |
+| `APP_URL` | `https://amis.institute` |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Production SMTP relay credentials; quote special characters in `.env` |
+| `SMTP_FROM`, `SMTP_SECURE` | Verified sender address; use `true` for implicit TLS on port 465 |
 
-### 2.3 Build and start all services
+Redis is started as an internal-only production service; `REDIS_URL` is wired to
+the Compose `redis` service and does not need to be added to `.env`.
+
+`APP_DATABASE_URL` must use the same password as `APP_DB_PASSWORD`. The initial
+migrations create `amis_app` with a temporary password, so set the role to
+`APP_DB_PASSWORD` after migrations and before starting the API.
+
+### 2.3 Initialize the database and start the application
 ```bash
+# Start PostgreSQL, then apply migrations to the new production database
+docker compose -f docker-compose.prod.yml up -d db
+docker compose -f docker-compose.prod.yml run --rm migrate
+
+# Set the amis_app role password interactively; enter APP_DB_PASSWORD when prompted
+docker compose -f docker-compose.prod.yml exec db psql -U amis -d amis
+# At the psql prompt:
+#   \password amis_app
+#   \q
+
+# Build and start the API, Web, and internal Redis service
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 This will:
 - Build the API and Web Docker images
-- Start PostgreSQL, run all 39+ migrations automatically (via the `migrate` one-shot service)
-- Start API (bound to `127.0.0.1:3001`) and Web (bound to `127.0.0.1:8095`)
+- Start PostgreSQL and apply all migrations to the production database
+- Start API (bound to `127.0.0.1:3005`) and Web (bound to `127.0.0.1:8095`)
+- Start Redis for the API outbox worker without publishing its port to the host
 
 > DB and app ports are loopback-only — not reachable from the internet, only by Nginx on the same host.
 
 ### 2.4 Install the Nginx virtual host config
+
+For a new server, install the repository vhost. On an existing shared Nginx
+server, preserve the current TLS/Certbot configuration and update the AMIS API
+`proxy_pass` to `http://127.0.0.1:3005` instead of replacing the whole vhost.
+
 ```bash
 cp /opt/amis/nginx/amis.conf /etc/nginx/sites-available/amis.conf
 ln -s /etc/nginx/sites-available/amis.conf /etc/nginx/sites-enabled/amis.conf
@@ -110,12 +249,17 @@ docker compose -f docker-compose.prod.yml ps
 
 # API health check
 curl https://api.amis.institute/health
-# Expected: {"status":"ok"}
+# Expected: status ok, with database/email/redis checks reporting configured/ok
 
 # Frontend
 curl -I https://amis.institute
 # Expected: HTTP/2 200
 ```
+
+Send a password-reset message to a controlled test account and verify it arrives.
+Check the API health response for `email: configured` and `redis: configured`;
+inspect API logs for SMTP delivery or connection errors. Do not put SMTP
+credentials in chat or command-line arguments.
 
 ---
 
@@ -459,7 +603,7 @@ When a new version is available:
 - [ ] `.env` is not committed to git (verified by `.gitignore`)
 - [ ] `POSTGRES_PASSWORD`, `APP_DB_PASSWORD`, `JWT_SECRET` are all unique strong values
 - [ ] Port 5432 is NOT exposed to the internet (no `ports:` on `db` service — loopback only)
-- [ ] Port 3001 and 8095 bind to `127.0.0.1` only — not reachable from outside
+- [ ] Port 3005 and 8095 bind to `127.0.0.1` only — not reachable from outside
 - [ ] SSH password auth disabled on VPS (`PasswordAuthentication no` in `/etc/ssh/sshd_config`)
 - [ ] TLS certificates issued and Nginx serving HTTPS for both domains
 - [ ] `certbot renew --dry-run` succeeds (auto-renewal is working)
