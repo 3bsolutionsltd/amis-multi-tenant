@@ -437,12 +437,10 @@ async function inspectRun(source, target, options) {
     throw new Error("Source and target migration versions differ");
   }
 
-  const [sourceUsers, targetUsers, sourceRoles, sourceAssignments] = await Promise.all([
-    getUsers(source, sourceTenant.id),
-    getUsers(target, targetTenant.id),
-    getRoles(source, sourceTenant.id),
-    getUserAssignments(source, sourceTenant.id),
-  ]);
+  const sourceUsers = await getUsers(source, sourceTenant.id);
+  const targetUsers = await getUsers(target, targetTenant.id);
+  const sourceRoles = await getRoles(source, sourceTenant.id);
+  const sourceAssignments = await getUserAssignments(source, sourceTenant.id);
   const userMapping = await mapUsers(sourceUsers, targetUsers);
 
   const tableReport = [];
