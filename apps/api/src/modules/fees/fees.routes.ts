@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
 import { requireRole } from "../../middleware/requireRole.js";
+import { getStudentFeeCategories } from "../../lib/feeCategories.js";
 import { getTenantId } from "../../lib/tenantId.js";
 import { sendSms, buildPaymentConfirmationSms } from "../../lib/sms.js";
 import {
@@ -76,23 +77,6 @@ type ManualFeeEntryResult =
   | { overpayment: true; totalDue: number; totalPaid: number; balance: number }
   | { payment: PaymentRow; student: StudentSmsContact | null };
 
-function studentCategories(residenceCategory: string | null, sponsorshipType: string | null) {
-  const categories = new Set(["all"]);
-  const residence = residenceCategory?.trim().toLowerCase();
-  if (residence) categories.add(residence);
-
-  const sponsorship = sponsorshipType?.trim().toLowerCase();
-  if (sponsorship) {
-    categories.add(sponsorship);
-    if (sponsorship.includes("government")) categories.add("government");
-    if (sponsorship.includes("private")) categories.add("private");
-    if (sponsorship.includes("boarding") || sponsorship.includes("boarder")) categories.add("boarding");
-    if (sponsorship.includes("day")) categories.add("day");
-  }
-
-  return [...categories];
-}
-
 async function getDefaultTotalDue(client: Queryable, tid: string) {
   const { rows: cfgRows } = await client.query<{
     payload: { fees?: { defaultTotalDue?: number } };
@@ -120,7 +104,7 @@ async function listApplicableFeeStructures(
   client: Queryable,
   student: StudentFeeContext,
 ) {
-  const categoryFilter = studentCategories(student.residence_category, student.sponsorship_type);
+  const categoryFilter = getStudentFeeCategories(student.residence_category, student.sponsorship_type);
 
   const { rows } = await client.query<FeeStructureLine>(
     `SELECT fs.id, fs.fee_type, fs.student_category, fs.description, fs.amount, fs.currency,

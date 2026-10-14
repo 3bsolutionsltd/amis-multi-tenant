@@ -137,6 +137,19 @@ interface RefreshTokenRow {
   user_id: string;
 }
 
+async function getAssignedRoles(userId: string, primaryRole: string): Promise<string[]> {
+  const { rows } = await pool.query<{ roles: string[] }>(
+    `SELECT COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), ARRAY[$2]) AS roles
+     FROM platform.users u
+     LEFT JOIN platform.user_roles ur ON ur.user_id = u.id
+     LEFT JOIN platform.roles r ON r.id = ur.role_id
+     WHERE u.id = $1
+     GROUP BY u.id`,
+    [userId, primaryRole],
+  );
+  return rows[0]?.roles ?? [primaryRole];
+}
+
 // ------------------------------------------------------------------ routes
 
 export async function authRoutes(app: FastifyInstance) {
@@ -243,6 +256,7 @@ export async function authRoutes(app: FastifyInstance) {
       role: user.role,
     });
     const refreshToken = await issueRefreshToken(user.id);
+    const roles = await getAssignedRoles(user.id, user.role);
 
     // Fire-and-forget — never block the login response for this
     pool
@@ -258,6 +272,7 @@ export async function authRoutes(app: FastifyInstance) {
         firstName: user.first_name,
         lastName: user.last_name,
         role: user.role,
+        roles,
         tenantId: user.tenant_id,
       },
     });
@@ -311,6 +326,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     const accessToken = signToken({ sub: user.id, tenantId: user.tenant_id, role: user.role });
     const refreshToken = await issueRefreshToken(user.id);
+    const roles = await getAssignedRoles(user.id, user.role);
 
     pool
       .query(`UPDATE platform.users SET last_login_at = now() WHERE id = $1`, [user.id])
@@ -325,6 +341,7 @@ export async function authRoutes(app: FastifyInstance) {
         firstName: user.first_name,
         lastName: user.last_name,
         role: user.role,
+        roles,
         tenantId: user.tenant_id,
       },
     });

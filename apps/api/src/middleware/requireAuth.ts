@@ -11,7 +11,7 @@
  *   POST /auth/login | POST /auth/refresh | POST /auth/logout | GET /health
  */
 import type { FastifyRequest, FastifyReply } from "fastify";
-import { superPool } from "../db/pool.js";
+import { isConnectionError, querySuperPool } from "../db/pool.js";
 import { verifyToken } from "../lib/jwt.js";
 
 /** Routes that never require authentication. */
@@ -65,22 +65,37 @@ export async function requireAuth(
   // 5. Look up the user in the DB (catches deleted / inactive accounts)
   // Use superPool (postgres superuser) to bypass RLS — requireAuth runs before
   // any tenant context is established, so the amis_app role would see 0 rows.
-  const { rows } = await superPool.query<{
+  let rows: Array<{
     id: string;
     role: string;
     roles: string[];
     tenant_id: string;
     is_active: boolean;
-  }>(
-    `SELECT u.id, u.role, u.tenant_id, u.is_active,
-        COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), ARRAY[u.role]) AS roles
-     FROM platform.users u
-     LEFT JOIN platform.user_roles ur ON ur.user_id = u.id
-     LEFT JOIN platform.roles r ON r.id = ur.role_id
-     WHERE u.id = $1
-     GROUP BY u.id, u.role, u.tenant_id, u.is_active`,
-    [payload.sub],
-  );
+  }>;
+  try {
+    ({ rows } = await querySuperPool<{
+      id: string;
+      role: string;
+      roles: string[];
+      tenant_id: string;
+      is_active: boolean;
+    }>(
+      `SELECT u.id, u.role, u.tenant_id, u.is_active,
+          COALESCE(array_agg(r.name) FILTER (WHERE r.name IS NOT NULL), ARRAY[u.role]) AS roles
+       FROM platform.users u
+       LEFT JOIN platform.user_roles ur ON ur.user_id = u.id
+       LEFT JOIN platform.roles r ON r.id = ur.role_id
+       WHERE u.id = $1
+       GROUP BY u.id, u.role, u.tenant_id, u.is_active`,
+      [payload.sub],
+    ));
+  } catch (err) {
+    if (isConnectionError(err)) {
+      void reply.status(503).send({ message: "Database unavailable" });
+      return;
+    }
+    throw err;
+  }
 
   if (rows.length === 0 || !rows[0].is_active) {
     void reply.status(401).send({ message: "Invalid or expired token" });

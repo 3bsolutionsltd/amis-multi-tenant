@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
-import { requireRole } from "../../middleware/requireRole.js";
+import { hasConfiguredPermission, requireRole } from "../../middleware/requireRole.js";
 import { getTenantId } from "../../lib/tenantId.js";
 import { loadWorkflowDef } from "../../lib/workflowDef.js";
 import type { WorkflowDefinition } from "../config/config.schema.js";
@@ -195,12 +195,15 @@ export async function workflowRoutes(app: FastifyInstance) {
               : null;
 
         if (allowedRoles) {
-          const actorRole = req.user?.role ?? null;
+          const assignedRoles = req.user?.roles?.length
+            ? req.user.roles
+            : req.user?.role
+              ? [req.user.role]
+              : [];
           const superRoles = ["admin", "platform_admin"];
           const permitted =
-            actorRole !== null &&
-            (superRoles.includes(actorRole) || allowedRoles.includes(actorRole));
-          if (!permitted) {
+            assignedRoles.some((role) => superRoles.includes(role) || allowedRoles.includes(role));
+          if (!permitted && !(await hasConfiguredPermission(req, assignedRoles))) {
             return {
               forbidden: true,
               message: `action "${action}" requires one of: ${allowedRoles.join(", ")}`,
