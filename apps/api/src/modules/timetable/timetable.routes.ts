@@ -26,6 +26,13 @@ const SLOT_COLS = `
   s.created_at, s.updated_at
 `;
 
+const SLOT_RETURNING_COLS = `
+  id, programme, academic_year, term_number,
+  day_of_week, start_time, end_time,
+  course_id, room, instructor_name, notes,
+  created_at, updated_at
+`;
+
 export async function timetableRoutes(app: FastifyInstance) {
   // ── GET /timetable ──────────────────────────────────────────────────────
   app.get(
@@ -115,7 +122,7 @@ export async function timetableRoutes(app: FastifyInstance) {
               day_of_week, start_time, end_time,
               course_id, room, instructor_name, notes)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-           RETURNING ${SLOT_COLS}`,
+           RETURNING ${SLOT_RETURNING_COLS}`,
           [
             tid,
             d.programme ?? null,
@@ -190,7 +197,7 @@ export async function timetableRoutes(app: FastifyInstance) {
           `UPDATE app.timetable_slots
            SET ${updates.join(", ")}
            WHERE id = ${idParam}
-           RETURNING ${SLOT_COLS}`,
+           RETURNING ${SLOT_RETURNING_COLS}`,
           params,
         );
         return rows[0] ?? null;

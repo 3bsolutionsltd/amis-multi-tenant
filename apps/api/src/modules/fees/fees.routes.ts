@@ -76,14 +76,21 @@ type ManualFeeEntryResult =
   | { overpayment: true; totalDue: number; totalPaid: number; balance: number }
   | { payment: PaymentRow; student: StudentSmsContact | null };
 
-function studentCategory(residenceCategory: string | null, sponsorshipType: string | null) {
-  const explicitCategory = residenceCategory?.toLowerCase();
-  if (explicitCategory === "day" || explicitCategory === "boarding") return explicitCategory;
-  const normalized = sponsorshipType?.toLowerCase() ?? "";
-  if (normalized.includes("boarding") || normalized.includes("boarder")) return "boarding";
-  if (normalized.includes("day")) return "day";
-  if (normalized.trim()) return "day";
-  return "all";
+function studentCategories(residenceCategory: string | null, sponsorshipType: string | null) {
+  const categories = new Set(["all"]);
+  const residence = residenceCategory?.trim().toLowerCase();
+  if (residence) categories.add(residence);
+
+  const sponsorship = sponsorshipType?.trim().toLowerCase();
+  if (sponsorship) {
+    categories.add(sponsorship);
+    if (sponsorship.includes("government")) categories.add("government");
+    if (sponsorship.includes("private")) categories.add("private");
+    if (sponsorship.includes("boarding") || sponsorship.includes("boarder")) categories.add("boarding");
+    if (sponsorship.includes("day")) categories.add("day");
+  }
+
+  return [...categories];
 }
 
 async function getDefaultTotalDue(client: Queryable, tid: string) {
@@ -113,8 +120,7 @@ async function listApplicableFeeStructures(
   client: Queryable,
   student: StudentFeeContext,
 ) {
-  const category = studentCategory(student.residence_category, student.sponsorship_type);
-  const categoryFilter = category === "all" ? ["all"] : ["all", category];
+  const categoryFilter = studentCategories(student.residence_category, student.sponsorship_type);
 
   const { rows } = await client.query<FeeStructureLine>(
     `SELECT fs.id, fs.fee_type, fs.student_category, fs.description, fs.amount, fs.currency,
@@ -129,7 +135,7 @@ async function listApplicableFeeStructures(
      WHERE fs.is_active = true
        AND ay.is_current = true
        AND (fs.term_id IS NULL OR t.is_current = true)
-       AND fs.student_category = ANY($1::text[])
+      AND LOWER(fs.student_category) = ANY($1::text[])
        AND (
          fs.programme_id = $2::uuid
          OR lower(p.code) = lower(COALESCE($3, ''))
@@ -693,6 +699,7 @@ export async function feesRoutes(app: FastifyInstance) {
                programme_code,
                programme,
                CASE
+                 WHEN LOWER(sponsorship_type) LIKE '%government%' THEN 'government'
                  WHEN LOWER(sponsorship_type) LIKE '%boarding%'
                    OR LOWER(sponsorship_type) LIKE '%boarder%' THEN 'boarding'
                  WHEN sponsorship_type IS NOT NULL AND TRIM(sponsorship_type) != '' THEN 'day'
@@ -712,7 +719,7 @@ export async function feesRoutes(app: FastifyInstance) {
                   LEFT JOIN app.terms t ON t.id = fs.term_id
                   WHERE fs.is_active = true
                     AND (fs.term_id IS NULL OR t.is_current = true)
-                    AND fs.student_category = ANY(ARRAY['all', sc.cat])
+                    AND LOWER(fs.student_category) = ANY(ARRAY['all', sc.cat])
                     AND (
                       fs.programme_id = sc.programme_id
                       OR LOWER(p.code) = LOWER(COALESCE(sc.programme_code, ''))
@@ -791,6 +798,7 @@ export async function feesRoutes(app: FastifyInstance) {
                s.programme_id,
                s.programme_code,
                CASE
+                 WHEN LOWER(s.sponsorship_type) LIKE '%government%' THEN 'government'
                  WHEN LOWER(s.sponsorship_type) LIKE '%boarding%'
                    OR LOWER(s.sponsorship_type) LIKE '%boarder%' THEN 'boarding'
                  WHEN LOWER(s.sponsorship_type) LIKE '%day%'
@@ -810,7 +818,7 @@ export async function feesRoutes(app: FastifyInstance) {
                  LEFT JOIN app.terms t ON t.id = fs.term_id
                  WHERE fs.is_active = true
                    AND (fs.term_id IS NULL OR t.is_current = true)
-                   AND fs.student_category = ANY(ARRAY['all', sc.category])
+                   AND LOWER(fs.student_category) = ANY(ARRAY['all', sc.category])
                    AND (
                      fs.programme_id = sc.programme_id
                      OR LOWER(p.code) = LOWER(COALESCE(sc.programme_code, ''))

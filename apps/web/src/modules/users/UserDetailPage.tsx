@@ -7,7 +7,9 @@ import {
   updateUser,
   resetUserPassword,
   listRoles,
+  VALID_ROLES,
   type AuditLogEntry,
+  type UpdateUserBody,
 } from "./users.api";
 import {
   ensureGlobalCss,
@@ -28,6 +30,7 @@ import {
   TD,
 } from "../../lib/ui";
 import { useConfig } from "../../app/ConfigProvider";
+import { UserRolesField } from "./UserRolesField";
 
 const ACTION_LABELS: Record<string, { label: string; color: "blue" | "green" | "red" | "gray" }> = {
   created:        { label: "Created",        color: "blue" },
@@ -48,6 +51,7 @@ export function UserDetailPage() {
   const [editFirstName, setEditFirstName]     = useState("");
   const [editLastName, setEditLastName]       = useState("");
   const [editRole, setEditRole]               = useState("");
+  const [editRoles, setEditRoles]             = useState<string[]>([]);
   const [editRoleError, setEditRoleError]     = useState<string | null>(null);
   const [editDepartment, setEditDepartment] = useState("");
 
@@ -69,12 +73,13 @@ export function UserDetailPage() {
     enabled: !!id,
   });
   const { data: roleData } = useQuery({ queryKey: ["user-roles"], queryFn: listRoles });
-  const roleOptions = roleData?.data ?? (user ? [user.role] : []);
+  const roleOptions = Array.from(
+    new Set([...VALID_ROLES, ...(roleData?.data ?? []), ...(user?.roles ?? [])]),
+  );
 
   // ---- mutations ---------------------------------------------------
   const updateMut = useMutation({
-    mutationFn: (body: { role?: string; isActive?: boolean; firstName?: string; lastName?: string; department?: string | null }) =>
-      updateUser(id!, body),
+    mutationFn: (body: UpdateUserBody) => updateUser(id!, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["user", id] });
       void qc.invalidateQueries({ queryKey: ["users"] });
@@ -108,6 +113,7 @@ export function UserDetailPage() {
     setEditFirstName(user.firstName ?? "");
     setEditLastName(user.lastName ?? "");
     setEditRole(user.role);
+    setEditRoles(user.roles?.length ? user.roles : [user.role]);
     setEditDepartment(user.department ?? "");
     setEditRoleError(null);
     setShowEditRole(true);
@@ -172,8 +178,14 @@ export function UserDetailPage() {
             <div style={{ fontWeight: 600, color: "#111827" }}>{user.email}</div>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>ROLE</div>
-            <Badge label={user.role} color="blue" />
+            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>RESPONSIBILITIES</div>
+            {(user.roles?.length ? user.roles : [user.role]).map((role) => (
+              <Badge
+                key={role}
+                label={`${role}${role === user.role ? " (primary)" : ""}`}
+                color="blue"
+              />
+            ))}
           </div>
           <div>
             <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>DEPARTMENT</div>
@@ -201,7 +213,7 @@ export function UserDetailPage() {
 
         {/* Actions */}
         <div style={{ display: "flex", gap: 10, marginTop: 24, flexWrap: "wrap" }}>
-          <PrimaryBtn onClick={openEditRole}>Change Role</PrimaryBtn>
+          <PrimaryBtn onClick={openEditRole}>Change Responsibilities</PrimaryBtn>
           <SecondaryBtn onClick={openResetPwd}>Reset Password</SecondaryBtn>
           {user.isActive ? (
             <DangerBtn
@@ -253,7 +265,7 @@ export function UserDetailPage() {
       {/* Edit Role Modal */}
       {showEditRole && (
         <Modal
-          title={`Change Role — ${user.email}`}
+          title={`Change Responsibilities — ${user.email}`}
           onClose={() => setShowEditRole(false)}
           footer={
             <>
@@ -263,7 +275,8 @@ export function UserDetailPage() {
                     firstName: editFirstName.trim() || undefined,
                     lastName: editLastName.trim() || undefined,
                     role: editRole,
-                    department: editRole === "hod" ? editDepartment || null : null,
+                    roles: editRoles,
+                    department: editRoles.includes("hod") ? editDepartment || null : null,
                   })
                 }
                 disabled={updateMut.isPending}
@@ -281,20 +294,14 @@ export function UserDetailPage() {
           <Field label="Last Name">
             <input value={editLastName} onChange={(e) => setEditLastName(e.target.value)} style={inputCss} />
           </Field>
-          <Field label="New Role">
-            <select
-              value={editRole}
-              onChange={(e) => setEditRole(e.target.value)}
-              style={selectCss}
-            >
-              {roleOptions.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </Field>
-          {editRole === "hod" && (
+          <UserRolesField
+            availableRoles={roleOptions}
+            roles={editRoles}
+            primaryRole={editRole}
+            onRolesChange={setEditRoles}
+            onPrimaryRoleChange={setEditRole}
+          />
+          {editRoles.includes("hod") && (
             <Field label="Department" required>
               <select
                 required

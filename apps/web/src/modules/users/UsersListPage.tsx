@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { listUsers, updateUser, VALID_ROLES, type User } from "./users.api";
+import { listRoles, listUsers, updateUser, VALID_ROLES, type UpdateUserBody, type User } from "./users.api";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -21,6 +21,7 @@ import {
   Pagination,
 } from "../../lib/ui";
 import { DEFAULT_DEPARTMENTS, useConfig } from "../../app/ConfigProvider";
+import { UserRolesField } from "./UserRolesField";
 
 export function UsersListPage() {
   ensureGlobalCss();
@@ -62,6 +63,7 @@ export function UsersListPage() {
 
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editRole, setEditRole] = useState("");
+  const [editRoles, setEditRoles] = useState<string[]>([]);
   const [editDepartment, setEditDepartment] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -70,6 +72,8 @@ export function UsersListPage() {
     queryFn: () =>
       listUsers({ role: roleFilter || undefined, search: searchFilter || undefined, page, limit: 20 }),
   });
+  const { data: roleData } = useQuery({ queryKey: ["user-roles"], queryFn: listRoles });
+  const roleOptions = Array.from(new Set([...VALID_ROLES, ...(roleData?.data ?? [])]));
 
   const updateMut = useMutation({
     mutationFn: ({
@@ -77,7 +81,7 @@ export function UsersListPage() {
       body,
     }: {
       id: string;
-      body: { role?: (typeof VALID_ROLES)[number]; isActive?: boolean; department?: string | null };
+      body: UpdateUserBody;
     }) => updateUser(id, body),
     onSuccess: () => {
       setEditingUser(null);
@@ -92,6 +96,7 @@ export function UsersListPage() {
   function openEdit(user: User) {
     setEditingUser(user);
     setEditRole(user.role);
+    setEditRoles(user.roles?.length ? user.roles : [user.role]);
     setEditDepartment(user.department ?? "");
     setEditError(null);
   }
@@ -101,8 +106,9 @@ export function UsersListPage() {
     updateMut.mutate({
       id: editingUser.id,
       body: {
-        role: editRole as (typeof VALID_ROLES)[number],
-        department: editRole === "hod" ? editDepartment || null : null,
+        role: editRole,
+        roles: editRoles,
+        department: editRoles.includes("hod") ? editDepartment || null : null,
       },
     });
   }
@@ -146,7 +152,7 @@ export function UsersListPage() {
           style={selectCss}
         >
           <option value="">All Roles</option>
-          {VALID_ROLES.map((r) => (
+          {roleOptions.map((r) => (
             <option key={r} value={r}>
               {r}
             </option>
@@ -155,7 +161,7 @@ export function UsersListPage() {
       </FilterBar>
 
       <DataTable
-        headers={["Name / Email", "Role", "Status", "Created", "Actions"]}
+        headers={["Name / Email", "Responsibilities", "Status", "Created", "Actions"]}
         isLoading={isLoading}
         isEmpty={isEmpty}
         emptyIcon="👥"
@@ -179,7 +185,13 @@ export function UsersListPage() {
               )}
             </TD>
             <TD>
-              <Badge label={user.role} color="blue" />
+              {(user.roles?.length ? user.roles : [user.role]).map((role) => (
+                <Badge
+                  key={role}
+                  label={`${role}${role === user.role ? " (primary)" : ""}`}
+                  color="blue"
+                />
+              ))}
             </TD>
             <TD>
               <Badge
@@ -191,7 +203,7 @@ export function UsersListPage() {
             <TD>
               <div style={{ display: "flex", gap: 8 }}>
                 <SecondaryBtn onClick={() => openEdit(user)}>
-                  Edit Role
+                  Edit Responsibilities
                 </SecondaryBtn>
                 {user.isActive ? (
                   <DangerBtn onClick={() => toggleActive(user)}>
@@ -217,7 +229,7 @@ export function UsersListPage() {
 
       {editingUser && (
         <Modal
-          title={`Edit Role — ${editingUser.email}`}
+          title={`Edit Responsibilities — ${editingUser.email}`}
           onClose={() => setEditingUser(null)}
           footer={
             <>
@@ -231,20 +243,14 @@ export function UsersListPage() {
           }
         >
           {editError && <ErrorBanner message={editError} />}
-          <Field label="Role">
-            <select
-              value={editRole}
-              onChange={(e) => setEditRole(e.target.value)}
-              style={selectCss}
-            >
-              {VALID_ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </Field>
-          {editRole === "hod" && (
+          <UserRolesField
+            availableRoles={roleOptions}
+            roles={editRoles}
+            primaryRole={editRole}
+            onRolesChange={setEditRoles}
+            onPrimaryRoleChange={setEditRole}
+          />
+          {editRoles.includes("hod") && (
             <Field label="Department" required>
               <select
                 required

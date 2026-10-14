@@ -25,6 +25,7 @@ const PAYMENT_METHODS = [
   "Bank Transfer",
   "Card",
   "Cheque",
+  "Schpay",
 ];
 
 function formatUgx(amount: number) {

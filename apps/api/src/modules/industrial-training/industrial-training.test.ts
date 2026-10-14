@@ -84,6 +84,28 @@ describe("GET /industrial-training", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([]);
   });
+
+  it("accepts the maximum supported limit for active records", async () => {
+    mockWithTenant.mockResolvedValueOnce([TRAINING] as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/industrial-training?status=active&limit=100",
+      headers: adminH,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([TRAINING]);
+  });
+
+  it("rejects limits above the supported maximum", async () => {
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/industrial-training?limit=200",
+      headers: adminH,
+    });
+    expect(res.statusCode).toBe(422);
+  });
 });
 
 // ------------------------------------------------------------------ GET /industrial-training/:id

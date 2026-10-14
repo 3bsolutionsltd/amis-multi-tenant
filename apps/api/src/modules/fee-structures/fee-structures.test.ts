@@ -129,6 +129,30 @@ describe("POST /fee-structures", () => {
     });
     expect(res.statusCode).toBe(201);
   });
+
+  it("accepts configured fee types and student categories", async () => {
+    mockWithTenant.mockResolvedValueOnce({
+      rows: [{ ...fakeFeeStructure, fee_type: "development levy", student_category: "Government" }],
+    } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/fee-structures",
+      headers: financeHeaders,
+      payload: {
+        academic_year_id: AY_ID,
+        programme_id: PROG_ID,
+        fee_type: "development levy",
+        student_category: "Government",
+        amount: 250000,
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({
+      fee_type: "development levy",
+      student_category: "Government",
+    });
+  });
 });
 
 describe("GET /fee-structures", () => {

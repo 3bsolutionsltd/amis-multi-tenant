@@ -3,7 +3,7 @@ import { getConfigStatus, createDraft, publishConfig } from "./admin-studio.api"
 import { useQueryClient } from "@tanstack/react-query";
 
 const DEFAULT_FEE_TYPES = ["tuition", "examination", "functional", "other"];
-const DEFAULT_STUDENT_CATEGORIES = ["all", "boarding", "day"];
+const DEFAULT_STUDENT_CATEGORIES = ["all", "boarding", "day", "government"];
 const DEFAULT_ASSET_CATEGORIES = ["equipment", "furniture", "vehicle", "computer", "other"];
 
 const inputSt: React.CSSProperties = {
@@ -38,8 +38,17 @@ export function FeeTypesEditor() {
         const savedFeeTypes = payload.fee_types as string[] | undefined;
         const savedCategories = payload.student_categories as string[] | undefined;
         const savedAssetCategories = payload.asset_categories as string[] | undefined;
+        const configuredStudentCategories = savedCategories && savedCategories.length > 0
+          ? savedCategories
+          : DEFAULT_STUDENT_CATEGORIES;
         setFeeTypes(savedFeeTypes && savedFeeTypes.length > 0 ? savedFeeTypes : DEFAULT_FEE_TYPES);
-        setStudentCategories(savedCategories && savedCategories.length > 0 ? savedCategories : DEFAULT_STUDENT_CATEGORIES);
+        setStudentCategories(
+          configuredStudentCategories.some(
+            (category) => category.trim().toLowerCase() === "government",
+          )
+            ? configuredStudentCategories
+            : [...configuredStudentCategories, "government"],
+        );
         setAssetCategories(savedAssetCategories && savedAssetCategories.length > 0 ? savedAssetCategories : DEFAULT_ASSET_CATEGORIES);
       })
       .catch(() => setError("Failed to load config"))
