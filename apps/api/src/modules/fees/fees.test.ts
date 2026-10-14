@@ -283,6 +283,69 @@ describe("GET /fees/students/:studentId/summary", () => {
       totalDueSource: "fee_structures",
     });
   });
+
+  it("matches sponsorship-specific fees alongside residence and all-category fees", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ payload: { fees: { defaultTotalDue: 0 } } }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: STUDENT_ID,
+          programme_id: "11111111-1111-1111-1111-111111111111",
+          programme: "Diploma in ICT",
+          programme_code: "DICT",
+          sponsorship_type: "Government",
+          residence_category: "boarding",
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "fs-government",
+            fee_type: "tuition",
+            student_category: "government",
+            description: "Government tuition",
+            amount: "300000",
+            currency: "UGX",
+            academic_year_name: "2025/2026",
+            term_name: "Term 1",
+            programme_code: "DICT",
+            programme_title: "Diploma in ICT",
+          },
+          {
+            id: "fs-all",
+            fee_type: "functional",
+            student_category: "all",
+            description: "Guild Fee",
+            amount: "15000",
+            currency: "UGX",
+            academic_year_name: "2025/2026",
+            term_name: "Term 1",
+            programme_code: "DICT",
+            programme_title: "Diploma in ICT",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ total_paid: "0", last_payment: null }] });
+
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/fees/students/${STUDENT_ID}/summary`,
+      headers: financeHeaders,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      totalDue: 315000,
+      balance: 315000,
+      totalDueSource: "fee_structures",
+    });
+  });
 });
 
 // ------------------------------------------------------------------ GET /fees/students/:studentId/transactions
@@ -381,6 +444,22 @@ describe("POST /fees/entry", () => {
     expect(res.statusCode).toBe(201);
     expect(res.json()).toMatchObject({
       payment: { reference: "REF-001", payment_method: "Bank Draft" },
+    });
+  });
+
+  it("accepts and returns Schpay as the payment method", async () => {
+    const payment = { ...fakePayment, payment_method: "Schpay" };
+    mockWithTenant.mockResolvedValueOnce({ payment } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/fees/entry",
+      headers: financeHeaders,
+      payload: { ...validEntryBody, payment_method: "Schpay" },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({
+      payment: { reference: "REF-001", payment_method: "Schpay" },
     });
   });
 
@@ -742,6 +821,32 @@ describe("GET /fees/overview", () => {
     expect(body.collectionRate).toBe(70);
     expect(body.defaulters).toBe(50);
   });
+
+  it("resolves Government students to Government fees in the overview calculation", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ payload: { fees: { defaultTotalDue: 0 } } }] })
+      .mockResolvedValueOnce({ rows: [{ total: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ total_collected: "0" }] })
+      .mockResolvedValueOnce({ rows: [{ total_expected: "0", fully_paid: 0 }] });
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/fees/overview",
+      headers: adminHeaders,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const dueQuery = query.mock.calls
+      .map(([sql]) => String(sql))
+      .find((sql) => sql.includes("WITH student_cats"));
+    expect(dueQuery).toContain("WHEN LOWER(sponsorship_type) LIKE '%government%' THEN 'government'");
+    expect(dueQuery).toContain("LOWER(fs.student_category) = ANY(ARRAY['all', sc.cat])");
+  });
 });
 
 // ------------------------------------------------------------------ GET /fees/defaulters
@@ -786,6 +891,30 @@ describe("GET /fees/defaulters", () => {
     const body = res.json();
     expect(body).toHaveLength(1);
     expect(body[0].balance).toBe(3000);
+  });
+
+  it("resolves Government students to Government fees in the defaulter calculation", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ payload: { fees: { defaultTotalDue: 0 } } }] })
+      .mockResolvedValueOnce({ rows: [] });
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: "/fees/defaulters",
+      headers: financeHeaders,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const balanceQuery = query.mock.calls
+      .map(([sql]) => String(sql))
+      .find((sql) => sql.includes("WITH student_cats"));
+    expect(balanceQuery).toContain("WHEN LOWER(s.sponsorship_type) LIKE '%government%' THEN 'government'");
+    expect(balanceQuery).toContain("LOWER(fs.student_category) = ANY(ARRAY['all', sc.category])");
   });
 });
 

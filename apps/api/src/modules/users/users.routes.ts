@@ -31,6 +31,8 @@ const PRIMARY_USER_ROLE = z.enum([
   "finance",
   "principal",
   "dean",
+  "director",
+  "deputy_principal",
   "platform_admin",
   "procurement_officer",
   "inventory_manager",
@@ -626,10 +628,14 @@ export async function usersRoutes(app: FastifyInstance) {
         created_at: string;
         last_login_at: string | null;
       }>(
-         `SELECT id, email, first_name, last_name, role, department, is_active, created_at, last_login_at,
-            ARRAY[role]::text[] AS roles
-          FROM platform.users
-          WHERE id = $1 AND tenant_id = $2`,
+        `SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.department,
+           u.is_active, u.created_at, u.last_login_at,
+           COALESCE(array_agg(r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL), ARRAY[u.role]) AS roles
+         FROM platform.users u
+         LEFT JOIN platform.user_roles ur ON ur.user_id = u.id
+         LEFT JOIN platform.roles r ON r.id = ur.role_id
+         WHERE u.id = $1 AND u.tenant_id = $2
+         GROUP BY u.id`,
         [id, tenantId],
       );
 

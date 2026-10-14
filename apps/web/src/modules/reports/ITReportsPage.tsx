@@ -48,9 +48,12 @@ function ITReportModal({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const { data: itRecords = [] } = useQuery({
+  const {
+    data: itRecords = [],
+    error: itRecordsError,
+  } = useQuery({
     queryKey: ["industrial-training-picker"],
-    queryFn: () => listIndustrialTraining({ limit: 200 }),
+    queryFn: () => listIndustrialTraining({ status: "active", limit: 100 }),
   });
 
   function set(k: keyof CreateITReportBody, v: string | number) {
@@ -107,6 +110,15 @@ function ITReportModal({
       <div style={modal}>
         <h2 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 600 }}>New IT Report</h2>
         {error && <ErrorBanner message={error} />}
+        {itRecordsError && (
+          <ErrorBanner
+            message={
+              itRecordsError instanceof Error
+                ? itRecordsError.message
+                : "Failed to load active Industrial Training records."
+            }
+          />
+        )}
         <form onSubmit={handleSubmit}>
           <Field label="Industrial Training Record *">
             <select

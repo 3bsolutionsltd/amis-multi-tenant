@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { PoolClient } from "pg";
 import { withTenant } from "../../db/tenant.js";
 import { requireRole } from "../../middleware/requireRole.js";
+import { getStudentFeeCategories } from "../../lib/feeCategories.js";
 import { getTenantId } from "../../lib/tenantId.js";
 import {
   SignOffSchema,
@@ -44,8 +45,9 @@ async function computeEligibility(
     programme: string | null;
     programme_code: string | null;
     sponsorship_type: string | null;
+    residence_category: string | null;
   }>(
-    `SELECT id, programme_id, programme, programme_code, sponsorship_type
+    `SELECT id, programme_id, programme, programme_code, sponsorship_type, residence_category
      FROM app.students WHERE id = $1`,
     [studentId],
   );
@@ -89,22 +91,20 @@ async function computeEligibility(
        WHERE fs.academic_year_id = $1
          AND fs.is_active = true
          AND (fs.term_id IS NULL OR fee_term.id = $2)
-         AND fs.student_category = ANY(
-           CASE
-             WHEN LOWER($3) LIKE '%boarding%' OR LOWER($3) LIKE '%boarder%'
-               THEN ARRAY['all', 'boarding']::text[]
-             WHEN LOWER($3) LIKE '%day%'
-               OR (NULLIF(TRIM($3), '') IS NOT NULL)
-               THEN ARRAY['all', 'day']::text[]
-             ELSE ARRAY['all']::text[]
-           END
-         )
+         AND LOWER(fs.student_category) = ANY($3::text[])
          AND (
            fs.programme_id = $4::uuid
            OR LOWER(p.code) = LOWER(COALESCE($5, ''))
            OR LOWER(p.title) = LOWER(COALESCE($6, ''))
          )`,
-      [term.academic_year_id, termId, student.sponsorship_type ?? "", student.programme_id, student.programme_code, student.programme],
+      [
+        term.academic_year_id,
+        termId,
+        getStudentFeeCategories(student.residence_category, student.sponsorship_type),
+        student.programme_id,
+        student.programme_code,
+        student.programme,
+      ],
     );
     feesDue = parseFloat(feeRows[0]?.total ?? "0");
 

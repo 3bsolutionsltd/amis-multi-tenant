@@ -172,7 +172,7 @@ export function IndustrialTrainingDetailPage() {
             <SecondaryBtn onClick={startEdit}>Edit</SecondaryBtn>
           </div>
         </Card>
-      ) : (
+      ) : tab === "details" && editing ? (
         <Card padding="20px 24px" style={{ marginBottom: 20 }}>
           <SectionLabel>Edit Training Record</SectionLabel>
           {patchError && <ErrorBanner message={patchError} />}
@@ -247,7 +247,7 @@ export function IndustrialTrainingDetailPage() {
             <SecondaryBtn onClick={() => setEditing(false)}>Cancel</SecondaryBtn>
           </div>
         </Card>
-      )}
+      ) : null}
 
       {tab === "logbook" && <ITLogbookTab assignmentId={id!} />}
     </div>

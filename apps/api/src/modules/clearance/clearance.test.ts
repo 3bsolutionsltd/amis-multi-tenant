@@ -116,6 +116,55 @@ describe("GET /clearance/eligibility/:studentId", () => {
     expect(res.json()).toMatchObject({ eligible: false });
     expect(res.json().checks.fees_cleared.pass).toBe(false);
   });
+
+  it("matches Government sponsorship and residence categories without adding day fees", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [{
+          id: STUDENT_ID,
+          programme_id: "cc000000-0000-0000-0000-000000000001",
+          programme: "Diploma in ICT",
+          programme_code: "DICT",
+          sponsorship_type: "Government",
+          residence_category: "boarding",
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          term_name: "Term 1",
+          term_number: 1,
+          academic_year_id: "dd000000-0000-0000-0000-000000000001",
+          academic_year_name: "2025/2026",
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ total: "300000" }] })
+      .mockResolvedValueOnce({ rows: [{ total: "0" }] })
+      .mockResolvedValueOnce({ rows: [{ cnt: "0" }] })
+      .mockResolvedValueOnce({ rows: [{ attended: "0", total: "0" }] });
+
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/clearance/eligibility/${STUDENT_ID}?term_id=${TERM_ID}`,
+      headers: financeHeaders,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().checks.fees_cleared.pass).toBe(false);
+    const feeQuery = query.mock.calls.find(([sql]) =>
+      String(sql).includes("FROM app.fee_structures fs"),
+    );
+    expect(feeQuery).toBeDefined();
+    if (!feeQuery) throw new Error("Fee structure query was not executed");
+    expect(feeQuery[0]).toContain("LOWER(fs.student_category) = ANY($3::text[])");
+    expect(feeQuery[1]?.[2]).toEqual(["all", "boarding", "government"]);
+  });
 });
 
 // ── Sign-off enforcement ───────────────────────────────────────────────────

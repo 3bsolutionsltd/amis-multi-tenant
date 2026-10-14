@@ -114,7 +114,7 @@ const ConfigContext = createContext<ConfigContextValue>({
   enabledModules: {},
   assessmentTypes: [],
   feeTypes: ["tuition", "examination", "functional", "other"],
-  studentCategories: ["all", "boarding", "day"],
+  studentCategories: ["all", "boarding", "day", "government"],
   marksheetDefaultTemplate: "uvtab",
 });
 
@@ -147,7 +147,13 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const enabledModules: Record<string, boolean> = config?.payload?.modules ?? {};
   const assessmentTypes: string[] = config?.payload?.assessment_types ?? [];
   const feeTypes: string[] = config?.payload?.fee_types ?? ["tuition", "examination", "functional", "other"];
-  const studentCategories: string[] = config?.payload?.student_categories ?? ["all", "boarding", "day"];
+  const configuredStudentCategories =
+    config?.payload?.student_categories ?? ["all", "boarding", "day"];
+  const studentCategories: string[] = configuredStudentCategories.some(
+    (category) => category.trim().toLowerCase() === "government",
+  )
+    ? configuredStudentCategories
+    : [...configuredStudentCategories, "government"];
   const marksheetDefaultTemplate: string = config?.payload?.marksheet_default_template ?? "uvtab";
   const rawReceipt = config?.payload?.receipt;
   const receiptConfig = {

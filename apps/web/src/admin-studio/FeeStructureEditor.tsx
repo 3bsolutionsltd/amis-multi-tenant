@@ -59,7 +59,29 @@ const badgeStyle = (active: boolean): React.CSSProperties => ({
 /* ---------------------------------------------------------------- component */
 
 export function FeeStructureEditor() {
-  const { feeTypes = DEFAULT_FEE_TYPES, studentCategories = DEFAULT_STUDENT_CATEGORIES } = useConfig();
+  const {
+    config,
+    feeTypes: contextFeeTypes = DEFAULT_FEE_TYPES,
+    studentCategories: contextStudentCategories = DEFAULT_STUDENT_CATEGORIES,
+  } = useConfig();
+  const { data: freshConfig } = useQuery<{
+    payload?: { fee_types?: string[]; student_categories?: string[] };
+  }>({
+    queryKey: ["config"],
+    queryFn: () => apiFetch("/config"),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
+  const feeTypes = freshConfig?.payload?.fee_types ?? contextFeeTypes;
+  const configuredStudentCategories =
+    freshConfig?.payload?.student_categories ?? contextStudentCategories;
+  const studentCategories = configuredStudentCategories.some(
+    (category) => category.trim().toLowerCase() === "government",
+  )
+    ? configuredStudentCategories
+    : [...configuredStudentCategories, "government"];
   const qc = useQueryClient();
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [showForm, setShowForm] = useState(false);
