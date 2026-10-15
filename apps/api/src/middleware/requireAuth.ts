@@ -11,7 +11,7 @@
  *   POST /auth/login | POST /auth/refresh | POST /auth/logout | GET /health
  */
 import type { FastifyRequest, FastifyReply } from "fastify";
-import { isConnectionError, querySuperPool } from "../db/pool.js";
+import { isConnectionError, superPool } from "../db/pool.js";
 import { verifyToken } from "../lib/jwt.js";
 
 /** Routes that never require authentication. */
@@ -73,7 +73,7 @@ export async function requireAuth(
     is_active: boolean;
   }>;
   try {
-    ({ rows } = await querySuperPool<{
+    ({ rows } = await superPool.query<{
       id: string;
       role: string;
       roles: string[];
