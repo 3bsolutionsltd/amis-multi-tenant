@@ -115,7 +115,7 @@ export async function storesRoutes(app: FastifyInstance) {
         const srqId = srq.rows[0].id;
 
         const items = await db.query(
-          `SELECT ${SRQ_ITEM_COLS}, inv.name AS item_name, inv.unit_of_measure,
+          `SELECT ${SRQ_ITEM_COLS.replace(/\b(\w)/g, "sri.$1")}, inv.name AS item_name, inv.unit_of_measure,
                   inv.current_stock
            FROM app.store_requisition_items sri
            LEFT JOIN app.inventory_items inv ON inv.id = sri.item_id
