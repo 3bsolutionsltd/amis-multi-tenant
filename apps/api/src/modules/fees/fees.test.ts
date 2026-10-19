@@ -284,7 +284,7 @@ describe("GET /fees/students/:studentId/summary", () => {
     });
   });
 
-  it("matches sponsorship-specific fees alongside residence and all-category fees", async () => {
+  it("uses Government tuition instead of the residence tier and keeps common fees by default", async () => {
     const query = vi
       .fn()
       .mockResolvedValueOnce({ rows: [{ payload: { fees: { defaultTotalDue: 0 } } }] })
@@ -304,8 +304,22 @@ describe("GET /fees/students/:studentId/summary", () => {
             id: "fs-government",
             fee_type: "tuition",
             student_category: "government",
+            term_id: "term-1",
             description: "Government tuition",
             amount: "300000",
+            currency: "UGX",
+            academic_year_name: "2025/2026",
+            term_name: "Term 1",
+            programme_code: "DICT",
+            programme_title: "Diploma in ICT",
+          },
+          {
+            id: "fs-boarding",
+            fee_type: "tuition",
+            student_category: "boarding",
+            term_id: "term-1",
+            description: "Boarding tuition",
+            amount: "704000",
             currency: "UGX",
             academic_year_name: "2025/2026",
             term_name: "Term 1",
@@ -316,6 +330,7 @@ describe("GET /fees/students/:studentId/summary", () => {
             id: "fs-all",
             fee_type: "functional",
             student_category: "all",
+            term_id: "term-1",
             description: "Guild Fee",
             amount: "15000",
             currency: "UGX",
@@ -345,6 +360,149 @@ describe("GET /fees/students/:studentId/summary", () => {
       balance: 315000,
       totalDueSource: "fee_structures",
     });
+    expect(res.json().feeStructures.map((line: { id: string }) => line.id)).toEqual([
+      "fs-government",
+      "fs-all",
+    ]);
+    const feeQuery = query.mock.calls.find(([sql]) =>
+      String(sql).includes("FROM app.fee_structures fs"),
+    );
+    expect(feeQuery?.[1]?.[0]).toEqual(["all", "government"]);
+  });
+
+  it("applies a tenant's tuition-only Government fee policy", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [{ payload: { fees: { defaultTotalDue: 900000, governmentOtherFeeTypes: [] } } }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: STUDENT_ID,
+          programme_id: "11111111-1111-1111-1111-111111111111",
+          programme: "Diploma in ICT",
+          programme_code: "DICT",
+          sponsorship_type: "Government",
+          residence_category: "boarding",
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "fs-government",
+            fee_type: "tuition",
+            student_category: "government",
+            term_id: "term-1",
+            description: "Government tuition",
+            amount: "401000",
+            currency: "UGX",
+            academic_year_name: "2025/2026",
+            term_name: "Term 1",
+            programme_code: "DICT",
+            programme_title: "Diploma in ICT",
+          },
+          {
+            id: "fs-boarding",
+            fee_type: "tuition",
+            student_category: "boarding",
+            term_id: "term-1",
+            description: "Boarding tuition",
+            amount: "704000",
+            currency: "UGX",
+            academic_year_name: "2025/2026",
+            term_name: "Term 1",
+            programme_code: "DICT",
+            programme_title: "Diploma in ICT",
+          },
+          {
+            id: "fs-guild",
+            fee_type: "functional",
+            student_category: "all",
+            term_id: "term-1",
+            description: "Guild Fee",
+            amount: "15000",
+            currency: "UGX",
+            academic_year_name: "2025/2026",
+            term_name: "Term 1",
+            programme_code: "DICT",
+            programme_title: "Diploma in ICT",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ total_paid: "0", last_payment: null }] });
+
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/fees/students/${STUDENT_ID}/summary`,
+      headers: financeHeaders,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      totalDue: 401000,
+      balance: 401000,
+      totalDueSource: "fee_structures",
+    });
+    expect(res.json().feeStructures.map((line: { id: string }) => line.id)).toEqual([
+      "fs-government",
+    ]);
+  });
+
+  it("returns a configuration error instead of falling back when Government tuition is missing", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [{ payload: { fees: { defaultTotalDue: 900000 } } }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: STUDENT_ID,
+          programme_id: "11111111-1111-1111-1111-111111111111",
+          programme: "Diploma in ICT",
+          programme_code: "DICT",
+          sponsorship_type: "Government",
+          residence_category: "boarding",
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "fs-boarding",
+            fee_type: "tuition",
+            student_category: "boarding",
+            term_id: "term-1",
+            description: "Boarding tuition",
+            amount: "704000",
+            currency: "UGX",
+            academic_year_name: "2025/2026",
+            term_name: "Term 1",
+            programme_code: "DICT",
+            programme_title: "Diploma in ICT",
+          },
+        ],
+      });
+
+    mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
+      callback({ query } as never),
+    );
+
+    const app = buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `/fees/students/${STUDENT_ID}/summary`,
+      headers: financeHeaders,
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json()).toMatchObject({
+      code: "GOVERNMENT_TUITION_NOT_CONFIGURED",
+    });
+    expect(query).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -825,10 +983,20 @@ describe("GET /fees/overview", () => {
   it("resolves Government students to Government fees in the overview calculation", async () => {
     const query = vi
       .fn()
-      .mockResolvedValueOnce({ rows: [{ payload: { fees: { defaultTotalDue: 0 } } }] })
+      .mockResolvedValueOnce({
+        rows: [{ payload: { fees: { defaultTotalDue: 0, governmentOtherFeeTypes: [] } } }],
+      })
       .mockResolvedValueOnce({ rows: [{ total: 1 }] })
       .mockResolvedValueOnce({ rows: [{ total_collected: "0" }] })
-      .mockResolvedValueOnce({ rows: [{ total_expected: "0", fully_paid: 0 }] });
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            total_expected: "0",
+            fully_paid: 0,
+            government_tuition_unconfigured: 1,
+          },
+        ],
+      });
     mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
       callback({ query } as never),
     );
@@ -841,11 +1009,20 @@ describe("GET /fees/overview", () => {
     });
 
     expect(res.statusCode).toBe(200);
+    expect(res.json().governmentTuitionUnconfigured).toBe(1);
     const dueQuery = query.mock.calls
       .map(([sql]) => String(sql))
       .find((sql) => sql.includes("WITH student_cats"));
     expect(dueQuery).toContain("WHEN LOWER(sponsorship_type) LIKE '%government%' THEN 'government'");
-    expect(dueQuery).toContain("LOWER(fs.student_category) = ANY(ARRAY['all', sc.cat])");
+    expect(dueQuery).toContain("LOWER(fs.student_category) = ANY(ARRAY['all', sc.category])");
+    expect(dueQuery).toContain("LOWER(fs.fee_type) LIKE '%tuition%'");
+    expect(dueQuery).toContain("government_fs.student_category");
+    expect(dueQuery).toContain("AS government_tuition_unconfigured");
+    expect(dueQuery).toContain("LOWER(gov_tuition.student_category) = 'government'");
+    const dueQueryCall = query.mock.calls.find(([sql]) =>
+      String(sql).includes("WITH student_cats"),
+    );
+    expect(dueQueryCall?.[1]).toEqual([0, []]);
   });
 });
 
@@ -896,7 +1073,9 @@ describe("GET /fees/defaulters", () => {
   it("resolves Government students to Government fees in the defaulter calculation", async () => {
     const query = vi
       .fn()
-      .mockResolvedValueOnce({ rows: [{ payload: { fees: { defaultTotalDue: 0 } } }] })
+      .mockResolvedValueOnce({
+        rows: [{ payload: { fees: { defaultTotalDue: 0, governmentOtherFeeTypes: ["functional"] } } }],
+      })
       .mockResolvedValueOnce({ rows: [] });
     mockWithTenant.mockImplementationOnce(async (_tid, callback) =>
       callback({ query } as never),
@@ -915,6 +1094,11 @@ describe("GET /fees/defaulters", () => {
       .find((sql) => sql.includes("WITH student_cats"));
     expect(balanceQuery).toContain("WHEN LOWER(s.sponsorship_type) LIKE '%government%' THEN 'government'");
     expect(balanceQuery).toContain("LOWER(fs.student_category) = ANY(ARRAY['all', sc.category])");
+    expect(balanceQuery).toContain("LOWER(fs.fee_type) = ANY($2::text[])");
+    const balanceQueryCall = query.mock.calls.find(([sql]) =>
+      String(sql).includes("WITH student_cats"),
+    );
+    expect(balanceQueryCall?.[1]).toEqual([0, ["functional"]]);
   });
 });
 

@@ -117,7 +117,7 @@ describe("GET /clearance/eligibility/:studentId", () => {
     expect(res.json().checks.fees_cleared.pass).toBe(false);
   });
 
-  it("matches Government sponsorship and residence categories without adding day fees", async () => {
+  it("uses Government tuition, ignores residence tuition, and applies the tenant fee policy", async () => {
     const query = vi
       .fn()
       .mockResolvedValueOnce({
@@ -131,6 +131,9 @@ describe("GET /clearance/eligibility/:studentId", () => {
         }],
       })
       .mockResolvedValueOnce({
+        rows: [{ payload: { fees: { governmentOtherFeeTypes: ["functional"] } } }],
+      })
+      .mockResolvedValueOnce({
         rows: [{
           term_name: "Term 1",
           term_number: 1,
@@ -139,7 +142,34 @@ describe("GET /clearance/eligibility/:studentId", () => {
         }],
       })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ total: "300000" }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            fee_type: "tuition",
+            student_category: "government",
+            term_id: TERM_ID,
+            amount: "300000",
+          },
+          {
+            fee_type: "tuition",
+            student_category: "boarding",
+            term_id: TERM_ID,
+            amount: "704000",
+          },
+          {
+            fee_type: "functional",
+            student_category: "all",
+            term_id: TERM_ID,
+            amount: "15000",
+          },
+          {
+            fee_type: "examination",
+            student_category: "all",
+            term_id: TERM_ID,
+            amount: "5000",
+          },
+        ],
+      })
       .mockResolvedValueOnce({ rows: [{ total: "0" }] })
       .mockResolvedValueOnce({ rows: [{ cnt: "0" }] })
       .mockResolvedValueOnce({ rows: [{ attended: "0", total: "0" }] });
@@ -157,13 +187,14 @@ describe("GET /clearance/eligibility/:studentId", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json().checks.fees_cleared.pass).toBe(false);
+    expect(res.json().checks.fees_cleared.detail).toContain("of UGX 315,000 due");
     const feeQuery = query.mock.calls.find(([sql]) =>
       String(sql).includes("FROM app.fee_structures fs"),
     );
     expect(feeQuery).toBeDefined();
     if (!feeQuery) throw new Error("Fee structure query was not executed");
     expect(feeQuery[0]).toContain("LOWER(fs.student_category) = ANY($3::text[])");
-    expect(feeQuery[1]?.[2]).toEqual(["all", "boarding", "government"]);
+    expect(feeQuery[1]?.[2]).toEqual(["all", "government"]);
   });
 });
 

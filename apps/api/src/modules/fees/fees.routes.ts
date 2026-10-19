@@ -1,7 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { withTenant } from "../../db/tenant.js";
 import { requireRole } from "../../middleware/requireRole.js";
-import { getStudentFeeCategories } from "../../lib/feeCategories.js";
+import {
+  applyGovernmentFeePolicy,
+  GOVERNMENT_TUITION_CONFIGURATION_ERROR,
+  getStudentFeeCategories,
+  isGovernmentSponsorship,
+  isTuitionFeeType,
+} from "../../lib/feeCategories.js";
 import { getTenantId } from "../../lib/tenantId.js";
 import { sendSms, buildPaymentConfirmationSms } from "../../lib/sms.js";
 import {
@@ -40,6 +46,7 @@ type FeeStructureLine = {
   id: string;
   fee_type: string;
   student_category: string;
+  term_id: string | null;
   description: string | null;
   amount: string;
   currency: string;
@@ -55,6 +62,7 @@ type Queryable = {
 
 type FeeBalanceResult =
   | { notFound: true }
+  | { configurationError: string }
   | { totalDue: number; totalPaid: number; balance: number };
 
 type PaymentRow = {
@@ -74,12 +82,45 @@ type StudentSmsContact = {
 
 type ManualFeeEntryResult =
   | { notFound: true }
+  | { configurationError: string }
   | { overpayment: true; totalDue: number; totalPaid: number; balance: number }
   | { payment: PaymentRow; student: StudentSmsContact | null };
 
-async function getDefaultTotalDue(client: Queryable, tid: string) {
+const GOVERNMENT_FEE_POLICY_SQL = `
+  AND (
+    sc.category <> 'government'
+    OR LOWER(fs.fee_type) LIKE '%tuition%'
+    OR $2::text[] IS NULL
+    OR LOWER(fs.fee_type) = ANY($2::text[])
+  )
+  AND (
+    sc.category <> 'government'
+    OR LOWER(fs.fee_type) NOT LIKE '%tuition%'
+    OR LOWER(fs.student_category) = 'government'
+  )
+  AND (
+    sc.category <> 'government'
+    OR LOWER(fs.student_category) <> 'all'
+    OR NOT EXISTS (
+      SELECT 1
+      FROM app.fee_structures government_fs
+      WHERE government_fs.is_active = true
+        AND government_fs.academic_year_id = fs.academic_year_id
+        AND government_fs.term_id IS NOT DISTINCT FROM fs.term_id
+        AND government_fs.programme_id = fs.programme_id
+        AND LOWER(government_fs.fee_type) = LOWER(fs.fee_type)
+        AND LOWER(government_fs.student_category) = 'government'
+    )
+  )`;
+
+async function getPublishedFeeSettings(client: Queryable, tid: string) {
   const { rows: cfgRows } = await client.query<{
-    payload: { fees?: { defaultTotalDue?: number } };
+    payload: {
+      fees?: {
+        defaultTotalDue?: number;
+        governmentOtherFeeTypes?: string[];
+      };
+    };
   }>(
     `SELECT payload FROM platform.config_versions
      WHERE tenant_id = $1 AND status = 'published'
@@ -87,7 +128,13 @@ async function getDefaultTotalDue(client: Queryable, tid: string) {
     [tid],
   );
 
-  return cfgRows[0]?.payload?.fees?.defaultTotalDue ?? 0;
+  const fees = cfgRows[0]?.payload?.fees;
+  return {
+    defaultTotalDue: fees?.defaultTotalDue ?? 0,
+    governmentOtherFeeTypes: fees?.governmentOtherFeeTypes?.map((feeType) =>
+      feeType.trim().toLowerCase(),
+    ),
+  };
 }
 
 async function loadStudentFeeContext(client: Queryable, studentId: string) {
@@ -103,11 +150,12 @@ async function loadStudentFeeContext(client: Queryable, studentId: string) {
 async function listApplicableFeeStructures(
   client: Queryable,
   student: StudentFeeContext,
+  governmentOtherFeeTypes?: readonly string[],
 ) {
   const categoryFilter = getStudentFeeCategories(student.residence_category, student.sponsorship_type);
 
   const { rows } = await client.query<FeeStructureLine>(
-    `SELECT fs.id, fs.fee_type, fs.student_category, fs.description, fs.amount, fs.currency,
+    `SELECT fs.id, fs.fee_type, fs.student_category, fs.term_id, fs.description, fs.amount, fs.currency,
             ay.name AS academic_year_name,
             t.name AS term_name,
             p.code AS programme_code,
@@ -129,7 +177,11 @@ async function listApplicableFeeStructures(
     [categoryFilter, student.programme_id, student.programme_code, student.programme],
   );
 
-  return rows;
+  return applyGovernmentFeePolicy(
+    rows,
+    student.sponsorship_type,
+    governmentOtherFeeTypes,
+  );
 }
 
 async function calculateStudentTotalDue(
@@ -137,13 +189,33 @@ async function calculateStudentTotalDue(
   tid: string,
   studentId: string,
 ) {
-  const defaultTotalDue = await getDefaultTotalDue(client, tid);
+  const {
+    defaultTotalDue,
+    governmentOtherFeeTypes,
+  } = await getPublishedFeeSettings(client, tid);
   const student = await loadStudentFeeContext(client, studentId);
   if (!student) {
     return { notFound: true as const };
   }
 
-  const feeStructures = await listApplicableFeeStructures(client, student);
+  const feeStructures = await listApplicableFeeStructures(
+    client,
+    student,
+    governmentOtherFeeTypes,
+  );
+  if (
+    isGovernmentSponsorship(student.sponsorship_type) &&
+    !feeStructures.some(
+      (line) =>
+        line.student_category.trim().toLowerCase() === "government" &&
+        isTuitionFeeType(line.fee_type),
+    )
+  ) {
+    return {
+      configurationError: GOVERNMENT_TUITION_CONFIGURATION_ERROR,
+    } as const;
+  }
+
   const structuredTotalDue = feeStructures.reduce(
     (sum, line) => sum + Number(line.amount),
     0,
@@ -166,6 +238,8 @@ async function calculateStudentFeeBalance(
 ): Promise<FeeBalanceResult> {
   const due = await calculateStudentTotalDue(client, tid, studentId);
   if ("notFound" in due) return { notFound: true as const };
+  if (typeof due.configurationError === "string")
+    return { configurationError: due.configurationError };
 
   const { rows } = await client.query<{ total_paid: string }>(
     `SELECT COALESCE(SUM(amount), 0) AS total_paid
@@ -199,6 +273,7 @@ export async function feesRoutes(app: FastifyInstance) {
       const result = await withTenant(tid, async (client) => {
         const due = await calculateStudentTotalDue(client, tid, studentId);
         if ("notFound" in due) return due;
+        if ("configurationError" in due) return due;
 
         const { rows } = await client.query<{
           total_paid: string;
@@ -238,6 +313,11 @@ export async function feesRoutes(app: FastifyInstance) {
 
       if ("notFound" in result)
         return reply.status(404).send({ error: "student not found" });
+      if ("configurationError" in result)
+        return reply.status(422).send({
+          error: result.configurationError,
+          code: "GOVERNMENT_TUITION_NOT_CONFIGURED",
+        });
 
       return reply.status(200).send(result);
     },
@@ -302,6 +382,8 @@ export async function feesRoutes(app: FastifyInstance) {
         if (updates.amount !== undefined) {
           const due = await calculateStudentTotalDue(client, tid, existing.student_id);
           if ("notFound" in due) return { notFound: true as const };
+          if ("configurationError" in due)
+            return { configurationError: due.configurationError };
           const { rows: paidRows } = await client.query<{ total_paid: string }>(
             `SELECT COALESCE(SUM(amount), 0) AS total_paid
              FROM app.payments WHERE student_id = $1 AND id <> $2`,
@@ -329,6 +411,11 @@ export async function feesRoutes(app: FastifyInstance) {
 
       if ("notFound" in result)
         return reply.status(404).send({ error: "payment not found" });
+      if ("configurationError" in result)
+        return reply.status(422).send({
+          error: result.configurationError,
+          code: "GOVERNMENT_TUITION_NOT_CONFIGURED",
+        });
       if ("overpayment" in result)
         return reply.status(409).send({
           error: "Payment amount exceeds the outstanding balance",
@@ -358,6 +445,7 @@ export async function feesRoutes(app: FastifyInstance) {
       const result = await withTenant(tid, async (client): Promise<ManualFeeEntryResult> => {
         const feeBalance = await calculateStudentFeeBalance(client, tid, student_id);
         if ("notFound" in feeBalance) return feeBalance;
+        if ("configurationError" in feeBalance) return feeBalance;
 
         if (amount > Math.max(feeBalance.balance, 0)) {
           return {
@@ -397,6 +485,11 @@ export async function feesRoutes(app: FastifyInstance) {
 
       if ("notFound" in result)
         return reply.status(404).send({ error: "student not found" });
+      if ("configurationError" in result)
+        return reply.status(422).send({
+          error: result.configurationError,
+          code: "GOVERNMENT_TUITION_NOT_CONFIGURED",
+        });
 
       if ("overpayment" in result)
         return reply.status(409).send({
@@ -644,17 +737,8 @@ export async function feesRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
       const result = await withTenant(tid, async (client) => {
-        // Get defaultTotalDue from published config
-        const { rows: cfgRows } = await client.query<{
-          payload: { fees?: { defaultTotalDue?: number } };
-        }>(
-          `SELECT payload FROM platform.config_versions
-           WHERE tenant_id = $1 AND status = 'published'
-           LIMIT 1`,
-          [tid],
-        );
-        const defaultTotalDue: number =
-          cfgRows[0]?.payload?.fees?.defaultTotalDue ?? 0;
+        const { defaultTotalDue, governmentOtherFeeTypes } =
+          await getPublishedFeeSettings(client, tid);
 
         // Total students
         const { rows: countRows } = await client.query(
@@ -675,6 +759,7 @@ export async function feesRoutes(app: FastifyInstance) {
         const { rows: dueRows } = await client.query<{
           total_expected: string;
           fully_paid: number;
+          government_tuition_unconfigured: number;
         }>(
           `WITH student_cats AS (
              SELECT
@@ -682,13 +767,16 @@ export async function feesRoutes(app: FastifyInstance) {
                programme_id,
                programme_code,
                programme,
+               residence_category,
                CASE
                  WHEN LOWER(sponsorship_type) LIKE '%government%' THEN 'government'
+                 WHEN residence_category IS NOT NULL AND TRIM(residence_category) != ''
+                   THEN LOWER(TRIM(residence_category))
                  WHEN LOWER(sponsorship_type) LIKE '%boarding%'
                    OR LOWER(sponsorship_type) LIKE '%boarder%' THEN 'boarding'
                  WHEN sponsorship_type IS NOT NULL AND TRIM(sponsorship_type) != '' THEN 'day'
                  ELSE 'all'
-               END AS cat
+               END AS category
              FROM app.students
              WHERE is_active = true
            ),
@@ -703,15 +791,37 @@ export async function feesRoutes(app: FastifyInstance) {
                   LEFT JOIN app.terms t ON t.id = fs.term_id
                   WHERE fs.is_active = true
                     AND (fs.term_id IS NULL OR t.is_current = true)
-                    AND LOWER(fs.student_category) = ANY(ARRAY['all', sc.cat])
+                    AND LOWER(fs.student_category) = ANY(ARRAY['all', sc.category])
+                    ${GOVERNMENT_FEE_POLICY_SQL}
                     AND (
                       fs.programme_id = sc.programme_id
                       OR LOWER(p.code) = LOWER(COALESCE(sc.programme_code, ''))
                       OR LOWER(p.title) = LOWER(COALESCE(sc.programme, ''))
                     )
                  ),
-                 $1
+                 CASE WHEN sc.category = 'government' THEN 0 ELSE $1 END
                ) AS due,
+               CASE
+                 WHEN sc.category = 'government' AND NOT EXISTS (
+                   SELECT 1
+                   FROM app.fee_structures gov_tuition
+                   JOIN app.programmes gov_p ON gov_p.id = gov_tuition.programme_id
+                   JOIN app.academic_years gov_ay
+                     ON gov_ay.id = gov_tuition.academic_year_id
+                    AND gov_ay.is_current = true
+                   LEFT JOIN app.terms gov_t ON gov_t.id = gov_tuition.term_id
+                   WHERE gov_tuition.is_active = true
+                     AND (gov_tuition.term_id IS NULL OR gov_t.is_current = true)
+                     AND LOWER(gov_tuition.student_category) = 'government'
+                     AND LOWER(gov_tuition.fee_type) LIKE '%tuition%'
+                     AND (
+                       gov_tuition.programme_id = sc.programme_id
+                       OR LOWER(gov_p.code) = LOWER(COALESCE(sc.programme_code, ''))
+                       OR LOWER(gov_p.title) = LOWER(COALESCE(sc.programme, ''))
+                     )
+                 ) THEN 1
+                 ELSE 0
+               END AS government_tuition_unconfigured,
                COALESCE(
                  (SELECT SUM(amount) FROM app.payments WHERE student_id = sc.id),
                  0
@@ -720,12 +830,16 @@ export async function feesRoutes(app: FastifyInstance) {
            )
            SELECT
              COALESCE(SUM(due), 0)::numeric AS total_expected,
-             COUNT(*) FILTER (WHERE paid >= due)::int AS fully_paid
+             COUNT(*) FILTER (WHERE paid >= due)::int AS fully_paid,
+             COUNT(*) FILTER (WHERE government_tuition_unconfigured = 1)::int
+               AS government_tuition_unconfigured
            FROM student_due`,
-          [defaultTotalDue],
+          [defaultTotalDue, governmentOtherFeeTypes ?? null],
         );
         const totalExpected = Number(dueRows[0]?.total_expected ?? 0);
         const fullyPaid = dueRows[0]?.fully_paid ?? 0;
+        const governmentTuitionUnconfigured =
+          dueRows[0]?.government_tuition_unconfigured ?? 0;
 
         // Collection rate
         const collectionRate =
@@ -740,6 +854,7 @@ export async function feesRoutes(app: FastifyInstance) {
           collectionRate,
           fullyPaid,
           defaulters: totalStudents - fullyPaid,
+          governmentTuitionUnconfigured,
           defaultTotalDue,
         };
       });
@@ -759,17 +874,8 @@ export async function feesRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: "x-tenant-id header required" });
 
       const result = await withTenant(tid, async (client) => {
-        // Get defaultTotalDue from published config
-        const { rows: cfgRows } = await client.query<{
-          payload: { fees?: { defaultTotalDue?: number } };
-        }>(
-          `SELECT payload FROM platform.config_versions
-           WHERE tenant_id = $1 AND status = 'published'
-           LIMIT 1`,
-          [tid],
-        );
-        const defaultTotalDue: number =
-          cfgRows[0]?.payload?.fees?.defaultTotalDue ?? 0;
+        const { defaultTotalDue, governmentOtherFeeTypes } =
+          await getPublishedFeeSettings(client, tid);
 
         const { rows } = await client.query(
           `WITH student_cats AS (
@@ -781,8 +887,11 @@ export async function feesRoutes(app: FastifyInstance) {
                s.programme,
                s.programme_id,
                s.programme_code,
+               s.residence_category,
                CASE
                  WHEN LOWER(s.sponsorship_type) LIKE '%government%' THEN 'government'
+                 WHEN s.residence_category IS NOT NULL AND TRIM(s.residence_category) != ''
+                   THEN LOWER(TRIM(s.residence_category))
                  WHEN LOWER(s.sponsorship_type) LIKE '%boarding%'
                    OR LOWER(s.sponsorship_type) LIKE '%boarder%' THEN 'boarding'
                  WHEN LOWER(s.sponsorship_type) LIKE '%day%'
@@ -803,12 +912,13 @@ export async function feesRoutes(app: FastifyInstance) {
                  WHERE fs.is_active = true
                    AND (fs.term_id IS NULL OR t.is_current = true)
                    AND LOWER(fs.student_category) = ANY(ARRAY['all', sc.category])
+                   ${GOVERNMENT_FEE_POLICY_SQL}
                    AND (
                      fs.programme_id = sc.programme_id
                      OR LOWER(p.code) = LOWER(COALESCE(sc.programme_code, ''))
                      OR LOWER(p.title) = LOWER(COALESCE(sc.programme, ''))
                    )
-               ), $1) AS total_due,
+               ), CASE WHEN sc.category = 'government' THEN 0 ELSE $1 END) AS total_due,
                COALESCE((
                  SELECT SUM(amount) FROM app.payments WHERE student_id = sc.id
                ), 0) AS total_paid
@@ -820,7 +930,7 @@ export async function feesRoutes(app: FastifyInstance) {
            FROM student_balances
            WHERE total_paid < total_due
            ORDER BY balance DESC`,
-          [defaultTotalDue],
+          [defaultTotalDue, governmentOtherFeeTypes ?? null],
         );
 
         return rows;
@@ -864,6 +974,7 @@ export async function feesRoutes(app: FastifyInstance) {
 
         const due = await calculateStudentTotalDue(client, tid, studentId);
         if ("notFound" in due) return due;
+        if ("configurationError" in due) return due;
 
         const { rows: payRows } = await client.query(
           `SELECT COALESCE(SUM(amount), 0) AS total_paid FROM app.payments WHERE student_id = $1`,
@@ -886,6 +997,11 @@ export async function feesRoutes(app: FastifyInstance) {
 
       if ("notFound" in result)
         return reply.status(404).send({ error: "student not found" });
+      if ("configurationError" in result)
+        return reply.status(422).send({
+          error: result.configurationError,
+          code: "GOVERNMENT_TUITION_NOT_CONFIGURED",
+        });
 
       return reply.status(200).send(result);
     },
