@@ -7,6 +7,7 @@ import {
   type FeeOverview,
   type Defaulter,
 } from "./fees.api";
+import { GovernmentFeeConfigurationWarning } from "./GovernmentFeeConfigurationWarning";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -87,6 +88,11 @@ export function FeeOverviewPage() {
         title="Fee Overview"
         back={{ label: "Finance", to: "/finance" }}
       />
+      {overviewQ.data && (
+        <GovernmentFeeConfigurationWarning
+          studentCount={overviewQ.data.governmentTuitionUnconfigured ?? 0}
+        />
+      )}
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>

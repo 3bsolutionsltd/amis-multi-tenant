@@ -115,6 +115,8 @@ export const configPayloadSchema = z
     fees: z
       .object({
         defaultTotalDue: z.number().positive().optional(),
+        // Empty means Government students pay tuition only; absent keeps all other fee types eligible.
+        governmentOtherFeeTypes: z.array(z.string().trim().min(1)).optional(),
       })
       .optional(),
   })
