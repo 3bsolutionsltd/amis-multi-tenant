@@ -29,6 +29,7 @@ services:
     image: ${AMIS_IMAGE_REGISTRY:-ghcr.io/3bsolutionsltd}/amis-api:${AMIS_VERSION:?required}
     environment:
       NODE_ENV: production
+      SELF_HOSTED_MODE: "true"
       PORT: 3000
       DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}
       APP_DATABASE_URL: ${APP_DATABASE_URL:?required}
