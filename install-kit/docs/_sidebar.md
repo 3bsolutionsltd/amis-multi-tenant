@@ -6,7 +6,7 @@
 * **Installation**
   * [Pre-install checklist](04-pre-install.md)
   * [Offline / on-premises (primary)](05-install-offline.md)
-  * [Cloud / VPS (secondary)](06-install-cloud.md)
+  * [Connected VTI install](06-install-cloud.md)
   * [First login & admin setup](07-first-login.md)
   * [Validate the installation](08-validate.md)
 

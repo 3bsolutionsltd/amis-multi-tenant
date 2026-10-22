@@ -1,44 +1,49 @@
-# 6. Cloud / VPS Installation
+# 6. Connected VTI Installation
 
-Use this mode **only** if the institution has reliable internet at the server site and prefers remote hosting. Otherwise stay with [05 — Offline install](05-install-offline.md).
+Use this procedure when the VTI server has reliable internet access. The server pulls the API and web images for one pinned AMIS release from GHCR. It does not build images locally.
 
-## Prerequisites
+## 6.1 Prepare the kit
 
-- VPS running Ubuntu 22.04 LTS with SSH key access.
-- DNS A records pointing to the VPS:
-  - `amis.<your-domain>` (frontend)
-  - `api.amis.<your-domain>` (API)
-- Firewall: ports `80` and `443` open inbound.
-
-## Install
+Copy the release kit to the server and create the environment file:
 
 ```bash
-ssh root@<VPS-IP>
-
-apt-get update
-apt-get install -y docker.io docker-compose-plugin certbot python3-certbot-nginx nginx git
-
-mkdir -p /opt/amis && cd /opt/amis
-git clone https://github.com/3bsolutionsltd/amis-multi-tenant.git .
-
-cp .env.prod.example .env
-nano .env       # fill POSTGRES_PASSWORD, JWT_SECRET, CORS_ORIGIN, VITE_API_URL
-
-docker compose -f docker-compose.prod.yml up -d --build
+cd /opt/amis
+cp config/.env.online.example config/.env.online
+chmod 600 config/.env.online
+nano config/.env.online
 ```
 
-## Nginx + TLS
+Set `AMIS_VERSION` to the release being installed and replace every placeholder secret. Keep the same `.env.online` file during future updates.
+
+## 6.2 Authenticate and start
+
+If the GHCR packages are private, authenticate with a GitHub token that can read packages. Do not store the token in `.env.online`:
 
 ```bash
-cp nginx/amis.conf /etc/nginx/sites-available/amis.conf
-ln -s /etc/nginx/sites-available/amis.conf /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
-certbot --nginx -d amis.<domain> -d api.amis.<domain>
+echo "$GHCR_READ_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+docker compose -f config/docker-compose.online.yml --env-file config/.env.online pull
+docker compose -f config/docker-compose.online.yml --env-file config/.env.online up -d db redis
+docker compose -f config/docker-compose.online.yml --env-file config/.env.online run --rm migrate
+docker compose -f config/docker-compose.online.yml --env-file config/.env.online up -d api web
 ```
 
-Cloud-mode bind addresses:
-- API → `127.0.0.1:3005`  (proxied by Nginx)
-- Web → `127.0.0.1:8095`  (proxied by Nginx)
-- DB  → internal docker network only
+Verify the installation:
 
-For staging, transactional email (Resend), and detailed Nginx config, see the repo's `DEPLOY.md`.
+```bash
+./scripts/healthcheck.sh
+```
+
+## 6.3 Updating
+
+Take a backup first, change only `AMIS_VERSION`, then pull the new images and run migrations:
+
+```bash
+./scripts/backup.sh
+sed -i 's/^AMIS_VERSION=.*/AMIS_VERSION=0.25.6/' config/.env.online
+docker compose -f config/docker-compose.online.yml --env-file config/.env.online pull api web
+docker compose -f config/docker-compose.online.yml --env-file config/.env.online run --rm migrate
+docker compose -f config/docker-compose.online.yml --env-file config/.env.online up -d api web
+./scripts/healthcheck.sh
+```
+
+Never use `latest` for the AMIS API or web images. Keep the previous `AMIS_VERSION` available for rollback, and test database restore before deploying a release with destructive migrations.
