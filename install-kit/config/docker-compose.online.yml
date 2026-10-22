@@ -76,7 +76,7 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}?sslmode=disable
     volumes:
-      - ./db/migrations:/db/migrations:ro
+      - ../db/migrations:/db/migrations:ro
     depends_on:
       db:
         condition: service_healthy

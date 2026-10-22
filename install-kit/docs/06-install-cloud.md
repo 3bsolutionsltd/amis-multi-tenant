@@ -39,7 +39,7 @@ Take a backup first, change only `AMIS_VERSION`, then pull the new images and ru
 
 ```bash
 ./scripts/backup.sh
-sed -i 's/^AMIS_VERSION=.*/AMIS_VERSION=0.25.6/' config/.env.online
+sed -i 's/^AMIS_VERSION=.*/AMIS_VERSION=0.25.7/' config/.env.online
 docker compose -f config/docker-compose.online.yml --env-file config/.env.online pull api web
 docker compose -f config/docker-compose.online.yml --env-file config/.env.online run --rm migrate
 docker compose -f config/docker-compose.online.yml --env-file config/.env.online up -d api web
