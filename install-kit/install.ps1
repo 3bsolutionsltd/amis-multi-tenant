@@ -87,6 +87,6 @@ Green ("      http://{0}" -f $ip)
 Green "============================================="
 ""
 Write-Host "Next steps:"
-Write-Host "  - Log in with the platform-admin credentials supplied by 3B Solutions."
+Write-Host "  - Create the institute and initial administrator at the local setup URL."
 Write-Host "  - Read docs\07-first-login.md."
 Write-Host "  - Schedule daily backups: see docs\10-backup.md."

@@ -1,5 +1,6 @@
 import { apiFetch } from "../../lib/apiFetch";
 import { getAccessToken } from "../../lib/auth";
+import { API_BASE_URL } from "../../lib/apiBaseUrl";
 
 export interface Submission {
   id: string;
@@ -167,7 +168,7 @@ export function getAuditLog(submissionId: string): Promise<AuditEntry[]> {
 // ---------- Evidence attachments (issue #93) ----------
 
 export function uploadFile(file: File): Promise<EvidenceFile> {
-  const base = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+  const base = API_BASE_URL;
   const tenantId = localStorage.getItem("amis_tenant_id") ?? "";
   const accessToken = getAccessToken();
   const fd = new FormData();

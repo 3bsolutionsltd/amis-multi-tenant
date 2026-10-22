@@ -244,6 +244,21 @@ describe("configPayloadSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts Government fee policy selections including tuition-only", () => {
+    const result = configPayloadSchema.safeParse({
+      fee_types: ["tuition", "functional", "examination"],
+      fees: { governmentOtherFeeTypes: [] },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects empty Government fee type labels", () => {
+    const result = configPayloadSchema.safeParse({
+      fees: { governmentOtherFeeTypes: [" "] },
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects an invalid theme.primaryColor (not a hex string)", () => {
     const result = configPayloadSchema.safeParse({
       theme: { primaryColor: "blue" },

@@ -6,8 +6,9 @@ import {
   type AuthUser,
 } from "./auth";
 import { enqueue } from "./offlineQueue";
+import { API_BASE_URL } from "./apiBaseUrl";
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const BASE_URL = API_BASE_URL;
 
 function describeApiError(status: number, body: unknown): string {
   if (typeof body === "string" && body.trim()) return body;

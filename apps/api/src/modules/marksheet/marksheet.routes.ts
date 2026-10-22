@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import * as XLSX from "xlsx";
 import { withTenant } from "../../db/tenant.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { getTenantId } from "../../lib/tenantId.js";
@@ -228,7 +229,7 @@ export async function marksheetRoutes(app: FastifyInstance) {
       if (!parsed.success)
         return reply.status(422).send({ error: parsed.error.flatten() });
 
-      const { template, ...query } = parsed.data;
+      const { template, format, ...query } = parsed.data;
 
       const sheet = await withTenant(tid, (client) => buildMarksheet(client, tid, query));
 
@@ -240,7 +241,7 @@ export async function marksheetRoutes(app: FastifyInstance) {
       headers.push("Total", "Grade");
       if (template !== "registrar" && template !== "principal") headers.push("Signature");
 
-      const lines = [headers.map(csvEscape).join(",")];
+      const rows: unknown[][] = [headers];
       sheet.students.forEach((s, i) => {
         const row: unknown[] = [i + 1, s.admission_number ?? "", `${s.last_name}, ${s.first_name}`];
         if (!summaryOnly) {
@@ -248,16 +249,28 @@ export async function marksheetRoutes(app: FastifyInstance) {
         }
         row.push(s.total ?? "", s.grade ?? "");
         if (template !== "registrar" && template !== "principal") row.push("");
-        lines.push(row.map(csvEscape).join(","));
+        rows.push(row);
       });
 
-      const csv = lines.join("\n");
-      const filename = `${TEMPLATE_LABELS[template].replace(/\s+/g, "_")}_${sheet.course.code}_${sheet.term}.csv`
+      const baseFilename = `${TEMPLATE_LABELS[template].replace(/\s+/g, "_")}_${sheet.course.code}_${sheet.term}`
         .replace(/[^\w.-]/g, "_");
+
+      if (format === "xlsx") {
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.aoa_to_sheet(rows);
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Marksheet");
+        const workbookBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+        return reply
+          .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+          .header("Content-Disposition", `attachment; filename="${baseFilename}.xlsx"`)
+          .send(workbookBuffer);
+      }
+
+      const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
 
       return reply
         .header("Content-Type", "text/csv; charset=utf-8")
-        .header("Content-Disposition", `attachment; filename="${filename}"`)
+        .header("Content-Disposition", `attachment; filename="${baseFilename}.csv"`)
         .send(csv);
     },
   );

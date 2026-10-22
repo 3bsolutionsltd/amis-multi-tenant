@@ -7,7 +7,7 @@
   <meta name="description" content="AMIS Academic Management Information System — Installation, configuration and operations." />
   <!--
     Asset loading strategy:
-      - If the bundle ships with ./vendor/* (vendor ran scripts/prepare-offline-docs.sh)
+      - If the bundle ships with ./vendor/* (the release includes offline assets)
         we use those for fully-offline operation.
       - Otherwise we fall back to the jsDelivr CDN (requires internet on the viewer).
     A tiny <script> below decides which to use.
@@ -55,8 +55,8 @@
   <script>
     window.$docsify = {
       name: 'AMIS Manual',
-      repo: '3bsolutionsltd/amis-multi-tenant',
-      routerMode: 'history',
+      // Hash routing supports the lightweight LAN documentation server.
+      routerMode: 'hash',
       loadSidebar: true,
       loadNavbar: false,
       coverpage: true,

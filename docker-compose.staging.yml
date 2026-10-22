@@ -21,7 +21,7 @@ services:
     volumes:
       - pgdata_staging:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-amis}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-amis} -d ${POSTGRES_DB:-amis_staging}"]
       interval: 5s
       timeout: 3s
       retries: 5

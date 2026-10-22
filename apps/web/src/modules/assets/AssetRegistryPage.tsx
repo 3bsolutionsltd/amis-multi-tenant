@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ensureGlobalCss, PageHeader, Card, Field, inputCss, PrimaryBtn, SecondaryBtn, DataTable, TR, TD, ErrorBanner } from "../../lib/ui";
+import { useConfig } from "../../app/ConfigProvider";
 import { createAsset, createMasterAsset, listAssets, listMasterAssets } from "./assets.api";
 
 ensureGlobalCss();
 
 export default function AssetRegistryPage() {
   const qc = useQueryClient();
+  const { assetCategories } = useConfig();
   const masters = useQuery({ queryKey: ["assets.master"], queryFn: listMasterAssets });
   const assets = useQuery({ queryKey: ["assets"], queryFn: listAssets });
   const [master, setMaster] = useState({ asset_code: "", name: "", category: "equipment", description: "" });
@@ -23,7 +25,7 @@ export default function AssetRegistryPage() {
       <Card style={{ padding: 20 }}><h3 style={{ marginTop: 0 }}>Master Asset Registry</h3>
         <Field label="Asset Code"><input style={inputCss} value={master.asset_code} onChange={(e) => setMaster({ ...master, asset_code: e.target.value })} /></Field>
         <Field label="Asset Name"><input style={inputCss} value={master.name} onChange={(e) => setMaster({ ...master, name: e.target.value })} /></Field>
-        <Field label="Category"><input style={inputCss} value={master.category} onChange={(e) => setMaster({ ...master, category: e.target.value })} /></Field>
+        <Field label="Category"><select style={inputCss} value={master.category} onChange={(e) => setMaster({ ...master, category: e.target.value })}>{assetCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></Field>
         <PrimaryBtn onClick={() => masterMut.mutate()} disabled={masterMut.isPending || !master.asset_code || !master.name}>Add Master Asset</PrimaryBtn>
       </Card>
       <Card style={{ padding: 20 }}><h3 style={{ marginTop: 0 }}>Register Asset</h3>

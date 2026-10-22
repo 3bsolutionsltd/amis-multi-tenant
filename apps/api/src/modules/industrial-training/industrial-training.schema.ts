@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const DateInputSchema = z.preprocess(
+  (value) => (typeof value === "string" ? value.slice(0, 10) : value),
+  z.string().date(),
+);
+
 export const TRAINING_STATUSES = [
   "scheduled",
   "active",
@@ -12,8 +17,8 @@ export const CreateIndustrialTrainingSchema = z.object({
   company: z.string().min(1),
   supervisor: z.string().optional(),
   department: z.string().optional(),
-  start_date: z.string().date().optional(),
-  end_date: z.string().date().optional(),
+  start_date: DateInputSchema.optional(),
+  end_date: DateInputSchema.optional(),
   status: z.enum(TRAINING_STATUSES).default("scheduled"),
   notes: z.string().optional(),
 });
@@ -22,8 +27,8 @@ export const UpdateIndustrialTrainingSchema = z.object({
   company: z.string().min(1).optional(),
   supervisor: z.string().optional(),
   department: z.string().optional(),
-  start_date: z.string().date().optional().nullable(),
-  end_date: z.string().date().optional().nullable(),
+  start_date: DateInputSchema.optional().nullable(),
+  end_date: DateInputSchema.optional().nullable(),
   status: z.enum(TRAINING_STATUSES).optional(),
   notes: z.string().optional().nullable(),
 });

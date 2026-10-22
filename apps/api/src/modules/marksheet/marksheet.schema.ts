@@ -18,6 +18,7 @@ export const MarksheetQuerySchema = z.object({
 
 export const MarksheetExportQuerySchema = MarksheetQuerySchema.extend({
   template: z.enum(MARKSHEET_TEMPLATES).default("uvtab"),
+  format: z.enum(["csv", "xlsx"]).default("csv"),
 });
 
 export type MarksheetQuery = z.infer<typeof MarksheetQuerySchema>;

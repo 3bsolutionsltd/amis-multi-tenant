@@ -13,6 +13,17 @@ import EventEmitter from "events";
 // ---------------------------------------------------------------------------
 class MockPool extends EventEmitter {
   ended = false;
+  queryError: Error | undefined;
+
+  async query() {
+    if (this.queryError) {
+      const error = this.queryError;
+      this.queryError = undefined;
+      throw error;
+    }
+    return { rows: [] };
+  }
+
   async end() {
     this.ended = true;
   }
@@ -32,7 +43,13 @@ vi.mock("pg", () => ({
   },
 }));
 
-import { pool, superPool, _resetPoolForTesting } from "./pool.js";
+import {
+  isConnectionError,
+  pool,
+  querySuperPool,
+  superPool,
+  _resetPoolForTesting,
+} from "./pool.js";
 
 describe("pg-pool auto-recovery", () => {
   beforeEach(() => {
@@ -94,6 +111,21 @@ describe("pg-pool auto-recovery", () => {
     expect(first.ended).toBe(true);
 
     void (superPool as unknown as { query: unknown }).query;
+    expect(createdPools).toHaveLength(2);
+  });
+
+  it("recognizes pg-pool connection timeouts and retries on a fresh pool", async () => {
+    expect(
+      isConnectionError(new Error("timeout exceeded when trying to connect")),
+    ).toBe(true);
+
+    void (superPool as unknown as { query: unknown }).query;
+    const first = createdPools[0];
+    first.queryError = new Error("timeout exceeded when trying to connect");
+
+    await querySuperPool("SELECT 1");
+
+    expect(first.ended).toBe(true);
     expect(createdPools).toHaveLength(2);
   });
 });

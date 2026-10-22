@@ -2,7 +2,13 @@ import type { FastifyInstance } from "fastify";
 import type { PoolClient } from "pg";
 import { withTenant } from "../../db/tenant.js";
 import { requireRole } from "../../middleware/requireRole.js";
-import { getStudentFeeCategories } from "../../lib/feeCategories.js";
+import {
+  applyGovernmentFeePolicy,
+  getStudentFeeCategories,
+  GOVERNMENT_TUITION_CONFIGURATION_ERROR,
+  isGovernmentSponsorship,
+  isTuitionFeeType,
+} from "../../lib/feeCategories.js";
 import { getTenantId } from "../../lib/tenantId.js";
 import {
   SignOffSchema,
@@ -35,9 +41,15 @@ export interface EligibilityResult {
 
 async function computeEligibility(
   client: PoolClient,
+  tenantId: string,
   studentId: string,
   termId: string,
-): Promise<EligibilityResult | { notFound: true } | { termNotFound: true }> {
+): Promise<
+  | EligibilityResult
+  | { notFound: true }
+  | { termNotFound: true }
+  | { configurationError: string }
+> {
   // 1. Verify student exists and get programme_id
   const { rows: stuRows } = await client.query<{
     id: string;
@@ -53,6 +65,20 @@ async function computeEligibility(
   );
   if (!stuRows[0]) return { notFound: true };
   const student = stuRows[0];
+  let governmentOtherFeeTypes: string[] | undefined;
+  if (isGovernmentSponsorship(student.sponsorship_type)) {
+    const { rows: configRows } = await client.query<{
+      payload: { fees?: { governmentOtherFeeTypes?: string[] } };
+    }>(
+      `SELECT payload FROM platform.config_versions
+       WHERE tenant_id = $1 AND status = 'published'
+       LIMIT 1`,
+      [tenantId],
+    );
+    governmentOtherFeeTypes = configRows[0]?.payload?.fees?.governmentOtherFeeTypes?.map(
+      (feeType) => feeType.trim().toLowerCase(),
+    );
+  }
 
   // 2. Look up term + academic year names
   const { rows: termRows } = await client.query<{
@@ -83,8 +109,13 @@ async function computeEligibility(
   let feesDue = 0;
   let feesPaid = 0;
   if (student.programme_id) {
-    const { rows: feeRows } = await client.query<{ total: string }>(
-      `SELECT COALESCE(SUM(fs.amount), 0) AS total
+    const { rows: feeRows } = await client.query<{
+      fee_type: string;
+      student_category: string;
+      term_id: string | null;
+      amount: string;
+    }>(
+      `SELECT fs.fee_type, fs.student_category, fs.term_id, fs.amount
        FROM app.fee_structures fs
        JOIN app.programmes p ON p.id = fs.programme_id
        LEFT JOIN app.terms fee_term ON fee_term.id = fs.term_id
@@ -106,7 +137,25 @@ async function computeEligibility(
         student.programme,
       ],
     );
-    feesDue = parseFloat(feeRows[0]?.total ?? "0");
+    const applicableFeeRows = applyGovernmentFeePolicy(
+      feeRows,
+      student.sponsorship_type,
+      governmentOtherFeeTypes,
+    );
+    if (
+      isGovernmentSponsorship(student.sponsorship_type) &&
+      !applicableFeeRows.some(
+        (line) =>
+        line.student_category.trim().toLowerCase() === "government" &&
+        isTuitionFeeType(line.fee_type),
+      )
+    ) {
+      return { configurationError: GOVERNMENT_TUITION_CONFIGURATION_ERROR };
+    }
+    feesDue = applicableFeeRows.reduce(
+      (total, line) => total + Number(line.amount),
+      0,
+    );
 
     const { rows: payRows } = await client.query<{ total: string }>(
       `SELECT COALESCE(SUM(amount), 0) AS total
@@ -272,13 +321,18 @@ export async function clearanceRoutes(app: FastifyInstance) {
           .send({ error: "term_id query parameter required" });
 
       const result = await withTenant(tid, async (client) =>
-        computeEligibility(client, studentId, termId),
+        computeEligibility(client, tid, studentId, termId),
       );
 
       if ("notFound" in result)
         return reply.status(404).send({ error: "student not found" });
       if ("termNotFound" in result)
         return reply.status(404).send({ error: "term not found" });
+      if ("configurationError" in result)
+        return reply.status(422).send({
+          error: result.configurationError,
+          code: "GOVERNMENT_TUITION_NOT_CONFIGURED",
+        });
 
       return result;
     },
@@ -383,8 +437,14 @@ export async function clearanceRoutes(app: FastifyInstance) {
 
         // Enforce eligibility prerequisites for specific departments (SIGNED only)
         if (status === "SIGNED") {
-          const eligibility = await computeEligibility(client, student_id, term_id);
+          const eligibility = await computeEligibility(client, tid, student_id, term_id);
 
+          if ("configurationError" in eligibility) {
+            return {
+              eligibilityFailed: true,
+              message: eligibility.configurationError,
+            } as const;
+          }
           if (!("notFound" in eligibility) && !("termNotFound" in eligibility)) {
             if (department === "accounts" && !eligibility.checks.fees_cleared.pass) {
               return {

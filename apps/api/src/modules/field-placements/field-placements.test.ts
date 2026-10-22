@@ -261,4 +261,16 @@ describe("PATCH /field-placements/:id", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json().status).toBe("completed");
   });
+
+  it("normalizes ISO timestamps from legacy records", async () => {
+    mockWithTenant.mockResolvedValueOnce({ ...PLACEMENT, start_date: "2026-02-01" } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/field-placements/${PLACEMENT.id}`,
+      headers: adminH,
+      payload: { start_date: "2026-02-01T00:00:00.000Z" },
+    });
+    expect(res.statusCode).toBe(200);
+  });
 });

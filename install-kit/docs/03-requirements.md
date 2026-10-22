@@ -12,11 +12,9 @@
 
 ## Server operating system
 
-Any **one** of:
+The first supported release targets:
 
-- Ubuntu Server 22.04 LTS (recommended)
-- Debian 12
-- Windows Server 2019 / 2022 (Docker Engine or Docker Desktop)
+- Ubuntu Server 22.04 LTS, x86-64.
 
 ## Required server software
 
@@ -24,18 +22,19 @@ Any **one** of:
 |----------|---------|---------|
 | Docker Engine | 24+ | Runs the four AMIS containers |
 | Docker Compose plugin | v2+ | Orchestration |
-| `bash` or PowerShell 5+ | — | Helper scripts |
-| Node.js 20 (optional) | — | Only for running data-import scripts on the server |
+| Bash, `curl`, `openssl`, `tar` | Ubuntu packages | Installer and operations scripts |
+| Python 3 | Ubuntu package (optional) | Serves the documentation site on the LAN |
 
-> **AMIS does not ship Docker.** If your server has no internet, install Docker first using offline `.deb` / `.msi` packages from your distro / Microsoft.
+> **AMIS does not include the Docker Engine installer.** Install and verify Docker Engine and the Compose plugin before transferring the AMIS kit to a server that has no internet access.
 
 ## Client devices
 
 - Any modern browser: Chrome, Edge, Firefox (last 2 versions), Safari 16+.
 - No client install needed — AMIS is a web app.
-- Client must be on the same LAN as the server (offline mode) or reachable over the internet (cloud mode).
+- Client must be connected to the institution's LAN.
 
 ## Network
 
-- A **static LAN IP** on the AMIS server (e.g. `192.168.1.100`). This IP **must not change** after install — it is baked into the web bundle.
-- Optional: a LAN DNS name (e.g. `amis.kti.local`) on the institution's router. Recommended if the server may ever move IP.
+- Assign a stable LAN IP or DNS name to the AMIS server (e.g. `192.168.1.100` or `amis.kti.local`) and use it consistently in staff browsers.
+- The kit's Web image resolves the API host from the browser URL at runtime; the server address is not baked into the image.
+- Keep ports 80 and 3001 reachable only from the institution's LAN. Do not expose them directly to the internet.

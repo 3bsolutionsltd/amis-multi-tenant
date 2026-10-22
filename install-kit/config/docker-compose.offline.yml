@@ -27,6 +27,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
+      SELF_HOSTED_MODE: "true"
       DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}
       JWT_SECRET: ${JWT_SECRET:?required}
       CORS_ORIGIN: ${CORS_ORIGIN:?required}

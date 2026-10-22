@@ -497,6 +497,8 @@ export async function marksRoutes(app: FastifyInstance) {
              ON wi.entity_type = '${ENTITY_TYPE}' AND wi.entity_id = s.id
            LEFT JOIN app.courses c
              ON c.tenant_id = s.tenant_id AND c.code = s.course_id
+           LEFT JOIN platform.users creator
+             ON creator.id = s.created_by
            WHERE s.id = $1`,
           [id],
         );

@@ -194,7 +194,7 @@ export function MarksheetPage() {
           <PrimaryBtn onClick={apply} disabled={!canApply}>Load Marksheet</PrimaryBtn>
           {sheet && (
             <SecondaryBtn onClick={handleExport} disabled={exporting}>
-              {exporting ? "Exporting…" : "⬇ Export CSV"}
+              {exporting ? "Exporting…" : "⬇ Export Excel"}
             </SecondaryBtn>
           )}
         </div>

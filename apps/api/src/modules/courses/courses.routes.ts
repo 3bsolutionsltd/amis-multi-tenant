@@ -1,6 +1,7 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import * as XLSX from "xlsx";
 import { withTenant } from "../../db/tenant.js";
+import { superPool } from "../../db/pool.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { getTenantId } from "../../lib/tenantId.js";
 import {
@@ -15,6 +16,7 @@ import {
 // ------------------------------------------------------------------ constants
 
 const WRITE_ROLES = ["registrar", "admin"] as const;
+const OFFERING_WRITE_ROLES = ["registrar", "admin", "hod"] as const;
 const READ_ROLES = [
   "admin",
   "registrar",
@@ -30,6 +32,44 @@ const COURSE_COLS =
 
 const OFFERING_COLS =
   "id, tenant_id, course_id, term_id, instructor_id, max_enrollment, created_at, updated_at";
+
+/**
+ * HODs may assign teaching staff only within their department. Split combined
+ * programme labels such as "Business & ICT" so an ICT HOD can manage them.
+ */
+async function requireOfferingAccess(req: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const assignedRoles = req.user.roles?.length ? req.user.roles : [req.user.role];
+  if (assignedRoles.some((role: string) => role === "admin" || role === "registrar")) return;
+
+  const body = (req.body ?? {}) as { course_id?: string };
+  const courseId = body.course_id;
+  const offeringId = (req.params as { id?: string } | undefined)?.id;
+  if (!courseId && !offeringId) {
+    return reply.status(400).send({ error: "course_id is required" });
+  }
+
+  const { rows } = await superPool.query<{ user_department: string | null; programme_department: string | null }>(
+    `SELECT u.department AS user_department, p.department AS programme_department
+     FROM platform.users u
+     JOIN app.courses c ON c.id = COALESCE(
+       $1,
+       (SELECT course_id FROM app.course_offerings WHERE id = $2 AND tenant_id = $3)
+     ) AND c.tenant_id = $3
+     JOIN app.programmes p ON p.id = c.programme_id AND p.tenant_id = $3
+     WHERE u.id = $4 AND u.tenant_id = $3`,
+    [courseId ?? null, offeringId ?? null, req.user.tenantId, req.user.userId],
+  );
+  const row = rows[0];
+  const userDepartment = row?.user_department?.trim().toLowerCase();
+  const programmeDepartments = row?.programme_department
+    ?.split(/\s*(?:&|,|\/|\band\b)\s*/i)
+    .map((department) => department.trim().toLowerCase())
+    .filter(Boolean) ?? [];
+
+  if (!userDepartment || !programmeDepartments.includes(userDepartment)) {
+    return reply.status(403).send({ error: "HODs may assign instructors only within their department" });
+  }
+}
 
 // ------------------------------------------------------------------ routes
 
@@ -268,7 +308,7 @@ export async function coursesRoutes(app: FastifyInstance) {
   // POST /course-offerings
   app.post(
     "/course-offerings",
-    { preHandler: requireRole(...WRITE_ROLES) },
+    { preHandler: [requireRole(...OFFERING_WRITE_ROLES), requireOfferingAccess] },
     async (req, reply) => {
       const tid = getTenantId(req);
       if (!tid)
@@ -297,7 +337,7 @@ export async function coursesRoutes(app: FastifyInstance) {
   // PATCH /course-offerings/:id
   app.patch<{ Params: { id: string } }>(
     "/course-offerings/:id",
-    { preHandler: requireRole(...WRITE_ROLES) },
+    { preHandler: [requireRole(...OFFERING_WRITE_ROLES), requireOfferingAccess] },
     async (req, reply) => {
       const tid = getTenantId(req);
       if (!tid)

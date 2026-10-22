@@ -3,11 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../lib/apiFetch";
 import { useAuth } from "../auth/AuthContext";
 
-export const DEFAULT_DEPARTMENTS = [
-  "ICT", "Business", "Engineering", "Construction", "Electrical",
-  "Automotive", "Hospitality", "Agriculture", "Health Sciences", "Others",
-];
-
 export interface NavItem {
   label: string;
   route: string;
@@ -54,6 +49,7 @@ interface ConfigPayload {
   assessment_types?: string[];
   fee_types?: string[];
   student_categories?: string[];
+  asset_categories?: string[];
   marksheet_default_template?: string;
   permissions?: Record<string, Record<string, "full" | "read" | "none">>;
 }
@@ -89,6 +85,7 @@ interface ConfigContextValue {
   assessmentTypes: string[];
   feeTypes: string[];
   studentCategories: string[];
+  assetCategories: string[];
   marksheetDefaultTemplate: string;
 }
 
@@ -103,7 +100,7 @@ const ConfigContext = createContext<ConfigContextValue>({
   dashboards: [],
   primaryColor: "#2563EB",
   studentFormConfig: null,
-  departments: DEFAULT_DEPARTMENTS,
+  departments: [],
   designations: [],
   receiptConfig: {
     template: "classic",
@@ -115,6 +112,7 @@ const ConfigContext = createContext<ConfigContextValue>({
   assessmentTypes: [],
   feeTypes: ["tuition", "examination", "functional", "other"],
   studentCategories: ["all", "boarding", "day", "government"],
+  assetCategories: ["equipment", "furniture", "vehicle", "computer", "other"],
   marksheetDefaultTemplate: "uvtab",
 });
 
@@ -129,7 +127,9 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const { data: config, isLoading } = useQuery<ConfigData>({
     queryKey: ["config"],
     queryFn: () => apiFetch<ConfigData>("/config"),
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     retry: false,
     enabled: !!user,
   });
@@ -138,11 +138,13 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const primaryColor = config?.payload?.theme?.primaryColor ?? "#2563EB";
   const appName = config?.payload?.branding?.appName ?? "AMIS";
   const logoUrl = config?.payload?.branding?.logoUrl ?? null;
+  const assetCategories = config?.payload?.asset_categories?.length
+    ? config.payload.asset_categories
+    : ["equipment", "furniture", "vehicle", "computer", "other"];
   const navigation = config?.payload?.navigation?.[role] ?? [];
   const dashboards = config?.payload?.dashboards?.[role] ?? [];
   const studentFormConfig = config?.payload?.forms?.students ?? null;
-  const configuredDepartments = config?.payload?.institution?.departments ?? [];
-  const departments = configuredDepartments.length > 0 ? configuredDepartments : DEFAULT_DEPARTMENTS;
+  const departments = config?.payload?.institution?.departments ?? [];
   const designations = config?.payload?.institution?.designations ?? [];
   const enabledModules: Record<string, boolean> = config?.payload?.modules ?? {};
   const assessmentTypes: string[] = config?.payload?.assessment_types ?? [];
@@ -187,6 +189,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         assessmentTypes,
         feeTypes,
         studentCategories,
+        assetCategories,
         marksheetDefaultTemplate,
       }}
     >

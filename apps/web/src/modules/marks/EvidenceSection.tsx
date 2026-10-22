@@ -13,8 +13,9 @@ import {
   ErrorBanner,
   C,
 } from "../../lib/ui";
+import { API_BASE_URL } from "../../lib/apiBaseUrl";
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const BASE_URL = API_BASE_URL;
 
 function fileIcon(type: string): string {
   if (type.startsWith("image/")) return "🖼️";

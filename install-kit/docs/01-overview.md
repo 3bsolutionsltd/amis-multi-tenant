@@ -1,6 +1,6 @@
 # 1. Overview
 
-**AMIS** (Academic Management Information System) is a multi-tenant web application that manages the full student lifecycle at a Vocational Training Institution:
+**AMIS** (Academic Management Information System) is a web application that manages the student lifecycle at a Vocational Training Institution:
 
 - Admissions
 - Enrolment & registration
@@ -11,19 +11,17 @@
 
 ## Why offline-first?
 
-Most VTIs in the field operate with intermittent or no internet. AMIS therefore runs **entirely on a LAN server** by default. The same software also runs in the cloud if a VTI has reliable connectivity and prefers it.
+This installation kit supports one AMIS installation for one institution on an Ubuntu Server within that institution's LAN. Internet access is not required after the versioned kit has been transferred to the server.
 
-| Mode | Where it runs | Who uses it |
-|------|----------------|-------------|
-| **Offline / on-prem** (primary) | A single in-house server on the institution LAN | All staff, on any laptop in the institution |
-| **Cloud / VPS** (secondary) | Contabo, Hetzner, DigitalOcean, etc. | Staff and students over the public internet |
-| **Hybrid** (roadmap) | Offline as source-of-truth, cloud as read-only mirror | Ministry reporting, alumni portal |
+| Supported installation | Where it runs | Who uses it |
+|------------------------|---------------|--------------|
+| **Self-hosted / on-premises** | Ubuntu Server on the institution LAN | Staff using a browser on the same LAN |
 
 ## What you get
 
 - Four Docker containers (DB, API, Web, Migrator)
 - A web UI accessible from any modern browser
 - A single ZIP install kit you can carry on a USB stick
-- One-command installer for both Linux and Windows
+- One-command installer for Ubuntu Server
 
 Continue to **[02 — Architecture](02-architecture.md)**.

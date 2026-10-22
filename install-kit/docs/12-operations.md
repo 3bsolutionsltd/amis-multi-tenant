@@ -3,7 +3,7 @@
 ## Daily
 
 - `./scripts/healthcheck.sh` — confirm all containers up.
-- Confirm last night's backup exists and is non-zero size:
+- Confirm both files from last night's matched backup exist and are non-zero size:
   ```bash
   ls -lh backups/ | tail
   ```
@@ -12,7 +12,7 @@
 
 - Tail logs for errors:
   ```bash
-  docker compose -f config/docker-compose.offline.yml logs --since 7d api | grep -iE 'error|fatal'
+  docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline logs --since 7d api | grep -iE 'error|fatal'
   ```
 - Disk usage: `df -h /var/lib/docker`.
 
@@ -27,11 +27,11 @@
 
 ```bash
 # Status
-docker compose -f config/docker-compose.offline.yml ps
+docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline ps
 
 # Live logs
-docker compose -f config/docker-compose.offline.yml logs -f api
-docker compose -f config/docker-compose.offline.yml logs -f web
+docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline logs -f api
+docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline logs -f web
 
 # Restart only the API
 docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline restart api

@@ -103,6 +103,7 @@ export interface FeeOverview {
   collectionRate: number;
   fullyPaid: number;
   defaulters: number;
+  governmentTuitionUnconfigured: number;
   defaultTotalDue: number;
 }
 

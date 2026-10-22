@@ -75,7 +75,7 @@ export default function GRNCreatePage() {
           notes: item.notes || undefined,
         })),
       });
-      navigate(`/procurement/grns/${created.id}`);
+      navigate(`/inventory/grns/${created.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create");
     } finally {

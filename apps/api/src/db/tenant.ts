@@ -1,5 +1,5 @@
 import type { PoolClient, QueryResult } from "pg";
-import { pool, isConnectionError } from "./pool.js";
+import { connectAppPool, isConnectionError } from "./pool.js";
 
 /**
  * Run a callback inside a transaction with tenant isolation enforced.
@@ -9,7 +9,7 @@ export async function withTenant<T>(
   tenantId: string,
   fn: (client: PoolClient) => Promise<T>,
 ): Promise<T> {
-  const client = await pool.connect();
+  const client = await connectAppPool();
   let connectionDied = false;
   try {
     await client.query("BEGIN");

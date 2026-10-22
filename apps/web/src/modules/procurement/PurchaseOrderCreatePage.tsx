@@ -13,10 +13,12 @@ import {
   Card,
 } from "../../lib/ui";
 import { createOrder, listSuppliers } from "./procurement.api";
+import { listInventoryItems } from "../inventory/inventory.api";
 
 ensureGlobalCss();
 
 interface POItemRow {
+  inventory_item_id: string;
   description: string;
   quantity: string;
   unit: string;
@@ -25,7 +27,7 @@ interface POItemRow {
 }
 
 const emptyItem = (): POItemRow => ({
-  description: "", quantity: "1", unit: "pcs", unit_price: "", notes: "",
+  inventory_item_id: "", description: "", quantity: "1", unit: "pcs", unit_price: "", notes: "",
 });
 
 export default function PurchaseOrderCreatePage() {
@@ -36,6 +38,10 @@ export default function PurchaseOrderCreatePage() {
   const { data: suppliers = [] } = useQuery({
     queryKey: ["procurement.suppliers"],
     queryFn: () => listSuppliers(),
+  });
+  const { data: inventoryItems = [] } = useQuery({
+    queryKey: ["inventory.items"],
+    queryFn: () => listInventoryItems({ include_inactive: false, limit: 200 }),
   });
 
   const [form, setForm] = useState({
@@ -66,6 +72,7 @@ export default function PurchaseOrderCreatePage() {
         expected_delivery_date: form.expected_delivery_date || undefined,
         notes: form.notes || undefined,
         items: items.map((item) => ({
+          inventory_item_id: item.inventory_item_id || undefined,
           description: item.description,
           quantity: Number(item.quantity) || 1,
           unit: item.unit || undefined,
@@ -122,7 +129,24 @@ export default function PurchaseOrderCreatePage() {
 
           {items.map((item, idx) => (
             <div key={idx} style={{ border: "1px solid #dee2e6", borderRadius: 6, padding: 12, marginBottom: 10 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "3fr 1fr 1fr 2fr", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr 2fr", gap: 8 }}>
+                <Field label="Inventory Item (optional)">
+                  <select
+                    value={item.inventory_item_id}
+                    onChange={(e) => {
+                      const selected = inventoryItems.find((i) => i.id === e.target.value);
+                      setItem(idx, "inventory_item_id", e.target.value);
+                      if (selected) {
+                        setItem(idx, "description", selected.name);
+                        setItem(idx, "unit", selected.unit_of_measure);
+                      }
+                    }}
+                    style={selectCss}
+                  >
+                    <option value="">— Non-stock item —</option>
+                    {inventoryItems.map((i) => <option key={i.id} value={i.id}>{i.item_code ? `${i.item_code} — ` : ""}{i.name}</option>)}
+                  </select>
+                </Field>
                 <Field label="Description *">
                   <input value={item.description} onChange={(e) => setItem(idx, "description", e.target.value)} required style={inputCss} />
                 </Field>

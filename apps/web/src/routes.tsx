@@ -44,7 +44,7 @@ import { AssessmentTypesEditor } from "./admin-studio/AssessmentTypesEditor";
 import { MarksheetTemplateEditor } from "./admin-studio/MarksheetTemplateEditor";
 import { FeeTypesEditor } from "./admin-studio/FeeTypesEditor";
 import { DepartmentsEditor } from "./admin-studio/DepartmentsEditor";
-import { VtiSetupPage as _VtiSetupPage } from "./setup/VtiSetupPage"; // kept for platform admin
+import { VtiSetupPage as _VtiSetupPage } from "./setup/VtiSetupPage";
 import { SetupClosedPage } from "./setup/SetupClosedPage";
 import { PlatformAdminLayout } from "./platform-admin/PlatformAdminLayout";
 import { PlatformOverview } from "./platform-admin/PlatformOverview";
@@ -155,7 +155,10 @@ export const router = createBrowserRouter([
   },
   {
     path: "/setup",
-    element: <SetupClosedPage />,
+    element:
+      import.meta.env.VITE_SELF_HOSTED_MODE === "true"
+        ? <_VtiSetupPage />
+        : <SetupClosedPage />,
   },
   {
     path: "/",

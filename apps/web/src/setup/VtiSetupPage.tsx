@@ -2,8 +2,9 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { C, inputCss, selectCss } from "../lib/ui";
 import { setTokens } from "../lib/auth";
+import { API_BASE_URL } from "../lib/apiBaseUrl";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const API_URL = API_BASE_URL;
 
 type Step = 1 | 2 | 3 | 4;
 

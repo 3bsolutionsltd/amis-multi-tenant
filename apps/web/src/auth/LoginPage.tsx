@@ -3,9 +3,10 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { ApiError } from "../lib/apiFetch";
 import { getAuthUser } from "../lib/auth";
+import { API_BASE_URL } from "../lib/apiBaseUrl";
 
 const APP_NAME = "AMIS";
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const API_URL = API_BASE_URL;
 
 // ---- shared input style with focus ring ----
 const baseInput: React.CSSProperties = {

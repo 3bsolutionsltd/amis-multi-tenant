@@ -31,12 +31,6 @@ const PROGRAMME_LEVELS = [
   "Bachelor's Degree",
 ] as const;
 
-const FALLBACK_DEPARTMENTS = [
-  "ICT", "Business", "Engineering", "Education", "Health Sciences",
-  "Agriculture", "Social Sciences", "Hospitality", "Construction",
-  "Automotive", "Electrical", "Others",
-];
-
 /* ── Uganda TVET Standard Programme Catalogue ── */
 interface CatalogueEntry {
   code: string;
@@ -160,7 +154,6 @@ function ProgrammeModal({
 }) {
   const isEdit = programme !== null;
   const { departments } = useConfig();
-  const deptOptions = departments.length > 0 ? departments : FALLBACK_DEPARTMENTS;
   const [form, setForm] = useState({
     code: programme?.code ?? prefill?.code ?? "",
     title: programme?.title ?? prefill?.title ?? "",
@@ -239,7 +232,7 @@ function ProgrammeModal({
             <Field label="Department">
               <select style={selectCss} value={form.department} onChange={(e) => set("department", e.target.value)}>
                 <option value="">— Select department —</option>
-                {deptOptions.map((d) => (
+                {departments.map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>

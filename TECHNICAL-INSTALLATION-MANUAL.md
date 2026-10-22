@@ -1,21 +1,24 @@
 # AMIS — Technical Installation Manual
 
+> **Status: archived reference.** For the supported self-hosted installation, use the [Installation Kit guide](install-kit/README.md).
+
 **Audience:** VTI / Institutional Technical Teams (System Administrators, IT Officers)
 **System:** Academic Management Information System (AMIS) v3.0
-**Vendor:** 3B Solutions Ltd.
 **Document version:** 1.0 — May 2026
 
 ---
 
 ## 1. Purpose & Scope
 
-This manual is the authoritative installation reference for technical staff at a Vocational Training Institution (VTI) that has licensed AMIS. It covers:
+This is a historical reference for an earlier installation approach and is not maintained or authoritative. Use the current [self-hosted installation kit](install-kit/README.md) for supported installation instructions.
+
+The archived material below describes:
 
 1. **Offline / On-Premises (LAN) deployment** — *primary mode*, recommended for the majority of VTIs because it does **not** require continuous internet, runs on a single in-house server, and keeps all student data inside the institution.
 2. **Cloud / VPS deployment** — secondary mode for institutions with reliable internet that prefer remote hosting.
 3. **Hybrid considerations** — running offline as primary with periodic sync to a cloud node (data-export workflow).
 
-> **Offline-first is the default.** Every section is structured so that an institution **without internet** at the server site can still bring the system up using only the offline bundle (USB / external drive) supplied by 3B Solutions Ltd.
+> **Offline-first is the default.** An institution without internet at the server site can install from a versioned offline bundle transferred by USB or another approved method.
 
 ---
 
@@ -116,19 +119,19 @@ Either of the following is supported:
 
 ## 4. Pre-Install Checklist
 
-Before you begin, confirm with 3B Solutions / the institution:
+Before you begin, confirm the following with the institution's technical lead:
 
 - [ ] Server hardware meets §3.1 and is racked, powered, and reachable on the LAN.
-- [ ] Server's **static LAN IP** is allocated (e.g. `192.168.1.100`). This IP **must not change** after install (it is baked into the web bundle).
+- [ ] A stable server address is allocated, either a static LAN IP or a LAN hostname.
 - [ ] Docker Engine + Docker Compose plugin are installed on the server (`docker --version`, `docker compose version`).
-- [ ] You have received the **AMIS offline bundle** (USB / external drive) from 3B Solutions Ltd. The bundle is named `offline-bundle/` and contains:
+- [ ] You have received the versioned **AMIS offline bundle** (USB / external drive). It contains:
   - `images/postgres.tar`, `images/amis-api.tar`, `images/amis-web.tar`, `images/dbmate.tar`
   - `docker-compose.offline.yml`
   - `.env.offline.example`
   - `db/migrations/` (all SQL migrations)
   - `db/data-migration/` (institution-specific seed scripts, if applicable)
   - `load-images.ps1` (Windows) / `load-images.sh` (Linux helper if provided)
-- [ ] You have the institution's **license key / activation details** from 3B Solutions Ltd.
+- [ ] Any activation details required by the institution's AMIS agreement are available.
 - [ ] DNS / hostname plan for the server (optional but recommended — e.g. `amis.kti.local`).
 - [ ] A **backup policy** is agreed (where DB dumps will be stored — see §10).
 
@@ -223,11 +226,10 @@ Fill in **every** value. Do not leave any placeholder.
 | `POSTGRES_PASSWORD` | A strong random password for the DB superuser. | `openssl rand -base64 32` (Linux). Avoid `$` characters. |
 | `JWT_SECRET` | 64 random hex bytes. **Never share or commit.** | `openssl rand -hex 64` |
 | `CORS_ORIGIN` | `http://<server-LAN-IP>` — no trailing slash. | e.g. `http://192.168.1.100` |
-| `VITE_API_URL` | `http://<server-LAN-IP>:3001` | e.g. `http://192.168.1.100:3001` |
 | `POSTGRES_USER` | Leave as `amis` unless you have a reason to change. | — |
 | `POSTGRES_DB` | Leave as `amis`. | — |
 
-> **IP-changes warning:** `VITE_API_URL` is **baked into the web image at build time**. If the server's LAN IP changes after install, request a re-built bundle from 3B Solutions Ltd. with the new IP, or set up a DNS name on the LAN router and use that.
+The Web client uses the hostname in the browser address to reach the API. If the canonical address changes, update `CORS_ORIGIN` in `.env.offline` and restart the API.
 
 Store `.env.offline` securely — it contains secrets.
 
@@ -262,7 +264,7 @@ Expected output:
 
 ### 5.7 Step 7 — Seed institutional master data (first install only)
 
-If 3B Solutions has supplied institution-specific seed scripts (e.g. for UTC Kyema), run them once:
+If the release bundle explicitly includes an institution-specific seed script, follow its accompanying instructions. A standard self-hosted installation does not require a site-specific seed.
 
 ```bash
 # From the server (requires Node 20 on the host) OR
@@ -291,7 +293,7 @@ From any laptop on the same network as the server:
 
 1. Open a browser and visit `http://<server-LAN-IP>` (e.g. `http://192.168.1.100`).
 2. The AMIS login page must load.
-3. Sign in with the platform-admin credentials supplied by 3B Solutions Ltd.
+3. Complete the one-time institute setup at `http://<server-LAN-IP>/setup` and create the initial administrator.
 4. Confirm that menus, dashboards, and the student list load without "Network Error".
 
 If you see a CORS error, re-check `CORS_ORIGIN` in `.env.offline` matches **exactly** the URL the browser uses.
@@ -321,33 +323,9 @@ Use this mode only if the institution has reliable internet at the server site a
   * `api.amis.<your-domain>` (API)
 * Ports `80` and `443` open on the firewall.
 
-### 6.2 Steps
+### 6.2 Scope
 
-```bash
-ssh root@<VPS-IP>
-apt-get update
-apt-get install -y docker.io docker-compose-plugin certbot python3-certbot-nginx nginx git
-
-mkdir -p /opt/amis && cd /opt/amis
-git clone https://github.com/3bsolutionsltd/amis-multi-tenant.git .
-
-cp .env.prod.example .env
-nano .env            # fill POSTGRES_PASSWORD, JWT_SECRET, CORS_ORIGIN, VITE_API_URL
-
-docker compose -f docker-compose.prod.yml up -d --build
-
-# Install Nginx vhost + TLS
-cp nginx/amis.conf /etc/nginx/sites-available/amis.conf
-ln -s /etc/nginx/sites-available/amis.conf /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
-certbot --nginx -d amis.<domain> -d api.amis.<domain>
-```
-
-For full cloud deployment runbook (incl. staging, SMTP/Resend email, certbot renewal), see [DEPLOY.md](DEPLOY.md). The cloud mode reuses the same image and migration system as offline mode — the only differences are:
-
-* TLS termination at Nginx with Let's Encrypt.
-* API and Web bind to `127.0.0.1` only; Nginx is the single public entry point.
-* `.env` instead of `.env.offline`.
+Cloud/VPS deployment is not covered by the self-hosted Installation Kit. Use the separately maintained hosted deployment runbook.
 
 ---
 
@@ -355,30 +333,13 @@ For full cloud deployment runbook (incl. staging, SMTP/Resend email, certbot ren
 
 After the stack is running, AMIS still needs at least one **tenant** (the institution) and one **platform admin** to be usable.
 
-### 7.1 If 3B Solutions seeded your tenant
+### 7.1 Local setup
 
-Skip this section. Use the platform-admin credentials supplied to you and continue at §7.3.
+Open `http://<server-address>/setup` on the institutional LAN and create the institute and its initial administrator. There are no shared default administrator credentials.
 
-### 7.2 If you must create the tenant manually
+### 7.2 First login & admin checklist
 
-The supplied installation includes a provisioning script:
-
-```bash
-node scripts/provision-tenant.js \
-    --name "Kyema Technical Institute" \
-    --slug "kti" \
-    --admin-email "admin@kti.ac.ug" \
-    --admin-password "<temporary-strong-password>"
-```
-
-The script creates:
-1. A row in `platform.tenants`.
-2. A schema-level role for the tenant.
-3. The first `admin` user.
-
-### 7.3 First login & admin checklist
-
-Log in at `http://<server-IP>/login` with the platform-admin account, then:
+Sign in with the administrator account created during setup, then:
 
 1. Force a password change.
 2. Create departments, programmes, intakes, courses, and academic calendars.
@@ -407,7 +368,7 @@ Run through this checklist **before** handing the system to end users.
 
 ## 9. Updating an Offline Installation
 
-VTIs without internet on the server cannot `git pull`. Updates are delivered as a **new offline bundle** from 3B Solutions Ltd. The procedure:
+VTIs without internet on the server cannot `git pull`. Updates are delivered as a **new versioned offline bundle** through the AMIS release channel. The procedure:
 
 ```bash
 cd /opt/amis
@@ -570,13 +531,13 @@ docker compose -f docker-compose.offline.yml --env-file .env.offline down -v
 | Browser shows "Network Error" / CORS error after login | `CORS_ORIGIN` in `.env.offline` does not match the URL the browser is using. | Update `CORS_ORIGIN`, then `docker compose ... up -d --no-deps api`. |
 | Login spinner never completes; API logs show `ECONNREFUSED 127.0.0.1:5432` | DB container not healthy. | `docker compose ... ps` — restart `db`, check disk space. |
 | `migrate` exits with `permission denied` | Volume mount points to a path that doesn't exist. | Run from `/opt/amis`; ensure `db/migrations/` was copied from the bundle. |
-| Web image still shows old API URL after server IP change | `VITE_API_URL` is baked into the image at build time. | Request a rebuilt offline bundle from 3B Solutions Ltd. with the new IP, OR set up a stable LAN DNS name and rebuild once. |
-| Slow performance with many students | Default Postgres tuning. | Increase `shared_buffers`, `work_mem`; add a `postgresql.conf` override volume. Contact 3B Solutions for a tuned config. |
+| API unavailable after changing the server address | `CORS_ORIGIN` still contains the previous browser URL. | Update `CORS_ORIGIN` in `.env.offline` and restart the API service. |
+| Slow performance with many students | Default Postgres tuning. | Check disk and memory capacity, then use the AMIS support channel specified for your institution for tuning guidance. |
 | Cannot reach AMIS from a Wi-Fi client but wired works | LAN segregation / VLAN. | Talk to the network admin — Wi-Fi clients must reach the server's LAN IP on TCP 80 and 3001. |
 | Disk full | Postgres data growth + Docker build cache. | `docker system prune -af --volumes` (CAREFUL — preserves named volumes only). Move `pgdata` to a larger disk if needed. |
 | Forgotten platform-admin password | Direct DB reset. | Use the password-reset CLI: `docker compose ... exec api node dist/scripts/reset-password.js <email>`. |
 
-For unresolved issues, capture the following and email **support@3bsolutions.co.ug**:
+For unresolved issues, capture the following and send them through the AMIS support channel specified for your institution:
 
 ```bash
 docker compose -f docker-compose.offline.yml ps                  > diag.txt
@@ -595,7 +556,7 @@ Some institutions will run AMIS **offline as the system of record** and periodic
 2. **Tenant-scoped JSON exports** from the platform-admin UI (Settings → Export).
 3. A future **delta sync** worker (see [docs/SYNC-CONFLICT-RULES.md](docs/SYNC-CONFLICT-RULES.md)) — not required for first install.
 
-If your VTI plans to use sync, contact 3B Solutions Ltd. before installation so the cloud counterpart can be provisioned with matching tenant IDs.
+Offline-to-cloud synchronization is not supported by the self-hosted Installation Kit. Do not enable it without an approved integration plan.
 
 ---
 
@@ -603,9 +564,8 @@ If your VTI plans to use sync, contact 3B Solutions Ltd. before installation so 
 
 | Channel | Use for |
 |---------|---------|
-| **support@3bsolutions.co.ug** | All technical issues, bug reports, feature requests. |
-| Phone (during business hours) | Critical outages, install-day blockers. |
-| GitHub Issues (if private access granted) | Engineering follow-up. |
+| Institution's AMIS support channel | Technical issues, bug reports, and feature requests. |
+| Private security contact in the AMIS support agreement | Suspected security vulnerabilities. |
 
 When raising a ticket, include:
 
@@ -644,4 +604,4 @@ When raising a ticket, include:
 
 ---
 
-**End of Manual** — © 2026 3B Solutions Ltd. Distributed under the AMIS licensing terms agreed with the institution.
+**End of archived reference manual.**

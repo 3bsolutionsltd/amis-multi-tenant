@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const DateInputSchema = z.preprocess(
+  (value) => (typeof value === "string" ? value.slice(0, 10) : value),
+  z.string().date(),
+);
+
 export const PLACEMENT_STATUSES = [
   "scheduled",
   "active",
@@ -19,8 +24,8 @@ export const CreateFieldPlacementSchema = z.object({
   host_organisation: z.string().min(1),
   supervisor: z.string().optional(),
   placement_type: z.enum(PLACEMENT_TYPES).default("field"),
-  start_date: z.string().date().optional(),
-  end_date: z.string().date().optional(),
+  start_date: DateInputSchema.optional(),
+  end_date: DateInputSchema.optional(),
   status: z.enum(PLACEMENT_STATUSES).default("scheduled"),
   notes: z.string().optional(),
 });
@@ -29,8 +34,8 @@ export const UpdateFieldPlacementSchema = z.object({
   host_organisation: z.string().min(1).optional(),
   supervisor: z.string().optional().nullable(),
   placement_type: z.enum(PLACEMENT_TYPES).optional(),
-  start_date: z.string().date().optional().nullable(),
-  end_date: z.string().date().optional().nullable(),
+  start_date: DateInputSchema.optional().nullable(),
+  end_date: DateInputSchema.optional().nullable(),
   status: z.enum(PLACEMENT_STATUSES).optional(),
   notes: z.string().optional().nullable(),
 });

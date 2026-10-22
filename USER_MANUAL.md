@@ -1,7 +1,8 @@
 # AMIS — Academic Management Information System
 ## Complete User Manual
 
-**Version:** 3.0  
+**Version:** 4.0
+**Updated:** August 2026
 **Audience:** All system users (students, staff, administrators)  
 **Platform:** Web browser (desktop recommended)
 
@@ -36,6 +37,10 @@
 25. [Troubleshooting](#25-troubleshooting)
 26. [Procurement](#26-procurement)
 27. [Inventory & Stores](#27-inventory--stores)
+28. [Student Projects](#28-student-projects)
+29. [Notifications and Support](#29-notifications-and-support)
+30. [Offline Use and Synchronisation](#30-offline-use-and-synchronisation)
+31. [Current System Notes](#31-current-system-notes)
 
 ---
 
@@ -140,6 +145,7 @@ The detail page shows all information about a student across tabs:
 - **Marks** — submitted mark records
 - **Term Registrations** — registration history per term
 - **Documents** — uploaded supporting documents
+- **Projects** — linked student projects, where applicable
 - **Clearance** — clearance status per term
 
 Use the **Edit** button to update any information. Use **Deactivate** to mark a student as inactive without deleting them.
@@ -155,7 +161,19 @@ Use the **Edit** button to update any information. Use **Deactivate** to mark a 
 
 Rows with errors (e.g., duplicate admission numbers) are flagged; valid rows are imported.
 
-### 4.5 Student Promotion
+### 4.5 Student Documents
+
+Authorised users can store supporting documents against a student record.
+
+1. Open a student and select **Documents**.
+2. Choose a document type: photo, ID card, birth certificate, academic certificate, medical, recommendation, or other.
+3. Select the file, enter optional notes, and upload it.
+4. Select a document to view or download it.
+5. Delete documents only when the record is no longer required and institutional policy permits.
+
+Uploaded documents are limited to 5 MB per file in the student document feature.
+
+### 4.6 Student Promotion
 
 1. Click **Promote Students** from the student list page.
 2. Select the source academic year/term and the target year.
@@ -173,10 +191,14 @@ The Admissions module manages applications from prospective students.
 ### 5.1 Admission Workflow States
 
 ```
-DRAFT → SUBMITTED → UNDER_REVIEW → COMMITTEE_REVIEW
-    → APPROVED_GOVT / APPROVED_PRIVATE → ENROLLED
-    → REJECTED (at any review stage)
+Configured initial state → configured review/approval states → REGISTERED → ENROLLED
 ```
+
+The admissions workflow is configuration-driven. The exact states, button labels,
+allowed roles, and enrolment gate are shown in the published workflow under
+**Admin Studio → Workflows**. In the standard configuration, an application must
+reach **REGISTERED** before the **Enrol as Student** action becomes available.
+Do not assume that an application can be enrolled immediately after approval.
 
 ### 5.2 Viewing Applications
 
@@ -189,7 +211,7 @@ Navigate to **Admissions**. Filter by:
 ### 5.3 Creating an Application (Manual Entry)
 
 1. Click **+ New Application**.
-2. Enter applicant details: name, programme, intake, email, phone.
+2. Enter applicant details: name, programme, intake, sponsorship type (Day Scholar or Boarding), email, and phone.
 3. Add academic qualifications.
 4. Click **Save as Draft**.
 
@@ -208,9 +230,11 @@ Open an application. Use the **Transition** buttons to move it through the workf
 ### 5.5 Importing Applications (Bulk)
 
 1. Click **Import Applications**.
-2. Download the CSV template.
-3. Fill in and upload.
-4. Imported applications arrive in DRAFT state.
+2. Prepare a CSV with the required columns: `first_name`, `last_name`, `programme`, and `intake`.
+3. Add optional columns such as `dob`, `gender`, `email`, `phone`, and `sponsorship_type`.
+4. Upload the CSV and review the valid/invalid row preview.
+5. Confirm the import.
+6. Imported applications arrive in the configured initial workflow state.
 
 ---
 
@@ -261,7 +285,7 @@ Open a registration record and click the appropriate transition button (e.g., **
 
 ## 7. Finance (Fees)
 
-**Who can access:** Admin, Finance, Principal (read-only for others)
+**Who can access:** Admin and Finance for transactions; Registrar, Principal, Dean, and HOD for permitted summaries and read access.
 
 ### 7.1 Fee Ledger (Per-Student)
 
@@ -286,12 +310,17 @@ Navigate to **Finance**.
    - Payment date
 4. Click **Save**.
 
+The applicable total due is calculated from active fee structures for the
+student's programme, current academic year/term, and student category. The
+category is normally **Boarding**, **Day**, or **All**. If no matching structure
+exists, the tenant's configured default may be used.
+
 ### 7.3 Importing Fee Payments (Bulk)
 
 1. Navigate to **Finance → Import**.
-2. Download the CSV template.
-3. Fill in payments and upload.
-4. Review and confirm.
+2. Prepare payment rows using the student's UUID, amount, reference, and paid date.
+3. Upload the rows and review the validation result.
+4. Confirm the import.
 
 ### 7.4 Fee Overview (Institution-Wide)
 
@@ -338,6 +367,12 @@ Navigate to **Finance → Receipt** to print or preview a fee receipt for a stud
 ```
 DRAFT → SUBMITTED → HOD_REVIEW → APPROVED → PUBLISHED
 ```
+
+Assessment types are configurable per tenant. The standard TVET set includes
+Assignment 1/2, Test 1/2, Practical 1/2, and End of Term. Legacy types such as
+Coursework, Midterm, and Practical may also be available where configured.
+Scores must be between 0 and 100. A correction submission can be linked to an
+earlier submission when a published result needs correction.
 
 ### 8.2 Viewing Submissions
 
@@ -593,21 +628,28 @@ Clearance confirms a student has fulfilled all obligations before end of term or
 
 ### 17.2 Department Sign-Off
 
-Each department signs off its own step:
+Clearance uses an ordered 11-step sequence. Each step must be signed before the
+next step can be actioned:
 
 | Department | Responsibility |
 |-----------|---------------|
-| Store | Equipment/materials returned |
-| Library | Books returned |
-| Sports | Sports equipment returned |
-| Warden | Hostel room cleared |
-| Head of Department | Academic requirements met |
-| Dean of Students | General conduct verified |
-| Accounts (Finance) | Fees fully paid |
-| Academic Registrar | Enrolment documents complete |
+| 1. Academic Registrar | Enrolment documents complete |
+| 2. Accounts / Finance | Fees fully paid |
+| 3. Warden / Custodian | Hostel or custody obligations cleared |
+| 4. Stores | Equipment and materials returned |
+| 5. Catering Officer | Catering obligations cleared |
+| 6. Head of Department | Academic requirements met |
+| 7. Dean of Students | General conduct verified |
+| 8. Nurse / Health | Health requirements checked |
+| 9. Library | Books and library obligations cleared |
+| 10. ICT Technician | ICT obligations cleared |
+| 11. Academic Registrar (Final) | Final clearance confirmation |
+
+Sports is retained only as an optional legacy department where enabled.
 
 1. Open a student's clearance record.
-2. Find your department row.
+2. Confirm all preceding steps are signed.
+3. Find your department row.
 3. Click **Sign Off** (green) or **Reject** (red).
 4. Add optional remarks.
 5. Click **Confirm**.
@@ -957,6 +999,17 @@ Manage system user accounts:
 - Change a user's role
 - Create new user accounts
 
+### 21.15 Additional Configuration Areas
+
+The current Admin Studio also includes:
+- **Receipt Template** — configure the information and presentation used on fee receipts.
+- **Assessment Types** — define the assessment labels available during marks entry.
+- **Fee Types** — configure tenant-specific fee labels.
+- **Departments** — maintain the institution's department list.
+
+After changing any of these settings, use the same **Draft → Validate → Publish**
+cycle. Unpublished changes do not control live forms or workflows.
+
 ---
 
 ## 22. Platform Admin
@@ -1034,8 +1087,15 @@ Each user is assigned a single role. Role determines which modules they can see 
 | **dean** | Term Registrations (sign-off), Students (view), Clearance (Dean step) |
 | **hod** | Marks (review/approve), Courses, Staff (view), Clearance (HOD step) |
 | **instructor** | Marks (own submissions), Attendance, Timetable (view), IT Records |
+| **procurement_officer** | Procurement, inventory, store requisitions, and payment/cash voucher workflows as assigned |
+| **inventory_manager** | Inventory, stock receipts, issuances, stock takes, and store requisitions as assigned |
 
 > Roles are assigned by an Admin via **Users** or **Admin Studio → Users**.
+
+Access is enforced both in the interface and on the server. A user may be able
+to view a record without being permitted to create, edit, approve, publish, or
+sign it. The current role and module visibility can also be affected by the
+tenant's published navigation and module configuration.
 
 ---
 
@@ -1093,7 +1153,7 @@ Marks must be in **PUBLISHED** state to appear in results processing.
 
 ## 26. Procurement
 
-**Who can access:** Admin, Registrar, Finance, HOD, Principal
+**Who can access:** Admin, Registrar, Finance, Principal, Procurement Officer, and Inventory Manager, with action permissions determined by role.
 
 Navigate to **Procurement** (🛒 in the sidebar).
 
@@ -1231,7 +1291,7 @@ Suppliers are referenced when creating LPOs and GRNs.
 
 ## 27. Inventory & Stores
 
-**Who can access:** Admin, Registrar, Finance (create issuances); HOD, Principal (view)
+**Who can access:** Admin, Registrar, Finance, Procurement Officer, and Inventory Manager for permitted operations; Principal and other authorised roles may have read access.
 
 Navigate to **Inventory** (📦 in the sidebar).
 
@@ -1382,3 +1442,125 @@ The **Low Stock ⚠️** tab lists items whose stock is at or below their config
 - The **Deficit** column shows how far below the reorder level the item currently is.
 - Click a row to open the Item Detail page and record a restocking receipt.
 - Review this tab regularly before raising a Purchase Requisition to get accurate reorder quantities.
+
+### 27.7 Store Requisitions (SRQ)
+
+Store Requisitions request items from institutional stores. They may be linked to
+a student project, course, or term.
+
+1. Navigate to **Stores → Requisitions** and click **+ New Requisition**.
+2. Enter the SRQ number, requester, department, purpose, and required date.
+3. Add each requested item, quantity, unit, and optional unit cost.
+4. Save the SRQ in **Draft** status.
+5. Submit it for HOD approval.
+6. The HOD may approve quantities, reject the request, or escalate it to a purchase requisition.
+7. Once approved, the store team fulfils the request and links any Goods Issue Note (GIN).
+
+SRQ statuses are **Draft**, **Submitted**, **HOD Approved**, **Fulfilled**,
+**Rejected**, and **Escalated to PR**.
+
+### 27.8 Payment and Cash Vouchers (PCV)
+
+Payment/Cash Vouchers record a controlled request, approval, payment, and
+retirement cycle.
+
+1. Navigate to **Stores → PCV** and click **+ New PCV**.
+2. Enter the PCV number, requester, department, purpose, amount requested, and line items.
+3. Save as **Draft**, then submit it.
+4. The HOD approves first, followed by Bursar/Finance approval.
+5. Finance records payment, method, amount paid, and receipt reference.
+6. After supporting documents are complete, retire the voucher.
+
+PCV statuses are **Draft**, **Submitted**, **HOD Approved**, **Bursar Approved**,
+**Paid**, **Retired**, and **Rejected**. Supported payment methods include cash,
+mobile money, and bank transfer.
+
+---
+
+## 28. Student Projects
+
+**Who can access:** Admin, Registrar, HOD, Instructor, Principal, Finance (view); Admin, Registrar, HOD, and Instructor (create/update)
+
+Navigate to **Student Projects**.
+
+Student Projects tracks practical or course-linked work assigned to an individual
+student. A project may be linked to a term, course, mark entry, and related store
+requisitions or inventory issuances.
+
+### 28.1 Creating a Project
+
+1. Click **+ New Project**.
+2. Select the student and, where applicable, the term and course.
+3. Enter a project title and description.
+4. Select the status: **Draft**, **Active**, **Submitted**, or **Assessed**.
+5. Optionally link the project to a mark entry.
+6. Click **Save**.
+
+### 28.2 Managing a Project
+
+Use the project list filters to find projects by student, term, or status. Open a
+project to update its title, description, status, and academic links. The detail
+page also shows linked store issuances where materials were issued for the project.
+
+---
+
+## 29. Notifications and Support
+
+The notification panel shows system events relevant to the signed-in user, such
+as workflow transitions, approvals, and other assigned actions.
+
+1. Open the notification panel from the application header.
+2. Select a notification to follow its linked record where available.
+3. Mark an individual notification as read, or use **Mark all as read**.
+
+For operational support, follow this order:
+
+| Tier | Owner | Examples |
+|---|---|---|
+| Tier 1 | Institute Admin | User questions, data-entry guidance, role access requests |
+| Tier 2 | 3B Helpdesk | Login problems, application errors, exports, repeated failures |
+| Tier 3 | 3B Engineering | Defects, data corrections, security incidents, service outages |
+
+When reporting an issue, include the institution, user role, module, record or
+reference number, exact steps, date/time, and a screenshot where it contains no
+sensitive credentials.
+
+---
+
+## 30. Offline Use and Synchronisation
+
+Some AMIS deployments support offline-first operation. When the connection is
+unavailable, supported client actions may be queued and synchronised when the
+connection returns.
+
+The following conflict rules apply:
+- **Marks:** server-authoritative; a newer server score is retained.
+- **Fees:** server-authoritative; finance approval is required.
+- **Student profile fields:** last-write-wins based on client timestamp.
+- **Admission status:** cannot be changed offline.
+- **Configuration:** cannot be changed offline; use the Admin Studio draft/publish workflow.
+
+If a synchronisation conflict is reported, read the message carefully and do not
+re-enter a financial or marks transaction until the server value has been checked.
+Escalate unresolved conflicts to the institute admin or 3B support team.
+
+---
+
+## 31. Current System Notes
+
+This version of the manual reflects the current AMIS application surface as of
+August 2026. The following rules are important when using the system:
+
+- Published tenant configuration controls workflows, assessment types, fee types, navigation, dashboards, and form fields.
+- A configuration draft must be validated and published before it affects users.
+- Admissions enrolment is gated by the configured enrolment state; approval alone may not be sufficient.
+- Clearance follows the ordered 11-step sequence and cannot be signed out of order.
+- Marks must be submitted, reviewed, approved, and published before they are included in processed results.
+- Fee totals depend on active fee structures and the student's programme and category.
+- User access is role-based and enforced server-side; never share accounts or passwords.
+- Student documents and uploaded evidence should be handled according to institutional data-protection policy.
+- Procurement, inventory, store requisitions, payment/cash vouchers, and student projects are now part of the operational system and should be included in institutional procedures.
+
+For technical deployment, backups, migrations, and infrastructure support, use the
+separate [Technical Installation Manual](TECHNICAL-INSTALLATION-MANUAL.md) and
+[Administration & Governance Model](docs/ADMIN-GOVERNANCE.md).

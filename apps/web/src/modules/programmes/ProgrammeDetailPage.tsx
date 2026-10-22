@@ -33,21 +33,17 @@ const PROGRAMME_LEVELS = [
   "Bachelor's Degree",
 ] as const;
 
-const FALLBACK_DEPARTMENTS = [
-  "ICT", "Business", "Engineering", "Education", "Health Sciences",
-  "Agriculture", "Social Sciences", "Hospitality", "Construction",
-  "Automotive", "Electrical", "Others",
-];
-
 export function ProgrammeDetailPage() {
   ensureGlobalCss();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const canAssignInstructors = user?.role === "admin" || user?.role === "registrar";
+  const assignedRoles = user?.roles?.length ? user.roles : user?.role ? [user.role] : [];
+  const canAssignInstructors = assignedRoles.some((role) =>
+    ["admin", "registrar", "hod"].includes(role),
+  );
   const { departments } = useConfig();
-  const deptOptions = departments.length > 0 ? departments : FALLBACK_DEPARTMENTS;
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     code: "",
@@ -117,7 +113,7 @@ export function ProgrammeDetailPage() {
     enabled: canAssignInstructors,
   });
 
-  const { data: instructorResult } = useQuery({
+  const { data: instructorResult, isLoading: instructorsLoading, error: instructorsError } = useQuery({
     queryKey: ["users", "instructors"],
     queryFn: () => listUsers({ role: "instructor", isActive: true, limit: 100 }),
     enabled: canAssignInstructors,
@@ -266,7 +262,7 @@ export function ProgrammeDetailPage() {
               <Field label="Department">
                 <select style={selectCss} value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))}>
                   <option value="">— Select department —</option>
-                  {deptOptions.map((d) => (
+                  {departments.map((d) => (
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
@@ -387,6 +383,21 @@ export function ProgrammeDetailPage() {
               </span>
             </div>
             {assignmentError && <div style={{ marginTop: 10 }}><ErrorBanner message={assignmentError} /></div>}
+            {instructorsError && (
+              <div style={{ marginTop: 10 }}>
+                <ErrorBanner message={`Could not load instructors: ${instructorsError instanceof Error ? instructorsError.message : "request failed"}`} />
+              </div>
+            )}
+            {!instructorsError && !instructorsLoading && instructors.length === 0 && (
+              <div style={{ marginTop: 10 }}>
+                <ErrorBanner message="No active users with the instructor role were found. Check the user's assigned roles." />
+              </div>
+            )}
+            {!currentTermId && (
+              <div style={{ marginTop: 10 }}>
+                <ErrorBanner message="No academic term is available. Create or activate a term before assigning an instructor." />
+              </div>
+            )}
           </Card>
         )}
 
@@ -543,7 +554,7 @@ export function ProgrammeDetailPage() {
                         <select
                           style={{ ...selectCss, width: "100%" }}
                           value={offerings.find((o) => o.course_id === course.id && o.term_id === currentTermId)?.instructor_id ?? ""}
-                          disabled={!currentTermId || assignmentMutation.isPending}
+                          disabled={!currentTermId || instructorsLoading || !!instructorsError || assignmentMutation.isPending}
                           onChange={(e) => assignmentMutation.mutate({ course, instructorId: e.target.value })}
                           aria-label={`Instructor for ${course.code}`}
                         >

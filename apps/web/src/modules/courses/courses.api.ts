@@ -1,5 +1,6 @@
 import { apiFetch } from "../../lib/apiFetch";
 import { getAccessToken } from "../../lib/auth";
+import { API_BASE_URL } from "../../lib/apiBaseUrl";
 
 export interface Course {
   id: string;
@@ -124,7 +125,7 @@ export async function downloadCourseTemplate(): Promise<void> {
   const token = getAccessToken();
   const tid = localStorage.getItem("amis_tenant_id") ?? "";
   const devRole = localStorage.getItem("amis_dev_role") ?? "admin";
-  const base = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+  const base = API_BASE_URL;
   const authHeaders: Record<string, string> = token
     ? { Authorization: `Bearer ${token}`, "x-tenant-id": tid }
     : { "x-tenant-id": tid, "x-dev-role": devRole };

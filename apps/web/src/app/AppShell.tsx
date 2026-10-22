@@ -489,6 +489,34 @@ function Sidebar() {
             marginBottom: 4,
           }}
         >
+          Help
+        </div>
+        <a
+          href="/user-manual.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 13,
+            color: C.gray500,
+            textDecoration: "none",
+            padding: "6px 0",
+          }}
+        >
+          <span>📖</span> User Manual
+        </a>
+        <div
+          style={{
+            fontSize: 11,
+            color: C.gray400,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: 4,
+          }}
+        >
           System
         </div>
         <Link

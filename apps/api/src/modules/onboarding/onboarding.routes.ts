@@ -39,6 +39,7 @@ async function issueRefreshToken(userId: string): Promise<string> {
 // ------------------------------------------------------------------ schemas
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const SELF_HOSTED_DEMO_TENANT_ID = "de000000-0000-0000-0000-000000000003";
 
 const OWNERSHIP_TYPES = ["public", "private", "faith_based", "community"] as const;
 const LICENSE_STATUSES = ["active", "pending", "expired", "suspended"] as const;
@@ -89,16 +90,19 @@ const ProvisionSchema = z.object({
 export async function onboardingRoutes(app: FastifyInstance) {
   /**
    * POST /onboarding
-   * Disabled unless ENABLE_PUBLIC_ONBOARDING=true (default: off).
-   * VTIs must be provisioned by platform admin via POST /onboarding/provision.
-   * When enabled, creates a tenant + admin user and returns JWT tokens.
+   * Public registration is disabled unless ENABLE_PUBLIC_ONBOARDING=true.
+   * Self-hosted mode allows a single first-run setup on a fresh installation.
    */
   app.post("/onboarding", async (req, reply) => {
-    if (process.env.ENABLE_PUBLIC_ONBOARDING !== "true") {
+    const selfHostedBootstrap = process.env.SELF_HOSTED_MODE === "true";
+    if (
+      process.env.ENABLE_PUBLIC_ONBOARDING !== "true" &&
+      !selfHostedBootstrap
+    ) {
       return reply.status(403).send({
         statusCode: 403,
         message:
-          "Public self-registration is disabled. Contact your platform administrator.",
+          "Self-registration is disabled for this installation.",
       });
     }
 
@@ -117,27 +121,92 @@ export async function onboardingRoutes(app: FastifyInstance) {
       adminEmail, adminPassword,
     } = parsed.data;
 
-    const client = await pool.connect();
+    const client = await (selfHostedBootstrap ? superPool : pool).connect();
     let connectionDied = false;
     try {
       await client.query("BEGIN");
 
-      // 1. Create the tenant
-      const tenantRes = await client.query(
-        `INSERT INTO platform.tenants
-           (slug, name, contact_email, phone, address, is_active, created_by_email, setup_completed,
-            ownership_type, uvtab_centre_code, license_number, license_date, license_status)
-         VALUES ($1, $2, $3, $4, $5, true, $6, false, $7, $8, $9, $10, $11)
-         RETURNING id`,
-        [
-          slug, instituteName, contactEmail, phone ?? null, address ?? null, contactEmail,
-          ownershipType,
-          uvtabCentreCode || null,
-          licenseNumber || null,
-          licenseDate || null,
-          licenseStatus ?? "active",
-        ],
-      );
+      const tenantValues = [
+        slug,
+        instituteName,
+        contactEmail,
+        phone ?? null,
+        address ?? null,
+        contactEmail,
+        ownershipType,
+        uvtabCentreCode || null,
+        licenseNumber || null,
+        licenseDate || null,
+        licenseStatus ?? "active",
+      ];
+
+      let tenantRes;
+      if (selfHostedBootstrap) {
+        await client.query(
+          "SELECT pg_advisory_xact_lock(hashtext('amis:self-hosted-bootstrap'))",
+        );
+        const existingTenants = await client.query<{
+          id: string;
+          slug: string;
+        }>("SELECT id, slug FROM platform.tenants FOR UPDATE");
+        const demoTenant = existingTenants.rows.find(
+          (tenant) =>
+            tenant.id === SELF_HOSTED_DEMO_TENANT_ID &&
+            tenant.slug === "demovti",
+        );
+        if (
+          existingTenants.rows.some((tenant) => tenant.id !== demoTenant?.id) ||
+          existingTenants.rows.length > (demoTenant ? 1 : 0)
+        ) {
+          await client.query("ROLLBACK");
+          return reply.status(409).send({
+            statusCode: 409,
+            message: "This installation has already been initialized.",
+          });
+        }
+
+        if (demoTenant) {
+          const existingUsers = await client.query(
+            "SELECT 1 FROM platform.users WHERE tenant_id = $1 LIMIT 1",
+            [demoTenant.id],
+          );
+          if (existingUsers.rowCount) {
+            await client.query("ROLLBACK");
+            return reply.status(409).send({
+              statusCode: 409,
+              message: "The initial setup tenant already contains users.",
+            });
+          }
+          tenantRes = await client.query(
+            `UPDATE platform.tenants
+             SET slug = $1, name = $2, contact_email = $3, phone = $4, address = $5,
+                 is_active = true, created_by_email = $6, setup_completed = false,
+                 ownership_type = $7, uvtab_centre_code = $8, license_number = $9,
+                 license_date = $10, license_status = $11
+             WHERE id = $12 AND slug = 'demovti'
+             RETURNING id`,
+            [...tenantValues, demoTenant.id],
+          );
+        } else {
+          tenantRes = await client.query(
+            `INSERT INTO platform.tenants
+               (slug, name, contact_email, phone, address, is_active, created_by_email, setup_completed,
+                ownership_type, uvtab_centre_code, license_number, license_date, license_status)
+             VALUES ($1, $2, $3, $4, $5, true, $6, false, $7, $8, $9, $10, $11)
+             RETURNING id`,
+            tenantValues,
+          );
+        }
+      } else {
+        tenantRes = await client.query(
+          `INSERT INTO platform.tenants
+             (slug, name, contact_email, phone, address, is_active, created_by_email, setup_completed,
+              ownership_type, uvtab_centre_code, license_number, license_date, license_status)
+           VALUES ($1, $2, $3, $4, $5, true, $6, false, $7, $8, $9, $10, $11)
+           RETURNING id`,
+          tenantValues,
+        );
+      }
       const tenantId: string = tenantRes.rows[0].id;
 
       // 2. Create the initial admin user

@@ -245,4 +245,16 @@ describe("PATCH /industrial-training/:id", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json().status).toBe("completed");
   });
+
+  it("normalizes ISO timestamps from legacy records", async () => {
+    mockWithTenant.mockResolvedValueOnce({ ...TRAINING, start_date: "2026-01-15" } as never);
+    const app = buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/industrial-training/${TRAINING.id}`,
+      headers: adminH,
+      payload: { start_date: "2026-01-15T00:00:00.000Z" },
+    });
+    expect(res.statusCode).toBe(200);
+  });
 });

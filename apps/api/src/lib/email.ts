@@ -79,6 +79,42 @@ export async function sendMail(options: SendMailOptions): Promise<void> {
   );
 }
 
+export function buildApplicationReceivedEmail(
+  firstName: string,
+  applicationReference: string,
+  programme: string,
+  intake: string,
+): { html: string; text: string } {
+  const greeting = firstName ? `Hello ${firstName},` : "Hello,";
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color: #1d4ed8;">Application Received</h2>
+      <p>${greeting}</p>
+      <p>
+        We have received your application for <strong>${programme}</strong> for the
+        <strong>${intake}</strong> intake.
+      </p>
+      <p>Your application reference is <strong>${applicationReference}</strong>.</p>
+      <p>Please keep this reference for your records. We will contact you with the next steps.</p>
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
+      <p style="color:#9ca3af;font-size:12px;">AMIS — Academic Management Information System</p>
+    </div>
+  `;
+
+  const text = `
+${greeting}
+
+We have received your application for ${programme} for the ${intake} intake.
+
+Your application reference is ${applicationReference}.
+
+Please keep this reference for your records. We will contact you with the next steps.
+  `.trim();
+
+  return { html, text };
+}
+
 export function buildPasswordResetEmail(resetUrl: string): { html: string; text: string } {
   const html = `
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">

@@ -4,30 +4,19 @@
 |------|--------|
 | **Secrets** | Never commit or email `.env.offline`. `chmod 600 config/.env.offline`. |
 | **OS users** | Run Docker as a non-root user added to the `docker` group. |
-| **Firewall** | Allow only ports `:80` and `:3001` inbound from the LAN. Block all WAN inbound. Use `ufw` on Ubuntu. |
-| **TLS on LAN** | Optional — issue an internal-CA cert and front the stack with your existing reverse proxy. |
+| **Network access** | Restrict ports `:80` and `:3001` to the institution's trusted LAN. Do not expose them directly to the internet. |
 | **Database port** | `5432` must **not** appear in `ss -tlnp`. Only the internal docker network sees it. |
 | **Backups** | Encrypt off-site copies (e.g. `age`, VeraCrypt) before shipping to USB. |
 | **OS updates** | Monthly: `apt-get update && apt-get -y upgrade && reboot`. |
-| **Audit** | AMIS logs auth events. Tail with `docker compose ... logs api \| grep AUDIT`. |
+| **Audit** | Review API logs with `docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline logs api`. |
 | **Roles** | Apply least privilege: `admin`, `registrar`, `finance`, `hod`, `instructor`, `principal`, `dean`. |
 | **Sessions** | JWT tokens are short-lived. Refresh tokens rotate on use. |
-| **Passwords** | Argon2id for password hashing. Minimum 10 characters enforced at the API. |
+| **Passwords** | Use a unique, strong password for each account. Do not share credentials. |
 
-## Recommended `ufw` rules (Ubuntu)
+## Network firewall
 
-```bash
-ufw default deny incoming
-ufw default allow outgoing
-ufw allow from 192.168.0.0/16 to any port 22        # SSH from LAN
-ufw allow from 192.168.0.0/16 to any port 80        # Web
-ufw allow from 192.168.0.0/16 to any port 3001      # API
-ufw enable
-ufw status verbose
-```
-
-Adjust the `192.168.0.0/16` subnet to match the institution's LAN.
+The Compose file publishes the Web and API ports on the host network interfaces. Restrict inbound access to the institution's LAN using the server and network firewall policy. Docker-published ports may not be filtered by basic UFW rules as expected; verify that ports 80 and 3001 are unreachable from outside the LAN. Keep PostgreSQL port 5432 unexposed.
 
 ## Reporting a vulnerability
 
-Email **security@3bsolutions.co.ug**. See the repo's `SECURITY.md` for the disclosure policy.
+Report suspected vulnerabilities through the private security contact specified in the institution's AMIS support agreement.

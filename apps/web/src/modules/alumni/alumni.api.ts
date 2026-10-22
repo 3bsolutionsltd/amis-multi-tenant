@@ -1,4 +1,5 @@
 import { apiFetch } from "../../lib/apiFetch";
+import { API_BASE_URL } from "../../lib/apiBaseUrl";
 
 export interface Alumni {
   id: string;
@@ -49,6 +50,6 @@ export function graduateStudent(
 }
 
 export function exportAlumniCsv(): string {
-  const base = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+  const base = API_BASE_URL;
   return `${base}/alumni/export/csv`;
 }

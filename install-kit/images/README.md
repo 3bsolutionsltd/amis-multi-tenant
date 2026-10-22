@@ -1,6 +1,6 @@
-# Placeholder
+# Runtime images
 
-The vendor (3B Solutions Ltd.) places Docker image `.tar` files here before shipping the kit.
+The release bundle builder places the Docker image `.tar` files here before the kit is distributed.
 
 Required:
 - `postgres.tar`
@@ -8,4 +8,4 @@ Required:
 - `amis-web.tar`
 - `dbmate.tar`
 
-Build them on a connected machine with `scripts/build-offline-bundle.ps1` at the repo root. See `MANIFEST.md`.
+Build them on a connected release machine with `scripts/build-offline-bundle.ps1` at the repository root. See `MANIFEST.md`.

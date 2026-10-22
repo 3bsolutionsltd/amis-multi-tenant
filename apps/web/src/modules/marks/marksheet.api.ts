@@ -46,7 +46,7 @@ export function getMarksheet(params: MarksheetParams): Promise<Marksheet> {
 }
 
 export function exportMarksheet(
-  params: MarksheetParams & { template: MarksheetTemplate },
+  params: MarksheetParams & { template: MarksheetTemplate; format?: "csv" | "xlsx" },
 ): Promise<void> {
   const q = new URLSearchParams();
   q.set("course_id", params.course_id);
@@ -54,8 +54,9 @@ export function exportMarksheet(
   q.set("intake", params.intake);
   q.set("term", params.term);
   q.set("template", params.template);
+  q.set("format", params.format ?? "xlsx");
   return downloadBlob(
     `/marksheet/export?${q.toString()}`,
-    `marksheet_${params.template}_${params.course_id}_${params.term}.csv`.replace(/\s+/g, "_"),
+    `marksheet_${params.template}_${params.course_id}_${params.term}.${params.format ?? "xlsx"}`.replace(/\s+/g, "_"),
   );
 }

@@ -64,6 +64,24 @@ function getPool(): pg.Pool {
   return _pool;
 }
 
+/**
+ * Acquire an application-pool client, replacing a pool that can no longer
+ * establish connections. Only acquisition is retried; transactions that have
+ * already started must not be replayed automatically.
+ */
+export async function connectAppPool(): Promise<pg.PoolClient> {
+  try {
+    return await getPool().connect();
+  } catch (err) {
+    if (!isConnectionError(err)) throw err;
+
+    const stalePool = _pool;
+    _pool = null;
+    await stalePool?.end().catch(() => undefined);
+    return getPool().connect();
+  }
+}
+
 const CONNECTION_ERROR_CODES = new Set([
   "ECONNRESET",
   "ECONNREFUSED",
@@ -90,10 +108,31 @@ export function isConnectionError(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err ?? "");
   return (
     (code != null && CONNECTION_ERROR_CODES.has(code)) ||
-    /connection terminated|terminating connection|server closed the connection/i.test(
+    /connection terminated|terminating connection|server closed the connection|timeout exceeded when trying to connect/i.test(
       message,
     )
   );
+}
+
+/**
+ * Retry an auth lookup once after a connection-level failure. A pool can
+ * retain a failed connection attempt after a network interruption, so the
+ * retry must use a newly-created superuser pool rather than the same pool.
+ */
+export async function querySuperPool<T extends pg.QueryResultRow = any>(
+  text: string,
+  values?: unknown[],
+): Promise<pg.QueryResult<T>> {
+  try {
+    return await getSuperPool().query<T>(text, values);
+  } catch (err) {
+    if (!isConnectionError(err)) throw err;
+
+    const stalePool = _superPool;
+    _superPool = null;
+    await stalePool?.end().catch(() => undefined);
+    return getSuperPool().query<T>(text, values);
+  }
 }
 
 export const pool: pg.Pool = new Proxy({} as pg.Pool, {

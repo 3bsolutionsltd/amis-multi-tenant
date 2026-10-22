@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useSearchParams, Link } from "react-router-dom";
+import { API_BASE_URL } from "../lib/apiBaseUrl";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const API_URL = API_BASE_URL;
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();

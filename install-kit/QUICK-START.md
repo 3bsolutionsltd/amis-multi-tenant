@@ -5,42 +5,34 @@
 ## Install (first time)
 
 ```bash
-# Linux
+# Ubuntu Server
 sudo ./install.sh
-```
-```powershell
-# Windows
-.\install.ps1
 ```
 
 The installer asks you for:
 
 | Prompt | Example answer |
 |--------|----------------|
-| Server LAN IP | `192.168.1.100` |
-| Postgres password | *(auto-generated, copy it)* |
-| JWT secret | *(auto-generated)* |
+| Server LAN IP or hostname | `192.168.1.100` |
 
-When it finishes, open `http://<server-IP>` in a browser on the LAN.
+When it finishes, open `http://<server-address>/setup` in a browser on the LAN and create the institute and initial administrator.
 
-## Default credentials
-
-The platform-admin account is supplied by 3B Solutions Ltd. on a separate sheet. Change the password on first login.
+There are no shared default administrator credentials.
 
 ## Daily operations
 
 ```bash
 # Status
-docker compose -f config/docker-compose.offline.yml ps
+docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline ps
 
 # Logs (live)
-docker compose -f config/docker-compose.offline.yml logs -f api
+docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline logs -f api
 
 # Restart
 docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline restart api
 
 # Manual backup
-./scripts/backup.sh
+./scripts/backup.sh           # writes matched database and uploads archives
 
 # Health check
 ./scripts/healthcheck.sh
@@ -57,4 +49,4 @@ Double-click `docs/index.html` — or serve it on the LAN:
 ## Get help
 
 1. `docs/13-troubleshooting.md`
-2. Email **support@3bsolutions.co.ug** with output of `./scripts/diagnostics.sh`.
+2. Send the output of `./scripts/diagnostics.sh` through the AMIS support channel specified for your institution.

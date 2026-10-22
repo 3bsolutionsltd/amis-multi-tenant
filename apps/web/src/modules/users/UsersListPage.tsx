@@ -20,7 +20,7 @@ import {
   ErrorBanner,
   Pagination,
 } from "../../lib/ui";
-import { DEFAULT_DEPARTMENTS, useConfig } from "../../app/ConfigProvider";
+import { useConfig } from "../../app/ConfigProvider";
 import { UserRolesField } from "./UserRolesField";
 
 export function UsersListPage() {
@@ -28,7 +28,7 @@ export function UsersListPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { departments: configuredDepartments } = useConfig();
-  const departments = configuredDepartments.length > 0 ? configuredDepartments : DEFAULT_DEPARTMENTS;
+  const departments = configuredDepartments;
 
   const [params, setParams] = useSearchParams();
   const roleFilter = params.get("role") ?? "";
@@ -62,6 +62,8 @@ export function UsersListPage() {
   }
 
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
   const [editRole, setEditRole] = useState("");
   const [editRoles, setEditRoles] = useState<string[]>([]);
   const [editDepartment, setEditDepartment] = useState("");
@@ -95,6 +97,8 @@ export function UsersListPage() {
 
   function openEdit(user: User) {
     setEditingUser(user);
+    setEditFirstName(user.firstName ?? "");
+    setEditLastName(user.lastName ?? "");
     setEditRole(user.role);
     setEditRoles(user.roles?.length ? user.roles : [user.role]);
     setEditDepartment(user.department ?? "");
@@ -106,6 +110,8 @@ export function UsersListPage() {
     updateMut.mutate({
       id: editingUser.id,
       body: {
+        firstName: editFirstName.trim() || undefined,
+        lastName: editLastName.trim() || undefined,
         role: editRole,
         roles: editRoles,
         department: editRoles.includes("hod") ? editDepartment || null : null,
@@ -135,7 +141,7 @@ export function UsersListPage() {
       <FilterBar>
         <input
           type="text"
-          placeholder="Search by email…"
+          placeholder="Search by name or email…"
           value={searchFilter}
           onChange={(e) => setSearchFilter(e.target.value)}
           style={{
@@ -229,7 +235,7 @@ export function UsersListPage() {
 
       {editingUser && (
         <Modal
-          title={`Edit Responsibilities — ${editingUser.email}`}
+          title={`Edit User — ${editingUser.email}`}
           onClose={() => setEditingUser(null)}
           footer={
             <>
@@ -243,6 +249,12 @@ export function UsersListPage() {
           }
         >
           {editError && <ErrorBanner message={editError} />}
+          <Field label="First Name">
+            <input value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} style={{ ...selectCss, width: "100%" }} />
+          </Field>
+          <Field label="Last Name">
+            <input value={editLastName} onChange={(e) => setEditLastName(e.target.value)} style={{ ...selectCss, width: "100%" }} />
+          </Field>
           <UserRolesField
             availableRoles={roleOptions}
             roles={editRoles}

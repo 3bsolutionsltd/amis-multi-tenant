@@ -2,11 +2,6 @@ import { useState, useEffect } from "react";
 import { getConfigStatus, createDraft, publishConfig } from "./admin-studio.api";
 import { useQueryClient } from "@tanstack/react-query";
 
-const DEFAULT_DEPARTMENTS = [
-  "ICT", "Business", "Engineering", "Construction", "Electrical",
-  "Automotive", "Hospitality", "Agriculture", "Health Sciences", "Others",
-];
-
 const inputSt: React.CSSProperties = {
   padding: "7px 10px", border: "1px solid #d1d5db",
   borderRadius: 6, fontSize: 13, width: "100%", boxSizing: "border-box",
@@ -21,7 +16,7 @@ export function DepartmentsEditor() {
   const [error, setError] = useState<string | null>(null);
   const role = localStorage.getItem("amis_dev_role") ?? "admin";
   const [fullPayload, setFullPayload] = useState<Record<string, unknown>>({});
-  const [departments, setDepartments] = useState<string[]>(DEFAULT_DEPARTMENTS);
+  const [departments, setDepartments] = useState<string[]>([]);
   const [newDept, setNewDept] = useState("");
 
   useEffect(() => {
@@ -34,7 +29,7 @@ export function DepartmentsEditor() {
         setFullPayload(payload);
         const institution = payload.institution as { departments?: string[] } | undefined;
         const saved = institution?.departments;
-        setDepartments(saved && saved.length > 0 ? saved : DEFAULT_DEPARTMENTS);
+        setDepartments(saved ?? []);
       })
       .catch(() => setError("Failed to load config"))
       .finally(() => setLoading(false));
@@ -104,7 +99,7 @@ export function DepartmentsEditor() {
       <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>Departments</h2>
       <p style={{ fontSize: 13, color: "#64748b", marginBottom: 24 }}>
         Configure the departments available when creating or editing programmes.
-        Defaults ({DEFAULT_DEPARTMENTS.slice(0, 4).join(", ")}, …) are used when none are saved.
+        These values are saved to the database and used throughout the application.
       </p>
 
       <div style={{ marginBottom: 16 }}>

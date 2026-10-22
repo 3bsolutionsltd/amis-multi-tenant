@@ -6,6 +6,10 @@ const DEFAULT_FEE_TYPES = ["tuition", "examination", "functional", "other"];
 const DEFAULT_STUDENT_CATEGORIES = ["all", "boarding", "day", "government"];
 const DEFAULT_ASSET_CATEGORIES = ["equipment", "furniture", "vehicle", "computer", "other"];
 
+function isTuitionFeeType(feeType: string) {
+  return feeType.trim().toLowerCase().includes("tuition");
+}
+
 const inputSt: React.CSSProperties = {
   padding: "7px 10px", border: "1px solid #d1d5db",
   borderRadius: 6, fontSize: 13, width: "100%", boxSizing: "border-box",
@@ -21,6 +25,7 @@ export function FeeTypesEditor() {
   const role = localStorage.getItem("amis_dev_role") ?? "admin";
   const [fullPayload, setFullPayload] = useState<Record<string, unknown>>({});
   const [feeTypes, setFeeTypes] = useState<string[]>(DEFAULT_FEE_TYPES);
+  const [governmentOtherFeeTypes, setGovernmentOtherFeeTypes] = useState<string[]>([]);
   const [studentCategories, setStudentCategories] = useState<string[]>(DEFAULT_STUDENT_CATEGORIES);
   const [assetCategories, setAssetCategories] = useState<string[]>(DEFAULT_ASSET_CATEGORIES);
   const [newFeeType, setNewFeeType] = useState("");
@@ -38,10 +43,24 @@ export function FeeTypesEditor() {
         const savedFeeTypes = payload.fee_types as string[] | undefined;
         const savedCategories = payload.student_categories as string[] | undefined;
         const savedAssetCategories = payload.asset_categories as string[] | undefined;
+        const feesConfig = payload.fees && typeof payload.fees === "object"
+          ? (payload.fees as Record<string, unknown>)
+          : {};
+        const savedGovernmentOtherFeeTypes = feesConfig.governmentOtherFeeTypes;
+        const configuredFeeTypes = savedFeeTypes && savedFeeTypes.length > 0
+          ? savedFeeTypes
+          : DEFAULT_FEE_TYPES;
         const configuredStudentCategories = savedCategories && savedCategories.length > 0
           ? savedCategories
           : DEFAULT_STUDENT_CATEGORIES;
-        setFeeTypes(savedFeeTypes && savedFeeTypes.length > 0 ? savedFeeTypes : DEFAULT_FEE_TYPES);
+        setFeeTypes(configuredFeeTypes);
+        setGovernmentOtherFeeTypes(
+          Array.isArray(savedGovernmentOtherFeeTypes)
+            ? savedGovernmentOtherFeeTypes.filter(
+                (feeType): feeType is string => typeof feeType === "string",
+              )
+            : configuredFeeTypes.filter((feeType) => !isTuitionFeeType(feeType)),
+        );
         setStudentCategories(
           configuredStudentCategories.some(
             (category) => category.trim().toLowerCase() === "government",
@@ -56,7 +75,21 @@ export function FeeTypesEditor() {
   }, []);
 
   function buildUpdated() {
-    return { ...fullPayload, fee_types: feeTypes, student_categories: studentCategories, asset_categories: assetCategories };
+    const existingFees = fullPayload.fees && typeof fullPayload.fees === "object"
+      ? (fullPayload.fees as Record<string, unknown>)
+      : {};
+    return {
+      ...fullPayload,
+      fee_types: feeTypes,
+      student_categories: studentCategories,
+      asset_categories: assetCategories,
+      fees: {
+        ...existingFees,
+        governmentOtherFeeTypes: governmentOtherFeeTypes.filter((feeType) =>
+          feeTypes.includes(feeType) && !isTuitionFeeType(feeType),
+        ),
+      },
+    };
   }
 
   async function handleSave() {
@@ -92,7 +125,13 @@ export function FeeTypesEditor() {
   function addFeeType() {
     const t = newFeeType.trim();
     if (!t || feeTypes.includes(t)) return;
+    const allCurrentOtherTypesSelected = feeTypes
+      .filter((feeType) => !isTuitionFeeType(feeType))
+      .every((feeType) => governmentOtherFeeTypes.includes(feeType));
     setFeeTypes([...feeTypes, t]);
+    if (!isTuitionFeeType(t) && allCurrentOtherTypesSelected) {
+      setGovernmentOtherFeeTypes([...governmentOtherFeeTypes, t]);
+    }
     setNewFeeType("");
   }
 
@@ -158,6 +197,43 @@ export function FeeTypesEditor() {
           >
             Add
           </button>
+        </div>
+      </div>
+
+      {/* Government fee policy section */}
+      <div style={{ marginBottom: 32 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>
+          Government Student Fees
+        </h3>
+        <p style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+          Government students use the Government tuition tier regardless of residence.
+          Select any additional fee types they owe; select none for a tuition-only policy.
+        </p>
+        <div style={{ display: "grid", gap: 8 }}>
+          {feeTypes.filter((feeType) => !isTuitionFeeType(feeType)).map((feeType) => (
+            <label
+              key={feeType}
+              style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}
+            >
+              <input
+                type="checkbox"
+                checked={governmentOtherFeeTypes.includes(feeType)}
+                onChange={(event) =>
+                  setGovernmentOtherFeeTypes((current) =>
+                    event.target.checked
+                      ? [...current, feeType]
+                      : current.filter((selected) => selected !== feeType),
+                  )
+                }
+              />
+              {feeType}
+            </label>
+          ))}
+          {feeTypes.every(isTuitionFeeType) && (
+            <p style={{ fontSize: 12, color: "#b91c1c", margin: 0 }}>
+              Add at least one non-tuition fee type to configure additional Government charges.
+            </p>
+          )}
         </div>
       </div>
 

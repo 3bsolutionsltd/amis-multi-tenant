@@ -13,6 +13,7 @@ import {
   updateFeeTransaction,
 } from "./fees.api";
 import { listStudents, type Student } from "../students/students.api";
+import { GovernmentFeeConfigurationWarning } from "./GovernmentFeeConfigurationWarning";
 import {
   ensureGlobalCss,
   PageHeader,
@@ -274,6 +275,9 @@ export function FeesPage() {
           {overviewQ.isLoading && <Spinner />}
           {overviewQ.data && (
             <>
+              <GovernmentFeeConfigurationWarning
+                studentCount={overviewQ.data.governmentTuitionUnconfigured ?? 0}
+              />
               <div
                 style={{
                   display: "grid",

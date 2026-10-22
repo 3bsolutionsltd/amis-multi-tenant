@@ -8,14 +8,11 @@ PORT="${PORT:-4001}"
 
 cd "$DOCS_DIR"
 
-# Try Python (very widely available), fall back to a Docker one-liner.
 if command -v python3 >/dev/null 2>&1; then
   echo "Docs are available at: http://$(hostname -I | awk '{print $1}'):${PORT}"
   echo "Press Ctrl-C to stop."
   exec python3 -m http.server "$PORT" --bind 0.0.0.0
-elif command -v python >/dev/null 2>&1; then
-  exec python -m http.server "$PORT" --bind 0.0.0.0
 else
-  echo "Python not found — falling back to Docker."
-  exec docker run --rm -p "${PORT}:80" -v "$DOCS_DIR:/usr/share/nginx/html:ro" nginx:alpine
+  echo "Python 3 is required to serve the docs. Install it from the Ubuntu package repository." >&2
+  exit 1
 fi

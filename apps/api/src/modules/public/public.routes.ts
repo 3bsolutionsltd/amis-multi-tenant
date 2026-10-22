@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { pool } from "../../db/pool.js";
 import { withTenant } from "../../db/tenant.js";
+import { buildApplicationReceivedEmail, sendMail } from "../../lib/email.js";
 import { resolveProgramme } from "../../lib/programmes.js";
 import { loadWorkflowDef } from "../../lib/workflowDef.js";
 import { PublicApplySchema } from "./public.schema.js";
@@ -155,6 +156,23 @@ export async function publicRoutes(app: FastifyInstance) {
         return reply.status(422).send({ error: "programme not found" });
       if ("configError" in result)
         return reply.status(422).send({ error: result.message });
+
+      if (d.email) {
+        const { html, text } = buildApplicationReceivedEmail(
+          result.application.first_name,
+          result.application.id,
+          result.application.programme,
+          result.application.intake,
+        );
+        await sendMail({
+          to: d.email,
+          subject: "Application Received — AMIS",
+          html,
+          text,
+        }).catch((err) => {
+          console.error(`Failed to send application receipt to ${d.email}:`, err);
+        });
+      }
 
       return reply.status(201).send(result);
     },

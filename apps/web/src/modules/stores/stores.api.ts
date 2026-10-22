@@ -148,7 +148,7 @@ export function transitionSRQ(
     rejection_reason?: string;
     item_approvals?: { id: string; quantity_approved: number; unit_cost?: number }[];
   }
-): Promise<StoreRequisition> {
+): Promise<StoreRequisition & { issuance_id?: string }> {
   return apiFetch<StoreRequisition>(`/stores/requisitions/${id}/transition`, {
     method: "POST",
     body: JSON.stringify({ action, ...extra }),

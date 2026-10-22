@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { API_BASE_URL } from "../lib/apiBaseUrl";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const API_URL = API_BASE_URL;
 
 interface TenantOption {
   id: string;
@@ -15,9 +16,11 @@ export function TenantSwitcher() {
   const [tenants, setTenants] = useState<TenantOption[]>([]);
 
   useEffect(() => {
-    fetch(`${API_URL}/auth/tenants`)
+    if (localStorage.getItem("amis_dev_role") !== "platform_admin") return;
+
+    fetch(`${API_URL}/tenants?limit=100`)
       .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setTenants(data); })
+      .then((data) => { if (Array.isArray(data?.data)) setTenants(data.data); })
       .catch(() => {});
   }, []);
 

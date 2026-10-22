@@ -2,27 +2,18 @@
 
 | Channel | Use for |
 |---------|---------|
-| **support@3bsolutions.co.ug** | All technical issues, bug reports, feature requests. |
-| **security@3bsolutions.co.ug** | Suspected security vulnerabilities (private). |
-| Phone (business hours) | Critical outages, install-day blockers. |
-| GitHub Issues (if private access granted) | Engineering follow-up. |
+| Institution's AMIS support channel | Technical issues, bug reports, and feature requests. |
+| Private security contact in the AMIS support agreement | Suspected security vulnerabilities. |
 
 ## What to include in a ticket
 
 1. Output of `./scripts/diagnostics.sh` (`diag-*.txt`).
 2. AMIS version (UI footer, or `docker images | grep amis`).
-3. Whether you are running **offline** or **cloud** mode.
+3. Installation kit version (read `VERSION` in the kit directory).
 4. Steps to reproduce.
 5. What you expected vs. what happened.
 6. Any recent changes (updates, network changes, hardware swaps).
 
-## SLA
+## Support terms
 
-The SLA agreed in your institution's contract overrides anything written here. Typical response targets:
-
-| Severity | Response | Resolution target |
-|----------|----------|-------------------|
-| P1 — System down, all users blocked | 1 business hour | 1 business day |
-| P2 — Major feature broken | 4 business hours | 3 business days |
-| P3 — Minor issue / cosmetic | 1 business day | Next release |
-| P4 — Question / enhancement | 2 business days | Tracked on backlog |
+Support channels, service hours, and response targets are defined by the support agreement for your institution. This manual does not establish separate service-level commitments.

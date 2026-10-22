@@ -4,7 +4,7 @@ AMIS ships as **four Docker containers** that run together on a single host.
 
 ```
                       ┌────────────────────────────────────────────┐
-                      │   Institutional LAN  (or VPS in cloud mode)│
+                      │            Institutional LAN               │
                       │                                            │
    Browser  ────►  ┌──┴──┐                                         │
   (LAN clients)    │ Web │ React SPA, served by Nginx              │
@@ -42,14 +42,15 @@ AMIS ships as **four Docker containers** that run together on a single host.
 
 - Tenant isolation is enforced **at the database layer** with PostgreSQL Row-Level Security (RLS).
 - Every API request sets `withTenant(tenantId, …)` before running queries.
-- Cross-tenant data access is **structurally impossible** through application code.
-- A single AMIS install can host one VTI or many (rare for on-prem; common for cloud).
+- Database row-level security helps isolate tenant data, and API requests are scoped to their tenant.
+- This kit supports one institute per installation. Multi-institute hosting is outside its supported scope.
 
 ## Default network
 
-| Mode | Web | API | DB |
-|------|-----|-----|----|
-| Offline / LAN | `:80` exposed on LAN | `:3001` exposed on LAN | not exposed |
-| Cloud / VPS | `127.0.0.1:8095` (Nginx + TLS) | `127.0.0.1:3005` (Nginx) | not exposed |
+| Component | LAN address | Exposure |
+|-----------|-------------|----------|
+| Web UI | `http://<server-address>/` | TCP 80, institution LAN |
+| API | `http://<server-address>:3001/` | TCP 3001, institution LAN |
+| Database | Internal Docker network | Not exposed on the host |
 
 > **Database port 5432 is never exposed** — it is only reachable on the internal Docker network.
