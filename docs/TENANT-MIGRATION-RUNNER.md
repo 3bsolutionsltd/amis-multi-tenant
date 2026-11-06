@@ -98,6 +98,27 @@ tokens are not transferred.
 
 ## KTI hosted-to-local SSH route
 
+The migration tooling is on branch `fix/uat-validated-20261014`; it is not part
+of the VTI's pinned application release. On KTI, fetch the files into a
+temporary directory without checking out the branch or changing the running
+application:
+
+```bash
+cd /opt/amis/amis-multi-tenant
+git fetch origin fix/uat-validated-20261014
+MIGRATION_DIR=/tmp/amis-migration-56a3779
+mkdir -m 700 "$MIGRATION_DIR"
+git show 56a3779:scripts/migrate-tenant-data.mjs \
+  > "$MIGRATION_DIR/migrate-tenant-data.mjs"
+git show 56a3779:scripts/fetch-tenant-uploads-over-ssh.sh \
+  > "$MIGRATION_DIR/fetch-tenant-uploads-over-ssh.sh"
+git show origin/fix/uat-validated-20261014:docs/TENANT-MIGRATION-RUNNER.md \
+  > "$MIGRATION_DIR/TENANT-MIGRATION-RUNNER.md"
+```
+
+Read the temporary runbook and use the exact migration commit. Stop if the
+directory already exists rather than overwriting prior files.
+
 The KTI VTI can initiate SSH to the hosted VPS. A read-only check confirmed
 that the VPS host can reach the staging DB container on its private Docker
 address. This permits an SSH local forward without publishing a PostgreSQL
@@ -113,6 +134,7 @@ set -euo pipefail
 cd /opt/amis/amis-multi-tenant
 VPS_SSH=<trusted-vps-ssh-alias>
 LOCAL_API=config-api-1
+MIGRATION_DIR=/tmp/amis-migration-56a3779
 
 local_network=$(sudo docker inspect --format '{{range $name, $value := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$LOCAL_API" | head -n 1)
 local_gateway=$(sudo docker network inspect --format '{{(index .IPAM.Config 0).Gateway}}' "$local_network")
@@ -145,7 +167,7 @@ SOURCE_API=$(ssh "$VPS_SSH" 'cd /opt/amis && sudo docker compose -p amis-staging
 
 SOURCE_DIR=/tmp/kti-source-uploads
 sudo docker exec "$LOCAL_API" mkdir -m 700 "$SOURCE_DIR"
-sudo docker cp /opt/amis/amis-multi-tenant/scripts/migrate-tenant-data.mjs \
+sudo docker cp "$MIGRATION_DIR/migrate-tenant-data.mjs" \
   "$LOCAL_API:/tmp/migrate-tenant-data.mjs"
 
 run_migration() {
@@ -205,11 +227,12 @@ umask 077
 cd /opt/amis/amis-multi-tenant
 VPS_SSH=<trusted-vps-ssh-alias>
 LOCAL_API=config-api-1
+MIGRATION_DIR=/tmp/amis-migration-56a3779
 source_api=$(ssh "$VPS_SSH" 'cd /opt/amis && sudo docker compose -p amis-staging -f docker-compose.staging.yml --env-file .env.staging ps -q api')
 manifest_dir=$(mktemp -d)
 upload_dir=$(mktemp -d)
 sudo docker cp "$LOCAL_API:/tmp/kti-upload-manifest.txt" "$manifest_dir/manifest.txt"
-scp scripts/fetch-tenant-uploads-over-ssh.sh "$manifest_dir/fetch-uploads.sh"
+scp "$MIGRATION_DIR/fetch-tenant-uploads-over-ssh.sh" "$manifest_dir/fetch-uploads.sh"
 bash "$manifest_dir/fetch-uploads.sh" "$VPS_SSH" "$source_api" \
   "$manifest_dir/manifest.txt" "$upload_dir"
 sudo docker cp "$upload_dir/." "$LOCAL_API:/tmp/kti-source-uploads/"
@@ -232,6 +255,7 @@ After institute sign-off, cleanup the named temporary paths:
 sudo docker exec "$LOCAL_API" rm -f /tmp/migrate-tenant-data.mjs /tmp/kti-upload-manifest.txt
 sudo docker exec "$LOCAL_API" rm -rf /tmp/kti-source-uploads
 rm -rf -- "$manifest_dir" "$upload_dir"
+rm -rf -- /tmp/amis-migration-56a3779
 ```
 
 This procedure must first be tested against a sanitized clone. The source URL
