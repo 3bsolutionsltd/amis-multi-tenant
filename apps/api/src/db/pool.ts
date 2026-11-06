@@ -114,24 +114,39 @@ export function isConnectionError(err: unknown): boolean {
   );
 }
 
-/**
- * Retry an auth lookup once after a connection-level failure. A pool can
- * retain a failed connection attempt after a network interruption, so the
- * retry must use a newly-created superuser pool rather than the same pool.
- */
-export async function querySuperPool<T extends pg.QueryResultRow = any>(
-  text: string,
-  values?: unknown[],
-): Promise<pg.QueryResult<T>> {
+async function connectSuperPool(): Promise<pg.PoolClient> {
   try {
-    return await getSuperPool().query<T>(text, values);
+    return await getSuperPool().connect();
   } catch (err) {
     if (!isConnectionError(err)) throw err;
 
     const stalePool = _superPool;
     _superPool = null;
     await stalePool?.end().catch(() => undefined);
-    return getSuperPool().query<T>(text, values);
+    return getSuperPool().connect();
+  }
+}
+
+/**
+ * Retry an auth lookup once after a connection-level failure. A pool can
+ * retain a failed connection attempt after a network interruption, so the
+ * retry must use a newly-created superuser pool rather than the same pool.
+ * Query execution errors are not retried because a write may already have
+ * completed before its connection failed.
+ */
+export async function querySuperPool<T extends pg.QueryResultRow = any>(
+  text: string,
+  values?: unknown[],
+): Promise<pg.QueryResult<T>> {
+  const client = await connectSuperPool();
+  let connectionDied = false;
+  try {
+    return await client.query<T>(text, values);
+  } catch (err) {
+    connectionDied = isConnectionError(err);
+    throw err;
+  } finally {
+    client.release(connectionDied);
   }
 }
 
@@ -198,7 +213,10 @@ function getSuperPool(): pg.Pool {
 
 export const superPool: pg.Pool = new Proxy({} as pg.Pool, {
   get(_t, prop) {
-    return (getSuperPool() as unknown as Record<string | symbol, unknown>)[prop];
+    const currentPool = getSuperPool();
+    if (prop === "query") return querySuperPool;
+    if (prop === "connect") return connectSuperPool;
+    return (currentPool as unknown as Record<string | symbol, unknown>)[prop];
   },
 });
 

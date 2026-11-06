@@ -5,7 +5,7 @@ import rateLimit from "@fastify/rate-limit";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import { resolve } from "path";
-import { pool } from "./db/pool.js";
+import { pool, querySuperPool } from "./db/pool.js";
 import { isEmailConfigured } from "./lib/email.js";
 import { studentsRoutes } from "./modules/students/students.routes.js";
 import { configRoutes } from "./modules/config/config.routes.js";
@@ -118,18 +118,34 @@ export function buildApp() {
 
   app.get("/health", async (_req, _reply) => {
     const checks: Record<string, string> = {};
-    let dbOk = true;
-    try {
-      await pool.query("SELECT 1");
-      checks.database = "ok";
-    } catch {
-      dbOk = false;
-      checks.database = "error";
-    }
+    const [appDbOk, authDbOk] = await Promise.all([
+      pool.query("SELECT 1").then(
+        () => {
+          checks.database = "ok";
+          return true;
+        },
+        (err: unknown) => {
+          _req.log.error({ err }, "Application database health check failed");
+          checks.database = "error";
+          return false;
+        },
+      ),
+      querySuperPool("SELECT 1").then(
+        () => {
+          checks.authDatabase = "ok";
+          return true;
+        },
+        (err: unknown) => {
+          _req.log.error({ err }, "Auth database health check failed");
+          checks.authDatabase = "error";
+          return false;
+        },
+      ),
+    ]);
     checks.email = isEmailConfigured() ? "configured" : "not_configured";
     checks.redis = process.env.REDIS_URL ? "configured" : "not_configured";
 
-    if (!dbOk) {
+    if (!appDbOk || !authDbOk) {
       _reply.status(503);
       return { status: "error", message: "database unreachable", checks };
     }

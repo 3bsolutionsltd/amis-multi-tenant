@@ -14,7 +14,10 @@ describe("GET /health", () => {
     const app = buildApp();
     const res = await app.inject({ method: "GET", url: "/health" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ status: "ok" });
+    expect(res.json()).toMatchObject({
+      status: "ok",
+      checks: { database: "ok", authDatabase: "ok" },
+    });
   });
 });
 

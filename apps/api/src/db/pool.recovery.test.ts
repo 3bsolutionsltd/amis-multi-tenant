@@ -13,7 +13,9 @@ import EventEmitter from "events";
 // ---------------------------------------------------------------------------
 class MockPool extends EventEmitter {
   ended = false;
+  connectError: Error | undefined;
   queryError: Error | undefined;
+  releasedWithError: Array<boolean | Error | undefined> = [];
 
   async query() {
     if (this.queryError) {
@@ -22,6 +24,28 @@ class MockPool extends EventEmitter {
       throw error;
     }
     return { rows: [] };
+  }
+
+  async connect() {
+    if (this.connectError) {
+      const error = this.connectError;
+      this.connectError = undefined;
+      throw error;
+    }
+
+    return {
+      query: async () => {
+        if (this.queryError) {
+          const error = this.queryError;
+          this.queryError = undefined;
+          throw error;
+        }
+        return { rows: [] };
+      },
+      release: (error?: boolean | Error) => {
+        this.releasedWithError.push(error);
+      },
+    };
   }
 
   async end() {
@@ -114,18 +138,31 @@ describe("pg-pool auto-recovery", () => {
     expect(createdPools).toHaveLength(2);
   });
 
-  it("recognizes pg-pool connection timeouts and retries on a fresh pool", async () => {
+  it("retries superuser pool acquisition timeouts using a fresh pool", async () => {
     expect(
       isConnectionError(new Error("timeout exceeded when trying to connect")),
     ).toBe(true);
 
     void (superPool as unknown as { query: unknown }).query;
     const first = createdPools[0];
-    first.queryError = new Error("timeout exceeded when trying to connect");
+    first.connectError = new Error("timeout exceeded when trying to connect");
 
-    await querySuperPool("SELECT 1");
+    await superPool.query("SELECT 1");
 
     expect(first.ended).toBe(true);
     expect(createdPools).toHaveLength(2);
+  });
+
+  it("does not retry a query execution error", async () => {
+    void (superPool as unknown as { query: unknown }).query;
+    const first = createdPools[0];
+    first.queryError = new Error("server closed the connection");
+
+    await expect(querySuperPool("UPDATE platform.users SET is_active = true")).rejects.toThrow(
+      "server closed the connection",
+    );
+
+    expect(createdPools).toHaveLength(1);
+    expect(first.releasedWithError).toEqual([true]);
   });
 });
