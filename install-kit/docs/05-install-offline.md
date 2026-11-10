@@ -79,10 +79,11 @@ Fill in **every** value:
 |----------|-------------|----------------|
 | `POSTGRES_PASSWORD` | Strong random string (no `$`) | `openssl rand -base64 24` |
 | `JWT_SECRET` | 64 random hex bytes | `openssl rand -hex 64` |
-| `CORS_ORIGIN` | `http://<server-LAN-IP>` (no trailing `/`) | — |
+| `CORS_ORIGIN` | One or more comma-separated exact browser origins (no trailing `/`) | e.g. `http://kti.local,http://100.92.197.118` |
+| `CORS_ORIGIN_CIDRS` | Optional comma-separated IPv4 CIDRs for HTTP origins on the default port | e.g. `172.16.0.0/24` |
 | `VITE_API_URL` | `http://<server-LAN-IP>:3001` | — |
 
-> ⚠️ `VITE_API_URL` is **baked into the web image**. If the server IP changes later, request a rebuilt image bundle from 3B Solutions or use a LAN DNS name.
+> `CORS_ORIGIN` lists exact browser origins, including their scheme. `CORS_ORIGIN_CIDRS` is optional and should be as narrow as practical. `VITE_API_URL` is **baked into the web image**; if the API address changes later, rebuild the image bundle or use a stable LAN DNS name.
 
 ### Step 4 — Database + migrations
 

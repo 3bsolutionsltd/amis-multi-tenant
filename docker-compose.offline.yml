@@ -53,6 +53,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?required}
       # Allow requests from the web container served at the server LAN IP
       CORS_ORIGIN: ${CORS_ORIGIN:?required}
+      CORS_ORIGIN_CIDRS: ${CORS_ORIGIN_CIDRS:-}
     # Accessible from any device on the LAN at http://<server-ip>:3001
     ports:
       - "0.0.0.0:3001:3000"
