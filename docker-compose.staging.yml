@@ -53,6 +53,7 @@ services:
       APP_DATABASE_URL: ${APP_DATABASE_URL:?required}
       JWT_SECRET: ${JWT_SECRET:?required}
       CORS_ORIGIN: ${CORS_ORIGIN:?required}
+      CORS_ORIGIN_CIDRS: ${CORS_ORIGIN_CIDRS:-}
       # Frontend URL used to build email links (reset password, welcome)
       APP_URL: ${APP_URL:?required}
       # BullMQ outbox queue (Issue #149 — offline/PWA support)

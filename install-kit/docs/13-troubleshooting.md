@@ -2,7 +2,7 @@
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| Browser shows "Network Error" or CORS error after login | `CORS_ORIGIN` in `.env.offline` does not match the URL the browser uses. | Edit `config/.env.offline`, then `docker compose ... up -d --no-deps api`. |
+| Browser shows "Network Error" or CORS error after login | The browser origin is absent from `CORS_ORIGIN` or `CORS_ORIGIN_CIDRS`. | Add the exact origin or a narrowly scoped IPv4 CIDR, then run `docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline up -d --no-deps api`. |
 | Login spinner never resolves; API logs show `ECONNREFUSED 127.0.0.1:5432` | DB container not healthy. | `docker compose ... ps` — restart `db`, check disk space. |
 | `migrate` exits with `permission denied` | Volume mount path wrong. | Run from `install-kit/` so the `../db/migrations` relative mount resolves. |
 | Web shows old API URL after server IP change | `VITE_API_URL` was baked into the image. | Request a rebuilt bundle from 3B Solutions with the new IP, OR set up a stable LAN DNS name and rebuild once. |
