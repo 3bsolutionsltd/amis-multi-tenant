@@ -35,6 +35,7 @@ services:
       APP_DATABASE_URL: ${APP_DATABASE_URL:?required}
       JWT_SECRET: ${JWT_SECRET:?required}
       CORS_ORIGIN: ${CORS_ORIGIN:?required}
+      CORS_ORIGIN_CIDRS: ${CORS_ORIGIN_CIDRS:-}
       APP_URL: ${APP_URL:?required}
       REDIS_URL: redis://redis:6379
       RESEND_API_KEY: ${RESEND_API_KEY:-}

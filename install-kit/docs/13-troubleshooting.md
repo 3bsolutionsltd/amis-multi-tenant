@@ -2,7 +2,7 @@
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| Browser shows "Network Error" or CORS error after login | `CORS_ORIGIN` in `.env.offline` does not match the URL used in the browser. | Correct `CORS_ORIGIN`, then run `docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline up -d --no-deps api`. |
+| Browser shows "Network Error" or CORS error after login | The browser origin is absent from `CORS_ORIGIN` or `CORS_ORIGIN_CIDRS`. | Add the exact origin or a narrowly scoped IPv4 CIDR, then run `docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline up -d --no-deps api`. |
 | Login spinner never resolves or API reports a database connection error | Database container is stopped, unhealthy, or has incorrect connection settings. | Run `docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline ps`, then inspect the database and API logs. |
 | Migrations fail or the `migrate` container exits unsuccessfully | Database is not ready, the release is incomplete, or migrations failed. | Check `docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline logs db migrate`; verify `db/migrations/` exists in the kit. |
 | API unavailable after changing the server address | The configured browser origin may no longer match `CORS_ORIGIN`. | Set the exact `http://<server-address>` origin in `config/.env.offline`, then restart the API service. |
