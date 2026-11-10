@@ -2,10 +2,10 @@
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| Browser shows "Network Error" or CORS error after login | `CORS_ORIGIN` in `.env.offline` does not match the URL used in the browser. | Correct `CORS_ORIGIN`, then run `docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline up -d --no-deps api`. |
+| Browser shows "Network Error" or CORS error after login | The browser origin is absent from `CORS_ORIGIN` or `CORS_ORIGIN_CIDRS`. | Add the exact origin or a narrowly scoped IPv4 CIDR, then run `docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline up -d --no-deps api`. |
 | Login spinner never resolves or API reports a database connection error | Database container is stopped, unhealthy, or has incorrect connection settings. | Run `docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline ps`, then inspect the database and API logs. |
 | Migrations fail or the `migrate` container exits unsuccessfully | Database is not ready, the release is incomplete, or migrations failed. | Check `docker compose -f config/docker-compose.offline.yml --env-file config/.env.offline logs db migrate`; verify `db/migrations/` exists in the kit. |
-| API unavailable after changing the server address | The configured browser origin may no longer match `CORS_ORIGIN`. | Set the exact `http://<server-address>` origin in `config/.env.offline`, then restart the API service. |
+| API unavailable after changing the server address | The configured browser origin may not match the CORS allowlist. | Add the exact `http://<server-address>` origin to `CORS_ORIGIN` or its IPv4 subnet to `CORS_ORIGIN_CIDRS`, then restart the API service. |
 | Slow performance with many students | Default Postgres tuning. | Check disk and memory capacity, then use the AMIS support channel specified for your institution for tuning guidance. |
 | Wi-Fi clients can't reach AMIS but wired works | LAN segregation / VLAN. | Talk to the network admin. Wi-Fi clients need to reach the server's LAN IP on TCP 80 and 3001. |
 | Disk full | Database, uploads, logs, or backups have used the available space. | Check `df -h` and `docker system df`; copy old backups elsewhere before removing them. Do not prune volumes or the offline images needed for recovery. |

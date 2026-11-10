@@ -64,9 +64,10 @@ Fill in **every** value:
 |----------|-------------|----------------|
 | `POSTGRES_PASSWORD` | Strong random string without `$` | `openssl rand -base64 24` |
 | `JWT_SECRET` | 64 random hex bytes | `openssl rand -hex 64` |
-| `CORS_ORIGIN` | Canonical browser URL, e.g. `http://amis.kti.local` | — |
+| `CORS_ORIGIN` | One or more comma-separated exact browser origins, e.g. `http://amis.kti.local,http://100.92.197.118` | — |
+| `CORS_ORIGIN_CIDRS` | Optional comma-separated IPv4 CIDRs for HTTP origins on the default port, e.g. `172.16.0.0/24` | — |
 
-The Web image resolves the API host from the browser URL at runtime. Choose a stable LAN address or DNS name and use it consistently; `CORS_ORIGIN` must match the browser's origin exactly.
+The Web image resolves the API host from the browser URL at runtime. Prefer a stable LAN hostname and use it consistently. Exact origins must include the scheme and must not include a path or the API port. CIDR entries are matched only against HTTP IPv4 origins on the default port. Keep CIDRs as narrow as practical; CORS is not a substitute for authentication or network access controls.
 
 ### Step 4 — Database + migrations
 
