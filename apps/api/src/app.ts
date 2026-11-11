@@ -49,23 +49,12 @@ import { feedbackRoutes } from "./modules/feedback/feedback.routes.js";
 import { registerDevIdentity } from "./middleware/devIdentity.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 import { isUUID } from "./lib/uuid.js";
-import { createCorsOriginValidator } from "./lib/corsOrigin.js";
 
 export function buildApp() {
   const app = Fastify({ logger: true });
-  const isCorsOriginAllowed = createCorsOriginValidator(
-    process.env.CORS_ORIGIN ?? "http://localhost:5173",
-    process.env.CORS_ORIGIN_CIDRS,
-  );
 
   app.register(cors, {
-    origin: (origin, callback) => {
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-      callback(null, isCorsOriginAllowed(origin) ? origin : false);
-    },
+    origin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
 
