@@ -30,7 +30,6 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-amis}:${POSTGRES_PASSWORD:?required}@db:5432/${POSTGRES_DB:-amis}
       JWT_SECRET: ${JWT_SECRET:?required}
       CORS_ORIGIN: ${CORS_ORIGIN:?required}
-      CORS_ORIGIN_CIDRS: ${CORS_ORIGIN_CIDRS:-}
     ports:
       - "0.0.0.0:3001:3000"
     volumes:

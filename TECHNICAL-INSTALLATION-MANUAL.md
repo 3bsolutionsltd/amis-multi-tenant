@@ -222,8 +222,7 @@ Fill in **every** value. Do not leave any placeholder.
 |----------|-------------|-----|
 | `POSTGRES_PASSWORD` | A strong random password for the DB superuser. | `openssl rand -base64 32` (Linux). Avoid `$` characters. |
 | `JWT_SECRET` | 64 random hex bytes. **Never share or commit.** | `openssl rand -hex 64` |
-| `CORS_ORIGIN` | One or more comma-separated exact browser origins. | e.g. `http://kti.local,http://100.92.197.118` |
-| `CORS_ORIGIN_CIDRS` | Optional IPv4 CIDRs for HTTP origins on the default port. | e.g. `172.16.0.0/24` |
+| `CORS_ORIGIN` | `http://<server-LAN-IP>` — no trailing slash. | e.g. `http://192.168.1.100` |
 | `VITE_API_URL` | `http://<server-LAN-IP>:3001` | e.g. `http://192.168.1.100:3001` |
 | `POSTGRES_USER` | Leave as `amis` unless you have a reason to change. | — |
 | `POSTGRES_DB` | Leave as `amis`. | — |
@@ -295,7 +294,7 @@ From any laptop on the same network as the server:
 3. Sign in with the platform-admin credentials supplied by 3B Solutions Ltd.
 4. Confirm that menus, dashboards, and the student list load without "Network Error".
 
-If you see a CORS error, check that the browser origin is in `CORS_ORIGIN` or within a narrowly scoped `CORS_ORIGIN_CIDRS` entry in `.env.offline`.
+If you see a CORS error, re-check `CORS_ORIGIN` in `.env.offline` matches **exactly** the URL the browser uses.
 
 ### 5.10 Step 10 — Make Docker auto-start on boot
 
@@ -568,7 +567,7 @@ docker compose -f docker-compose.offline.yml --env-file .env.offline down -v
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| Browser shows "Network Error" / CORS error after login | The browser origin is absent from `CORS_ORIGIN` or `CORS_ORIGIN_CIDRS`. | Add the exact origin or a narrowly scoped IPv4 CIDR, then `docker compose ... up -d --no-deps api`. |
+| Browser shows "Network Error" / CORS error after login | `CORS_ORIGIN` in `.env.offline` does not match the URL the browser is using. | Update `CORS_ORIGIN`, then `docker compose ... up -d --no-deps api`. |
 | Login spinner never completes; API logs show `ECONNREFUSED 127.0.0.1:5432` | DB container not healthy. | `docker compose ... ps` — restart `db`, check disk space. |
 | `migrate` exits with `permission denied` | Volume mount points to a path that doesn't exist. | Run from `/opt/amis`; ensure `db/migrations/` was copied from the bundle. |
 | Web image still shows old API URL after server IP change | `VITE_API_URL` is baked into the image at build time. | Request a rebuilt offline bundle from 3B Solutions Ltd. with the new IP, OR set up a stable LAN DNS name and rebuild once. |
